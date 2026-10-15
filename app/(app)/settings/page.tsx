@@ -125,7 +125,7 @@ export default async function SettingsPage() {
           </details>
         </div>
 
-        <div className="card">
+        <div className="card" id="categories">
           <h2 className="section-title">Catégories</h2>
           <ul className="mb-4 max-h-[26rem] divide-y divide-line overflow-y-auto pr-1">
             {categories.map((c) => (

@@ -103,15 +103,17 @@ test("opération : ajouter, modifier, supprimer (F7)", async ({ page }) => {
 test("catégorie : créer, doublon refusé clairement, renommer, supprimer (F8, R5)", async ({ page }) => {
   acceptDialogs(page);
   await page.goto("/settings", { waitUntil: "networkidle" });
+  // Limité à la carte Catégories : les catégories de dépense apparaissent aussi dans les budgets.
+  const card = page.locator("#categories");
   // En mode édition, le nom passe dans un champ : on cible l'éditeur ouvert (un seul à la fois).
-  const editor = () => page.getByRole("listitem").filter({ has: page.getByLabel("Nom de la catégorie") });
+  const editor = () => card.getByRole("listitem").filter({ has: page.getByLabel("Nom de la catégorie") });
   // Restes d'un passage interrompu.
   for (const name of ["E2E Voyage", "E2E Vacances"]) {
-    const leftover = page.getByRole("listitem").filter({ hasText: name });
+    const leftover = card.getByRole("listitem").filter({ hasText: name });
     if ((await leftover.count()) > 0) {
       await leftover.first().getByRole("button", { name: "Modifier" }).click();
       await editor().getByRole("button", { name: "Supprimer la catégorie" }).click();
-      await expect(page.getByRole("listitem").filter({ hasText: name })).toHaveCount(0);
+      await expect(card.getByRole("listitem").filter({ hasText: name })).toHaveCount(0);
     }
   }
   const add = async () => {
@@ -120,21 +122,21 @@ test("catégorie : créer, doublon refusé clairement, renommer, supprimer (F8, 
     await page.getByRole("button", { name: "Ajouter la catégorie" }).click();
   };
   await add();
-  await expect(page.getByRole("listitem").filter({ hasText: "E2E Voyage" })).toBeVisible();
+  await expect(card.getByRole("listitem").filter({ hasText: "E2E Voyage" })).toBeVisible();
   await page.locator("#cat-name").fill("E2E Voyage");
   await page.getByRole("button", { name: "Ajouter la catégorie" }).click();
   await expect(page.getByText("Cette catégorie existe déjà.")).toBeVisible();
 
-  await page.getByRole("listitem").filter({ hasText: "E2E Voyage" }).getByRole("button", { name: "Modifier" }).click();
+  await card.getByRole("listitem").filter({ hasText: "E2E Voyage" }).getByRole("button", { name: "Modifier" }).click();
   await editor().getByLabel("Nom de la catégorie").fill("E2E Vacances");
   await editor().getByRole("button", { name: "Enregistrer" }).click();
   // L'éditeur se referme quand l'enregistrement a réussi.
   await expect(editor()).toHaveCount(0);
-  const renamed = page.getByRole("listitem").filter({ hasText: "E2E Vacances" });
+  const renamed = card.getByRole("listitem").filter({ hasText: "E2E Vacances" });
   await expect(renamed).toBeVisible();
   await renamed.getByRole("button", { name: "Modifier" }).click();
   await editor().getByRole("button", { name: "Supprimer la catégorie" }).click();
-  await expect(page.getByRole("listitem").filter({ hasText: "E2E Vacances" })).toHaveCount(0);
+  await expect(card.getByRole("listitem").filter({ hasText: "E2E Vacances" })).toHaveCount(0);
 });
 
 test("devise appliquée partout (R4)", async ({ page }) => {
