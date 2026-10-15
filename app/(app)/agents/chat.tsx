@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Markdown } from "./markdown";
 
 type AgentOption = { id: string; name: string; tagline: string };
 type Message = {
@@ -28,7 +29,11 @@ export function Chat({ agents }: { agents: AgentOption[] }) {
   const bottom = useRef<HTMLDivElement>(null);
   const names = Object.fromEntries(agents.map((a) => [a.id, a.name]));
 
-  useEffect(() => bottom.current?.scrollIntoView({ behavior: "smooth" }), [messages, pending]);
+  // Accolades obligatoires : scrollIntoView renvoie une promesse dans les navigateurs récents,
+  // et React prendrait toute valeur renvoyée pour une fonction de nettoyage.
+  useEffect(() => {
+    bottom.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, pending]);
 
   async function send(text: string) {
     const message = text.trim();
@@ -84,7 +89,7 @@ export function Chat({ agents }: { agents: AgentOption[] }) {
   }
 
   return (
-    <div className="card flex h-[calc(100vh-14rem)] min-h-[28rem] flex-col p-0">
+    <div className="card flex h-[calc(100vh-14rem)] min-h-112 flex-col p-0">
       <div className="flex flex-wrap items-center gap-1.5 border-b border-line p-3">
         {[{ id: "auto", name: "Auto", tagline: "L'orchestrateur choisit l'agent" }, ...agents].map((a) => (
           <button
@@ -179,7 +184,9 @@ function AssistantMessage({
           )}
         </p>
       )}
-      <div className="whitespace-pre-wrap rounded-2xl rounded-bl-sm bg-surface-2 px-4 py-2 text-sm">{message.content}</div>
+      <div className="rounded-2xl rounded-bl-sm bg-surface-2 px-4 py-2 text-sm">
+        <Markdown text={message.content} />
+      </div>
       {message.runId && (
         <div className="mt-1 flex items-center gap-2 text-xs text-ink-3">
           <button onClick={() => onFeedback(1, null)} className={message.rating === 1 ? "text-pos" : "hover:text-ink"} aria-label="Bonne réponse">
