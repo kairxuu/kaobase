@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Markdown } from "./markdown";
 
@@ -85,10 +86,19 @@ function actionLinks(meta: NonNullable<Message["meta"]>) {
   return [...seen.entries()];
 }
 
-export function Chat({ agents }: { agents: AgentOption[] }) {
+export function Chat({
+  agents,
+  initialConversationId,
+  initialMessages = [],
+}: {
+  agents: AgentOption[];
+  initialConversationId?: string;
+  initialMessages?: Pick<Message, "role" | "content" | "agent" | "runId">[];
+}) {
+  const router = useRouter();
   const [agent, setAgent] = useState("auto");
-  const [conversationId, setConversationId] = useState(() => crypto.randomUUID());
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [conversationId, setConversationId] = useState(() => initialConversationId ?? crypto.randomUUID());
+  const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState("");
   const [pending, setPending] = useState(false);
   const bottom = useRef<HTMLDivElement>(null);
@@ -135,6 +145,8 @@ export function Chat({ agents }: { agents: AgentOption[] }) {
           },
         },
       ]);
+      // Met à jour la liste des conversations à côté du chat.
+      router.refresh();
     } catch (error) {
       setMessages((m) => [...m, { role: "assistant", content: `Erreur : ${error instanceof Error ? error.message : error}` }]);
     } finally {
@@ -173,6 +185,7 @@ export function Chat({ agents }: { agents: AgentOption[] }) {
           onClick={() => {
             setMessages([]);
             setConversationId(crypto.randomUUID());
+            router.push("/agents");
           }}
         >
           Nouvelle conversation

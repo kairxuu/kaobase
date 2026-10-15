@@ -1,16 +1,18 @@
 import Link from "next/link";
-import { requireUser } from "@/lib/auth";
+import { getCurrency, requireUser } from "@/lib/auth";
 import { getCategories, getTotalBalance, listTransactions, summarizeMonth } from "@/lib/data/finance";
 import { listSubscriptions } from "@/lib/data/subscriptions";
 import { listTasks } from "@/lib/data/tasks";
 import { listBudgets } from "@/lib/data/budgets";
 import { forecastBalance } from "@/lib/learning/forecast";
-import { daysUntil, money, shortDate } from "@/lib/ui/format";
+import { daysUntil, moneyIn, shortDate } from "@/lib/ui/format";
 import { MonthDial, type DialMark } from "./_components/month-dial";
 import { ForecastLine } from "./_components/forecast-line";
 
 export default async function Dashboard() {
   const { supabase, userId } = await requireUser();
+  const currency = await getCurrency();
+  const money = moneyIn(currency);
   const now = new Date();
   const today = now.toISOString().slice(0, 10);
   const month = today.slice(0, 7);
@@ -107,7 +109,7 @@ export default async function Dashboard() {
       )}
 
       <section className="grid items-center gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
-        <MonthDial today={now.getUTCDate()} daysInMonth={daysInMonth} marks={marks} remaining={remaining} total={totalThisMonth} />
+        <MonthDial currency={currency} today={now.getUTCDate()} daysInMonth={daysInMonth} marks={marks} remaining={remaining} total={totalThisMonth} />
 
         <div className="space-y-8">
           <div>
@@ -153,7 +155,7 @@ export default async function Dashboard() {
               Abonnements connus, plus ta tendance habituelle : {money(forecast.variableDaily)} par jour.
             </p>
           </div>
-          <ForecastLine points={forecast.points} />
+          <ForecastLine points={forecast.points} currency={currency} />
         </section>
       )}
 

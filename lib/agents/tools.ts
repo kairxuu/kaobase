@@ -39,13 +39,21 @@ import { rememberFact } from "@/lib/learning/memory";
 export type ToolContext = {
   categories: Category[];
   accounts: { id: string; name: string }[];
+  // Garde serveur (revue D4) : vrai seulement si le message actuel de l'utilisateur confirme explicitement.
+  userConfirmed: boolean;
+};
+
+const DELETE_REFUSED = {
+  refus:
+    "Suppression non effectuée : l'utilisateur n'a pas confirmé dans son dernier message. " +
+    "Rappelle-lui précisément ce qui sera supprimé et demande « Je supprime ? ».",
 };
 
 // Lu une fois par question : les noms de catégories et de comptes deviennent des listes
 // fermées dans les schémas, le modèle ne peut pas en inventer.
-export async function loadToolContext(supabase: Supabase): Promise<ToolContext> {
+export async function loadToolContext(supabase: Supabase, userConfirmed: boolean): Promise<ToolContext> {
   const [categories, accounts] = await Promise.all([getCategories(supabase), getAccounts(supabase)]);
-  return { categories, accounts: accounts.map((a) => ({ id: a.id, name: a.name })) };
+  return { categories, accounts: accounts.map((a) => ({ id: a.id, name: a.name })), userConfirmed };
 }
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "format AAAA-MM-JJ");
@@ -169,6 +177,7 @@ function sharedTools(supabase: Supabase, agent: AgentId, ctx: ToolContext): Tool
         "Supprime une opération. Demande TOUJOURS confirmation à l'utilisateur avant (en rappelant date, libellé, montant), puis appelle cet outil seulement après son accord.",
       inputSchema: z.object({ id: z.string().uuid(), confirmation_utilisateur: confirmation }),
       execute: async ({ id }) => {
+        if (!ctx.userConfirmed) return DELETE_REFUSED;
         await deleteTransaction(supabase, id);
         return { supprimee: id };
       },
@@ -448,7 +457,7 @@ function subscriptionTools(supabase: Supabase, ctx: ToolContext): ToolSet {
 // Tâches
 // ---------------------------------------------------------------------------
 
-function taskTools(supabase: Supabase): ToolSet {
+function taskTools(supabase: Supabase, ctx: ToolContext): ToolSet {
   return {
     lister_taches: tool({
       description: "Tâches de l'utilisateur, triées par échéance.",
@@ -473,6 +482,7 @@ function taskTools(supabase: Supabase): ToolSet {
       description: "Supprime une tâche. Demande confirmation à l'utilisateur avant.",
       inputSchema: z.object({ id: z.string().uuid(), confirmation_utilisateur: confirmation }),
       execute: async ({ id }) => {
+        if (!ctx.userConfirmed) return DELETE_REFUSED;
         await deleteTask(supabase, id);
         return { supprimee: id };
       },
@@ -546,7 +556,7 @@ export function toolsFor(agent: AgentId, supabase: Supabase, ctx: ToolContext): 
   const specific = {
     finance: () => financeTools(supabase, ctx),
     subscriptions: () => subscriptionTools(supabase, ctx),
-    tasks: () => taskTools(supabase),
+    tasks: () => taskTools(supabase, ctx),
     imports: () => importTools(supabase),
   }[agent]();
   return { ...sharedTools(supabase, agent, ctx), ...specific };

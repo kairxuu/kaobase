@@ -2,6 +2,7 @@ import "server-only";
 import type { Supabase } from "@/lib/supabase/server";
 import type { AgentId } from "@/lib/learning/router";
 import { embed, toVector } from "./embeddings";
+import { UserError } from "@/lib/errors";
 
 // Mémoire des agents : ce que l'utilisateur a dit, corrigé ou validé est réinjecté
 // dans les prochains prompts (RAG + few-shot). C'est ce qui fait progresser l'IA gratuite
@@ -85,7 +86,7 @@ export async function rememberFact(supabase: Supabase, agent: AgentId | "shared"
     embedding: toVector(embedding),
     importance: 1.5,
   });
-  if (error) throw new Error(error.message);
+  if (error) throw error;
 }
 
 // 👍 -> la réponse devient un exemple ; correction -> l'exemple porte la version corrigée
@@ -101,7 +102,7 @@ export async function applyFeedback(
     .select("id, agent, input, output")
     .eq("id", runId)
     .single();
-  if (error || !run) throw new Error("Exécution introuvable");
+  if (error || !run) throw new UserError("Exécution introuvable");
 
   await supabase.from("agent_feedback").upsert({ run_id: runId, rating, correction }, { onConflict: "user_id,run_id" });
   // Un retour remplace le précédent : on repart d'un état propre pour cette exécution.

@@ -24,3 +24,16 @@ describe("dedupeHash", () => {
     expect(dedupeHash(base)).not.toBe(dedupeHash({ ...base, occurrence: 1 }));
   });
 });
+
+import { money, moneyIn } from "@/lib/ui/format";
+
+describe("moneyIn", () => {
+  it("formate dans la devise du profil, sans conversion", () => {
+    expect(moneyIn("USD")(12.5)).toContain("$");
+    expect(moneyIn("usd")(12.5)).toContain("$");
+    expect(moneyIn(null)(12.5)).toBe(money(12.5));
+  });
+  it("retombe sur l'euro si le code est invalide", () => {
+    expect(moneyIn("XX1")(1)).toBe(money(1));
+  });
+});

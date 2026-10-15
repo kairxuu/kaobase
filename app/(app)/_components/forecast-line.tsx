@@ -1,9 +1,10 @@
-import { money, shortDate } from "@/lib/ui/format";
+import { moneyIn, shortDate } from "@/lib/ui/format";
 
 // Prévision gravée : une ligne, des hachures dessous comme une taille-douce, le point bas signalé.
 // SVG statique rendu côté serveur (remplace Recharts, ~350 Ko de JavaScript en moins).
 
-export function ForecastLine({ points }: { points: { date: string; balance: number }[] }) {
+export function ForecastLine({ points, currency }: { points: { date: string; balance: number }[]; currency: string }) {
+  const money = moneyIn(currency);
   const W = 640;
   const H = 170;
   const PAD = { top: 18, bottom: 6, left: 4, right: 4 };

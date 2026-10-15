@@ -2,20 +2,24 @@ import type { EmailOtpType } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
-// Lien de confirmation d'email (template Supabase : {{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email).
+// Lien reçu par email : confirmation d'inscription ou réinitialisation du mot de passe.
+// Gère les deux formats Supabase (token_hash + type, ou code PKCE) et un paramètre `next` relatif.
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = request.nextUrl;
   const tokenHash = searchParams.get("token_hash");
   const type = searchParams.get("type") as EmailOtpType | null;
   const code = searchParams.get("code");
+  const nextParam = searchParams.get("next") ?? "";
+  // Uniquement un chemin interne : jamais de redirection vers un autre site.
+  const next = /^\/(?!\/)[\w\-/]*$/.test(nextParam) ? nextParam : type === "recovery" ? "/auth/reset" : "/";
   const supabase = await createClient();
 
-  if (tokenHash && type) {
-    const { error } = await supabase.auth.verifyOtp({ type, token_hash: tokenHash });
-    if (!error) return NextResponse.redirect(`${origin}/`);
-  } else if (code) {
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) return NextResponse.redirect(`${origin}/`);
-  }
-  return NextResponse.redirect(`${origin}/login`);
+  let ok = false;
+  if (tokenHash && type) ok = !(await supabase.auth.verifyOtp({ type, token_hash: tokenHash })).error;
+  else if (code) ok = !(await supabase.auth.exchangeCodeForSession(code)).error;
+
+  if (ok) return NextResponse.redirect(`${origin}${next}`);
+  const url = new URL("/login", origin);
+  url.searchParams.set("lien", "expire");
+  return NextResponse.redirect(url);
 }

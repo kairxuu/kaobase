@@ -1,10 +1,14 @@
-import { requireUser } from "@/lib/auth";
+import { getCurrency, requireUser } from "@/lib/auth";
 import { getAccounts, getCategories, listTransactions, monthRange } from "@/lib/data/finance";
-import { money, shortDate } from "@/lib/ui/format";
+import { moneyIn, shortDate } from "@/lib/ui/format";
 import { addTransactionAction, categorizeUncategorizedAction } from "../actions";
 import { ActionButton } from "../_components/action-button";
 import { FormAction } from "../_components/form-action";
+import Link from "next/link";
 import { CategorySelect } from "./category-select";
+import { RowActions } from "./row-actions";
+
+const PAGE_SIZE = 100;
 
 const BY_LABEL = { rule: "règle apprise", llm: "proposé par l'IA", user: "choisi par toi" } as const;
 
@@ -13,20 +17,33 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/tra
   const get = (k: string) => (typeof params[k] === "string" ? (params[k] as string) : undefined);
   const month = get("mois");
   const range = month && /^\d{4}-\d{2}$/.test(month) ? monthRange(month) : undefined;
+  const page = Math.max(1, Number(get("page")) || 1);
 
   const { supabase } = await requireUser();
+  const money = moneyIn(await getCurrency());
   const [txs, categories, accounts] = await Promise.all([
     listTransactions(supabase, {
       ...range,
       categoryId: get("categorie") || undefined,
       uncategorized: get("non") === "1",
       search: get("q") || undefined,
-      limit: 300,
+      // Une ligne de plus que la page : indique s'il existe une page suivante.
+      limit: PAGE_SIZE + 1,
+      offset: (page - 1) * PAGE_SIZE,
     }),
     getCategories(supabase),
     getAccounts(supabase),
   ]);
-  const uncategorized = txs.filter((t) => !t.category_id).length;
+  const hasNext = txs.length > PAGE_SIZE;
+  const rows = txs.slice(0, PAGE_SIZE);
+  const uncategorized = rows.filter((t) => !t.category_id).length;
+  const pageHref = (n: number) => {
+    const q = new URLSearchParams();
+    for (const [k, v] of Object.entries(params)) if (typeof v === "string" && v && k !== "page") q.set(k, v);
+    if (n > 1) q.set("page", String(n));
+    const qs = q.toString();
+    return `/transactions${qs ? `?${qs}` : ""}`;
+  };
 
   return (
     <div className="space-y-6">
@@ -46,7 +63,7 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/tra
         </ActionButton>
       </header>
 
-      <form className="flex flex-wrap items-end gap-3" method="get" role="search">
+      <form className="flex flex-wrap items-end gap-3" method="get" role="search" action="/transactions">
         <div className="min-w-40 flex-1">
           <label className="label" htmlFor="q">Recherche</label>
           <input className="input" id="q" name="q" defaultValue={get("q")} placeholder="Netflix, loyer, Carrefour…" />
@@ -78,15 +95,16 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/tra
               <th>Libellé</th>
               <th className="text-right">Montant</th>
               <th>Catégorie</th>
+              <th><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody>
-            {txs.length === 0 && (
+            {rows.length === 0 && (
               <tr>
-                <td colSpan={4} className="py-10 text-center text-ink-3">Aucune opération ne correspond. Élargis les filtres ou importe un relevé.</td>
+                <td colSpan={5} className="py-10 text-center text-ink-3">Aucune opération ne correspond. Élargis les filtres ou importe un relevé.</td>
               </tr>
             )}
-            {txs.map((t) => (
+            {rows.map((t) => (
               <tr key={t.id}>
                 <td className="whitespace-nowrap text-ink-2">{shortDate(t.booked_at)}</td>
                 <td>
@@ -98,11 +116,21 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/tra
                   <CategorySelect transactionId={t.id} value={t.category_id} categories={categories} />
                   {t.categorized_by && <span className="ml-2 text-xs text-ink-3">{BY_LABEL[t.categorized_by]}</span>}
                 </td>
+                <td className="text-right">
+                  <RowActions row={{ id: t.id, bookedAt: t.booked_at, label: t.label_raw, amount: t.amount }} />
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      {(page > 1 || hasNext) && (
+        <nav className="flex items-center justify-between text-sm" aria-label="Pages">
+          {page > 1 ? <Link className="btn-ghost btn-sm" href={pageHref(page - 1)}>Page précédente</Link> : <span />}
+          <span className="text-ink-3">Page {page}</span>
+          {hasNext ? <Link className="btn-ghost btn-sm" href={pageHref(page + 1)}>Page suivante</Link> : <span />}
+        </nav>
+      )}
       {uncategorized > 0 && <p className="text-xs text-ink-3">{uncategorized === 1 ? "Une opération" : `${uncategorized} opérations`} sans catégorie dans cette liste.</p>}
 
       <details className="card">

@@ -1,9 +1,10 @@
-import { requireUser } from "@/lib/auth";
+import { getCurrency, requireUser } from "@/lib/auth";
 import { listSubscriptions } from "@/lib/data/subscriptions";
 import { annualCost, monthlyCost } from "@/lib/learning/subscriptions";
-import { daysUntil, money, PERIOD_LABEL, shortDate } from "@/lib/ui/format";
+import { daysUntil, moneyIn, PERIOD_LABEL, shortDate } from "@/lib/ui/format";
 import {
   createSubscriptionAction,
+  deleteSubscriptionAction,
   detectSubscriptionsAction,
   setSubscriptionStatusAction,
   updateSubscriptionAction,
@@ -20,6 +21,7 @@ const PERIODS = [
 
 export default async function SubscriptionsPage() {
   const { supabase } = await requireUser();
+  const money = moneyIn(await getCurrency());
   const subs = await listSubscriptions(supabase, ["active", "suggested", "cancelled"]);
   const active = subs.filter((s) => s.status === "active");
   const suggested = subs.filter((s) => s.status === "suggested");
@@ -133,6 +135,13 @@ export default async function SubscriptionsPage() {
                     >
                       Je l&apos;ai résilié
                     </ActionButton>
+                    <span className="ml-1.5" />
+                    <ActionButton
+                      action={deleteSubscriptionAction.bind(null, s.id)}
+                      confirm={`Supprimer ${s.name} de la liste ? Kaobase pourra le reproposer s'il le détecte à nouveau.`}
+                    >
+                      Supprimer
+                    </ActionButton>
                   </td>
                 </tr>
               );
@@ -174,7 +183,12 @@ export default async function SubscriptionsPage() {
               {cancelled.map((s) => (
                 <li key={s.id} className="flex items-center justify-between py-2">
                   <span className="text-ink-2">{s.name}</span>
-                  <ActionButton action={setSubscriptionStatusAction.bind(null, s.id, "active")}>Le suivre à nouveau</ActionButton>
+                  <span className="flex gap-1.5">
+                    <ActionButton action={setSubscriptionStatusAction.bind(null, s.id, "active")}>Le suivre à nouveau</ActionButton>
+                    <ActionButton action={deleteSubscriptionAction.bind(null, s.id)} confirm={`Supprimer ${s.name} définitivement de la liste ?`}>
+                      Supprimer
+                    </ActionButton>
+                  </span>
                 </li>
               ))}
             </ul>

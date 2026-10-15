@@ -1,6 +1,7 @@
 import "server-only";
 import type { Supabase } from "@/lib/supabase/server";
 import { getCategories, listTransactions, monthRange, summarizeMonth } from "./finance";
+import { UserError } from "@/lib/errors";
 
 export type BudgetStatus = {
   categoryId: string;
@@ -23,7 +24,7 @@ export const BUDGETS_MISSING =
 export async function listBudgets(supabase: Supabase): Promise<{ category_id: string; monthly_limit: number }[] | null> {
   const { data, error } = await supabase.from("budgets").select("category_id, monthly_limit");
   if (missingTable(error)) return null;
-  if (error) throw new Error(error.message);
+  if (error) throw error;
   return (data ?? []).map((b) => ({ category_id: b.category_id as string, monthly_limit: Number(b.monthly_limit) }));
 }
 
@@ -34,14 +35,14 @@ export async function setBudget(supabase: Supabase, categoryId: string, monthlyL
       { category_id: categoryId, monthly_limit: monthlyLimit, updated_at: new Date().toISOString() },
       { onConflict: "user_id,category_id" },
     );
-  if (missingTable(error)) throw new Error(BUDGETS_MISSING);
-  if (error) throw new Error(error.message);
+  if (missingTable(error)) throw new UserError(BUDGETS_MISSING);
+  if (error) throw error;
 }
 
 export async function deleteBudget(supabase: Supabase, categoryId: string) {
   const { error } = await supabase.from("budgets").delete().eq("category_id", categoryId);
-  if (missingTable(error)) throw new Error(BUDGETS_MISSING);
-  if (error) throw new Error(error.message);
+  if (missingTable(error)) throw new UserError(BUDGETS_MISSING);
+  if (error) throw error;
 }
 
 export async function budgetStatus(supabase: Supabase, month: string): Promise<BudgetStatus[] | null> {

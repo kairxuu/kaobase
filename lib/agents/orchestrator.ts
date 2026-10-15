@@ -6,6 +6,7 @@ import { contextBlock, recall, storeExchange } from "@/lib/learning/memory";
 import { generateWithFallback } from "@/lib/ai/provider";
 import { systemPrompt } from "./definitions";
 import { loadToolContext, toolsFor } from "./tools";
+import { isExplicitConfirmation } from "./confirmation";
 import { recordRun } from "./runs";
 
 export type AgentReply = {
@@ -61,7 +62,7 @@ export async function askAgent(
 
   const [context, toolContext, history] = await Promise.all([
     recall(supabase, agent, input.message),
-    loadToolContext(supabase),
+    loadToolContext(supabase, isExplicitConfirmation(input.message)),
     supabase
       .from("agent_messages")
       .select("role, content")

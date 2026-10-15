@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { addPeriod, annualCost, detectSubscriptions } from "@/lib/learning/subscriptions";
-import { applicableRule, learnFromLlm, learnFromUser, ruleConfidence } from "@/lib/learning/rules";
+import { addPeriod, annualCost, detectSubscriptions, rollForward } from "@/lib/learning/subscriptions";
+import { applicableRule, groupAssignments, learnFromLlm, learnFromUser, ruleConfidence } from "@/lib/learning/rules";
 import { forecastBalance } from "@/lib/learning/forecast";
 import { routeByKeywords } from "@/lib/learning/router";
 
@@ -111,5 +111,30 @@ describe("routeByKeywords", () => {
   });
   it("renvoie null si ambigu", () => {
     expect(routeByKeywords("Bonjour !").agent).toBeNull();
+  });
+});
+
+describe("rollForward", () => {
+  it("avance une échéance passée sans toucher une échéance future", () => {
+    expect(rollForward("2026-08-05", "monthly", "2026-10-15")).toBe("2026-11-05");
+    expect(rollForward("2026-10-20", "monthly", "2026-10-15")).toBe("2026-10-20");
+    expect(rollForward("2026-10-15", "weekly", "2026-10-15")).toBe("2026-10-15");
+    expect(rollForward(null, "yearly", "2026-10-15")).toBeNull();
+  });
+});
+
+describe("groupAssignments", () => {
+  it("fusionne les commerçants d'une même catégorie et d'une même origine", () => {
+    const merchants = Array.from({ length: 150 }, (_, i) => ({
+      categoryId: `c${i % 12}`,
+      by: (i % 2 ? "rule" : "llm") as "rule" | "llm",
+      ids: [`t${i}a`, `t${i}b`],
+    }));
+    const groups = groupAssignments(merchants);
+    expect(groups.length).toBeLessThanOrEqual(24);
+    // Résultat identique : chaque opération garde exactement sa catégorie et son origine.
+    const flat = new Map(groups.flatMap((g) => g.ids.map((id) => [id, `${g.categoryId}|${g.by}`])));
+    for (const m of merchants) for (const id of m.ids) expect(flat.get(id)).toBe(`${m.categoryId}|${m.by}`);
+    expect(flat.size).toBe(300);
   });
 });

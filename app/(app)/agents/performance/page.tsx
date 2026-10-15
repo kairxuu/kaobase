@@ -2,6 +2,15 @@ import { requireUser } from "@/lib/auth";
 import { AGENTS } from "@/lib/agents/definitions";
 import type { AgentId } from "@/lib/learning/router";
 import { shortDate } from "@/lib/ui/format";
+import { countExchanges, listMemories } from "@/lib/data/agents";
+import { clearExchangesAction, deleteMemoryAction } from "../../actions";
+import { ActionButton } from "../../_components/action-button";
+
+const KIND_LABEL: Record<string, string> = {
+  fact: "préférence",
+  correction: "correction",
+  example: "réponse validée",
+};
 
 type PerfRow = {
   agent: AgentId | "orchestrator";
@@ -24,6 +33,7 @@ export default async function PerformancePage() {
     return q.then((r) => r.count ?? 0);
   };
 
+  const [items, exchanges] = await Promise.all([listMemories(supabase), countExchanges(supabase)]);
   const [{ data: perf }, rules, userRules, memories, corrections, facts, examples, byRule, byLlm, byUser, none] = await Promise.all([
     supabase.from("agent_performance").select("*"),
     count("categorization_rules"),
@@ -112,6 +122,47 @@ export default async function PerformancePage() {
             })}
           </tbody>
         </table>
+      </section>
+
+      <section id="memoire">
+        <h2 className="section-title">Ce que les agents retiennent de toi</h2>
+        <p className="mb-3 max-w-[62ch] text-sm text-ink-2">
+          Préférences, corrections et réponses validées réutilisées par les agents. Efface ce qui est faux ou que tu ne veux plus
+          qu&apos;ils utilisent.
+        </p>
+        {items.length === 0 ? (
+          <p className="text-sm text-ink-3">Rien pour l&apos;instant. Note une réponse ou corrige un agent pour qu&apos;il apprenne.</p>
+        ) : (
+          <ul className="divide-y divide-line">
+            {items.map((m) => (
+              <li key={`${m.type}-${m.id}`} className="flex items-start justify-between gap-4 py-2.5 text-sm">
+                <div className="min-w-0">
+                  <p className="break-words">{m.content}</p>
+                  <p className="mt-0.5 text-xs text-ink-3">
+                    {KIND_LABEL[m.kind] ?? m.kind}, {m.agent === "shared" ? "tous les agents" : `agent ${AGENTS[m.agent as AgentId]?.name ?? m.agent}`},{" "}
+                    {shortDate(m.createdAt)}
+                  </p>
+                </div>
+                <ActionButton action={deleteMemoryAction.bind(null, m.id, m.type)} className="btn-ghost btn-sm shrink-0">
+                  Oublier
+                </ActionButton>
+              </li>
+            ))}
+          </ul>
+        )}
+        {exchanges > 0 && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-md bg-surface-2 px-4 py-3 text-sm">
+            <span>
+              Les agents gardent aussi le résumé de {exchanges} échange{exchanges > 1 ? "s" : ""} pour retrouver le contexte.
+            </span>
+            <ActionButton
+              action={clearExchangesAction}
+              confirm="Effacer tous les échanges mémorisés ? Préférences, corrections et réponses validées sont conservées."
+            >
+              Effacer les échanges
+            </ActionButton>
+          </div>
+        )}
       </section>
     </div>
   );

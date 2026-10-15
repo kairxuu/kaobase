@@ -3,6 +3,8 @@ import { getAccounts } from "@/lib/data/finance";
 import type { ImportRecord } from "@/lib/types";
 import { shortDate } from "@/lib/ui/format";
 import { ImportWizard } from "./import-wizard";
+import { undoImportAction } from "../actions";
+import { ActionButton } from "../_components/action-button";
 
 export default async function ImportPage() {
   const { supabase } = await requireUser();
@@ -37,6 +39,7 @@ export default async function ImportPage() {
               <th className="text-right">Ajoutées</th>
               <th className="text-right">Déjà présentes</th>
               <th className="text-right">Illisibles</th>
+              <th><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody>
@@ -49,11 +52,19 @@ export default async function ImportPage() {
                 <td className="num text-right">{i.rows_imported}</td>
                 <td className="num text-right text-ink-2">{i.rows_duplicate}</td>
                 <td className={`num text-right ${i.rows_invalid ? "text-warn" : "text-ink-2"}`}>{i.rows_invalid}</td>
+                <td className="text-right">
+                  <ActionButton
+                    action={undoImportAction.bind(null, i.id)}
+                    confirm={`Annuler l'import « ${i.filename} » ? Ses ${i.rows_imported} opérations seront retirées, y compris celles que tu as recatégorisées.`}
+                  >
+                    Annuler cet import
+                  </ActionButton>
+                </td>
               </tr>
             ))}
             {(imports ?? []).length === 0 && (
               <tr>
-                <td colSpan={5} className="py-6 text-center text-ink-3">Aucun relevé importé pour l&apos;instant.</td>
+                <td colSpan={6} className="py-6 text-center text-ink-3">Aucun relevé importé pour l&apos;instant.</td>
               </tr>
             )}
           </tbody>

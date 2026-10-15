@@ -1,8 +1,27 @@
-const eur = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
+const formatters = new Map<string, Intl.NumberFormat>();
+
+function formatter(currency: string) {
+  let f = formatters.get(currency);
+  if (!f) {
+    try {
+      f = new Intl.NumberFormat("fr-FR", { style: "currency", currency });
+    } catch {
+      // Code devise invalide en base : on retombe sur l'euro plutôt que de casser la page.
+      f = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
+    }
+    formatters.set(currency, f);
+  }
+  return f;
+}
 
 export function money(value: number, currency = "EUR") {
-  if (currency === "EUR") return eur.format(value);
-  return new Intl.NumberFormat("fr-FR", { style: "currency", currency }).format(value);
+  return formatter(currency).format(value);
+}
+
+// Formateur lié à la devise du profil (réglage « Devise »), à créer une fois par page.
+export function moneyIn(currency: string | null | undefined) {
+  const f = formatter((currency || "EUR").toUpperCase());
+  return (value: number) => f.format(value);
 }
 
 export function shortDate(iso: string | null | undefined) {

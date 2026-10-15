@@ -1,4 +1,4 @@
-import { money } from "@/lib/ui/format";
+import { moneyIn } from "@/lib/ui/format";
 import { Rosette } from "./rosette";
 
 // Cadran du mois : chaque jour est une graduation, chaque prélèvement une marque,
@@ -20,13 +20,16 @@ export function MonthDial({
   marks,
   remaining,
   total,
+  currency,
 }: {
   today: number;
   daysInMonth: number;
   marks: DialMark[];
   remaining: number;
   total: number;
+  currency: string;
 }) {
+  const money = moneyIn(currency);
   const angleOf = (day: number) => ((day - 1) / daysInMonth) * 360;
   const needle = angleOf(today) + 360 / daysInMonth / 2;
 

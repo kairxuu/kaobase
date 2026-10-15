@@ -41,3 +41,17 @@ export function learnFromLlm(existing: Rule | undefined, merchant: string, categ
   if (existing) return undefined;
   return { merchant, categoryId, source: "llm", hits: 0, misses: 0 };
 }
+
+// Regroupe les catégorisations par (catégorie, origine) : une seule mise à jour en base par groupe.
+export type Assignment = { categoryId: string; by: "rule" | "llm"; ids: string[] };
+
+export function groupAssignments(assignments: Assignment[]): Assignment[] {
+  const groups = new Map<string, Assignment>();
+  for (const a of assignments) {
+    const key = `${a.categoryId}|${a.by}`;
+    const g = groups.get(key) ?? { categoryId: a.categoryId, by: a.by, ids: [] };
+    g.ids.push(...a.ids);
+    groups.set(key, g);
+  }
+  return [...groups.values()];
+}

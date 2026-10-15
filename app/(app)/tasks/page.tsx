@@ -5,6 +5,7 @@ import { PRIORITY_LABEL, shortDate, STATUS_LABEL } from "@/lib/ui/format";
 import { createTaskAction, deleteTaskAction, planRemindersAction, setTaskStatusAction } from "../actions";
 import { ActionButton } from "../_components/action-button";
 import { FormAction } from "../_components/form-action";
+import { TaskEditor } from "./task-editor";
 
 const COLUMNS: TaskStatus[] = ["todo", "doing", "done"];
 const MOVE_LABEL = { todo: "Remettre à faire", doing: "Commencer", done: "Terminer" } as const;
@@ -84,7 +85,10 @@ export default async function TasksPage() {
                           {MOVE_LABEL[c]}
                         </ActionButton>
                       ))}
-                      <ActionButton action={deleteTaskAction.bind(null, t.id)} confirm="Supprimer cette tâche ?">
+                      <TaskEditor
+                        task={{ id: t.id, title: t.title, description: t.description, priority: t.priority, dueDate: t.due_date }}
+                      />
+                      <ActionButton action={deleteTaskAction.bind(null, t.id)} confirm={`Supprimer « ${t.title} » ?`}>
                         Supprimer
                       </ActionButton>
                     </div>

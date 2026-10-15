@@ -70,6 +70,14 @@ export function addPeriod(iso: string, period: Period, times = 1): string {
   return d.toISOString().slice(0, 10);
 }
 
+// Prochaine échéance à partir d'aujourd'hui, sans rien écrire.
+export function rollForward(nextDue: string | null, period: Period, today: string): string | null {
+  if (!nextDue) return null;
+  let due = nextDue;
+  while (due < today) due = addPeriod(due, period);
+  return due;
+}
+
 function classifyPeriod(gap: number): Period | null {
   for (const p of Object.keys(PERIOD_DAYS) as Period[]) {
     if (Math.abs(gap - PERIOD_DAYS[p]) <= PERIOD_TOLERANCE[p]) return p;

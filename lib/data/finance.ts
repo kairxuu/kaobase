@@ -2,15 +2,16 @@ import "server-only";
 import type { Supabase } from "@/lib/supabase/server";
 import type { Category, Transaction } from "@/lib/types";
 import { dedupeHash, normalizeMerchant } from "@/lib/finance/normalize";
-import { applicableRule, learnFromLlm, learnFromUser, type Rule } from "@/lib/learning/rules";
+import { applicableRule, groupAssignments, learnFromLlm, learnFromUser, type Rule } from "@/lib/learning/rules";
 import type { ParsedTransaction } from "@/lib/importers/types";
 import { categorizeMerchantsWithLlm } from "@/lib/agents/categorizer";
 import { runSubscriptionDetection } from "./subscriptions";
+import { UserError } from "@/lib/errors";
 
 const TX_COLUMNS = "id, account_id, booked_at, amount, label_raw, merchant, category_id, categorized_by, source";
 
 function check<T>(res: { data: T | null; error: { message: string } | null }): T {
-  if (res.error) throw new Error(res.error.message);
+  if (res.error) throw res.error;
   return res.data as T;
 }
 
@@ -37,6 +38,7 @@ export type TransactionFilters = {
   search?: string;
   merchant?: string;
   limit?: number;
+  offset?: number;
 };
 
 export async function listTransactions(supabase: Supabase, f: TransactionFilters = {}): Promise<Transaction[]> {
@@ -47,13 +49,15 @@ export async function listTransactions(supabase: Supabase, f: TransactionFilters
   if (f.uncategorized) q = q.is("category_id", null);
   if (f.merchant) q = q.eq("merchant", f.merchant);
   if (f.search) q = q.or(`label_raw.ilike.%${f.search.replace(/[%,()]/g, "")}%,merchant.ilike.%${f.search.replace(/[%,()]/g, "")}%`);
-  const rows = check(await q.limit(f.limit ?? 200)) as Transaction[];
+  const limit = f.limit ?? 200;
+  const offset = f.offset ?? 0;
+  const rows = check(await q.range(offset, offset + limit - 1)) as Transaction[];
   return rows.map((r) => ({ ...r, amount: Number(r.amount) }));
 }
 
 export async function getTransaction(supabase: Supabase, id: string): Promise<Transaction | null> {
   const { data, error } = await supabase.from("transactions").select(TX_COLUMNS).eq("id", id).maybeSingle();
-  if (error) throw new Error(error.message);
+  if (error) throw error;
   return data ? { ...(data as Transaction), amount: Number((data as Transaction).amount) } : null;
 }
 
@@ -217,10 +221,16 @@ export async function categorizeTransactions(
     }
   }
 
-  for (const a of assignments.values()) {
-    check(
-      await supabase.from("transactions").update({ category_id: a.categoryId, categorized_by: a.by }).in("id", a.ids),
-    );
+  // Une seule mise à jour par (catégorie, origine) au lieu d'une par commerçant (revue D11).
+  for (const group of groupAssignments([...assignments.values()])) {
+    for (let i = 0; i < group.ids.length; i += 500) {
+      check(
+        await supabase
+          .from("transactions")
+          .update({ category_id: group.categoryId, categorized_by: group.by })
+          .in("id", group.ids.slice(i, i + 500)),
+      );
+    }
   }
 
   return { byRule, byLlm, uncategorized: transactions.length - byRule - byLlm, llmError };
@@ -378,13 +388,13 @@ export async function updateTransaction(
     update.label_raw = patch.label;
     update.merchant = normalizeMerchant(patch.label);
   }
-  if (Object.keys(update).length === 0) throw new Error("Rien à modifier");
+  if (Object.keys(update).length === 0) throw new UserError("Rien à modifier");
   return check(await supabase.from("transactions").update(update).eq("id", id).select(TX_COLUMNS).single()) as Transaction;
 }
 
 export async function deleteTransaction(supabase: Supabase, id: string) {
   const deleted = check(await supabase.from("transactions").delete().eq("id", id).select("id")) as { id: string }[];
-  if (deleted.length === 0) throw new Error("Opération introuvable");
+  if (deleted.length === 0) throw new UserError("Opération introuvable");
 }
 
 export async function createCategory(
@@ -396,7 +406,8 @@ export async function createCategory(
     .insert({ name: input.name.trim(), kind: input.kind, color: input.color ?? "#64748b" })
     .select("id, name, kind, color")
     .single();
-  if (error) throw new Error(error.code === "23505" ? `La catégorie « ${input.name} » existe déjà.` : error.message);
+  if (error?.code === "23505") throw new UserError(`La catégorie « ${input.name} » existe déjà.`);
+  if (error) throw error;
   return data as Category;
 }
 
@@ -409,7 +420,7 @@ export async function createAccount(
     .insert({ name: input.name.trim(), kind: input.kind, opening_balance: input.openingBalance })
     .select("id, name")
     .single();
-  if (error) throw new Error(error.message);
+  if (error) throw error;
   return data as { id: string; name: string };
 }
 
@@ -427,4 +438,49 @@ export function rankMerchants(txs: Transaction[], limit = 10) {
     .map(([merchant, v]) => ({ merchant, total: Math.round(v.total * 100) / 100, count: v.count }))
     .sort((a, b) => b.total - a.total)
     .slice(0, limit);
+}
+
+// ---------------------------------------------------------------------------
+// Gestion : catégories, comptes, imports
+// ---------------------------------------------------------------------------
+
+export async function renameCategory(supabase: Supabase, id: string, input: { name: string; color?: string }) {
+  const update: Record<string, string> = { name: input.name.trim() };
+  if (input.color) update.color = input.color;
+  check(await supabase.from("categories").update(update).eq("id", id).select("id").single());
+}
+
+// Les opérations gardent leur montant et deviennent « sans catégorie » ; règles et budgets liés disparaissent.
+export async function deleteCategory(supabase: Supabase, id: string) {
+  const deleted = check(await supabase.from("categories").delete().eq("id", id).select("id")) as { id: string }[];
+  if (deleted.length === 0) throw new UserError("Catégorie introuvable");
+}
+
+export async function updateAccount(supabase: Supabase, id: string, input: { name: string; openingBalance: number }) {
+  check(
+    await supabase
+      .from("accounts")
+      .update({ name: input.name.trim(), opening_balance: input.openingBalance })
+      .eq("id", id)
+      .select("id")
+      .single(),
+  );
+}
+
+// Supprimer un compte supprime aussi ses opérations : sinon elles fausseraient le solde total.
+export async function deleteAccount(supabase: Supabase, id: string) {
+  const accounts = check(await supabase.from("accounts").select("id")) as { id: string }[];
+  if (accounts.length <= 1) throw new UserError("Garde au moins un compte : c'est là que vont les opérations.");
+  check(await supabase.from("transactions").delete().eq("account_id", id));
+  const deleted = check(await supabase.from("accounts").delete().eq("id", id).select("id")) as { id: string }[];
+  if (deleted.length === 0) throw new UserError("Compte introuvable");
+}
+
+// Annule un import : retire uniquement les opérations ajoutées par ce fichier, puis l'entrée d'historique.
+export async function undoImport(supabase: Supabase, importId: string) {
+  const removed = check(
+    await supabase.from("transactions").delete().eq("import_id", importId).select("id"),
+  ) as { id: string }[];
+  check(await supabase.from("imports").delete().eq("id", importId));
+  return { removed: removed.length };
 }

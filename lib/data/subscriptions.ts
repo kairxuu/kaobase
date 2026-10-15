@@ -1,7 +1,8 @@
 import "server-only";
 import type { Supabase } from "@/lib/supabase/server";
 import type { Subscription, SubscriptionStatus } from "@/lib/types";
-import { addPeriod, detectSubscriptions, type Period } from "@/lib/learning/subscriptions";
+import { detectSubscriptions, rollForward, type Period } from "@/lib/learning/subscriptions";
+import { UserError } from "@/lib/errors";
 
 const SUB_COLUMNS = "id, name, merchant, amount, period, next_due, status, confidence, category_id, notes";
 
@@ -22,20 +23,19 @@ export async function listSubscriptions(
     .select(SUB_COLUMNS)
     .in("status", statuses)
     .order("next_due", { ascending: true, nullsFirst: false });
-  if (error) throw new Error(error.message);
+  if (error) throw error;
 
-  // Échéance passée : on avance à la prochaine occurrence (et on enregistre).
+  // Échéance passée : la prochaine occurrence est calculée à l'affichage, sans écrire en base
+  // (revue D12). Elle est enregistrée à la détection et quand l'utilisateur modifie l'abonnement.
   const now = today();
-  const subs = (data as Subscription[]).map((s) => ({ ...s, amount: Number(s.amount), confidence: Number(s.confidence) }));
-  for (const s of subs) {
-    if (s.status === "active" && s.next_due && s.next_due < now) {
-      let due = s.next_due;
-      while (due < now) due = addPeriod(due, s.period);
-      s.next_due = due;
-      await supabase.from("subscriptions").update({ next_due: due }).eq("id", s.id);
-    }
-  }
-  return subs;
+  return (data as Subscription[])
+    .map((s) => ({
+      ...s,
+      amount: Number(s.amount),
+      confidence: Number(s.confidence),
+      next_due: s.status === "active" ? rollForward(s.next_due, s.period, now) : s.next_due,
+    }))
+    .sort((a, b) => (a.next_due ?? "9999").localeCompare(b.next_due ?? "9999"));
 }
 
 // Lance l'algorithme de détection sur 18 mois d'historique.
@@ -54,7 +54,7 @@ export async function runSubscriptionDetection(supabase: Supabase) {
       .limit(10000),
     supabase.from("subscriptions").select("id, merchant, status"),
   ]);
-  if (error) throw new Error(error.message);
+  if (error) throw error;
 
   const byMerchant = new Map((existing ?? []).map((s) => [s.merchant as string, s as { id: string; status: string }]));
   const exclude = new Set(
@@ -112,7 +112,7 @@ export async function updateSubscription(
     .eq("id", id)
     .select(SUB_COLUMNS)
     .single();
-  if (error) throw new Error(error.message);
+  if (error) throw error;
   return data as Subscription;
 }
 
@@ -133,6 +133,12 @@ export async function createSubscription(
     })
     .select(SUB_COLUMNS)
     .single();
-  if (error) throw new Error(error.message);
+  if (error) throw error;
   return data as Subscription;
+}
+
+export async function deleteSubscription(supabase: Supabase, id: string) {
+  const { data, error } = await supabase.from("subscriptions").delete().eq("id", id).select("id");
+  if (error) throw error;
+  if (!data?.length) throw new UserError("Abonnement introuvable");
 }

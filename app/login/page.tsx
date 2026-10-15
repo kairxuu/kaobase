@@ -4,7 +4,10 @@ import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = { title: "Connexion" };
 
-export default function LoginPage() {
+export default async function LoginPage({ searchParams }: PageProps<"/login">) {
+  const params = await searchParams;
+  const initialMode = params.mode === "reset" ? "reset" : "in";
+  const notice = params.lien === "expire" ? "Ce lien n'est plus valable. Demande-en un nouveau ou connecte-toi." : undefined;
   return (
     <main className="grid min-h-screen lg:grid-cols-[1.1fr_1fr]">
       <section className="relative flex flex-col justify-between overflow-hidden px-6 pt-8 pb-10 md:px-12 lg:py-12">
@@ -29,7 +32,7 @@ export default function LoginPage() {
       </section>
       <section className="flex items-center justify-center px-4 py-10 lg:border-l lg:border-line lg:bg-surface">
         <div className="w-full max-w-sm">
-          <LoginForm />
+          <LoginForm initialMode={initialMode} notice={notice} />
         </div>
       </section>
     </main>

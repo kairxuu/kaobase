@@ -19,3 +19,10 @@ export async function getUserForApi() {
   const userId = data?.claims?.sub;
   return userId ? { supabase, userId } : null;
 }
+
+// Devise d'affichage choisie dans Réglages (une lecture par requête).
+export const getCurrency = cache(async () => {
+  const { supabase, userId } = await requireUser();
+  const { data } = await supabase.from("profiles").select("currency").eq("id", userId).single();
+  return (data?.currency as string | undefined) ?? "EUR";
+});

@@ -10,7 +10,7 @@ export async function listTasks(supabase: Supabase, statuses?: TaskStatus[]): Pr
   let q = supabase.from("tasks").select(TASK_COLUMNS);
   if (statuses?.length) q = q.in("status", statuses);
   const { data, error } = await q.order("due_date", { ascending: true, nullsFirst: false }).order("created_at");
-  if (error) throw new Error(error.message);
+  if (error) throw error;
   return data as Task[];
 }
 
@@ -39,7 +39,7 @@ export async function createTask(
     })
     .select(TASK_COLUMNS)
     .single();
-  if (error) throw new Error(error.message);
+  if (error) throw error;
   return data as Task;
 }
 
@@ -51,13 +51,13 @@ export async function updateTask(
   const update: Record<string, unknown> = { ...patch };
   if (patch.status) update.completed_at = patch.status === "done" ? new Date().toISOString() : null;
   const { data, error } = await supabase.from("tasks").update(update).eq("id", id).select(TASK_COLUMNS).single();
-  if (error) throw new Error(error.message);
+  if (error) throw error;
   return data as Task;
 }
 
 export async function deleteTask(supabase: Supabase, id: string) {
   const { error } = await supabase.from("tasks").delete().eq("id", id);
-  if (error) throw new Error(error.message);
+  if (error) throw error;
 }
 
 // Crée une tâche de vérification pour chaque abonnement actif qui tombe dans les `days` prochains jours
