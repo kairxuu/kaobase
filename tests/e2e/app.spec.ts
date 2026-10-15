@@ -72,25 +72,48 @@ test("(1) recatégoriser une opération l'applique aux autres du même commerça
 
 test("opération : ajouter, modifier, supprimer (F7)", async ({ page }) => {
   acceptDialogs(page);
+  // Restes d'un passage interrompu : on repart d'un compte propre.
+  await page.goto("/transactions?q=E2E%20Librairie");
+  const leftovers = page.locator("tbody").getByRole("row").filter({ hasText: "E2E Librairie" });
+  while ((await leftovers.count()) > 0) {
+    const before = await leftovers.count();
+    await leftovers.first().getByRole("button", { name: "Supprimer" }).click();
+    await expect(leftovers).toHaveCount(before - 1);
+  }
+
+  const label = `E2E Librairie ${Date.now()}`;
   await page.goto("/transactions");
   await page.getByText("Ajouter une opération à la main").click();
-  await page.locator("#label").fill("E2E Librairie");
+  await page.locator("#label").fill(label);
   await page.locator("#amount").fill("9,90");
   await page.getByRole("button", { name: "Ajouter", exact: true }).click();
-  await page.goto("/transactions?q=E2E%20Librairie");
-  const row = page.getByRole("row").filter({ hasText: "E2E Librairie" });
+  // Le formulaire se vide quand l'action a réussi : on attend avant de changer de page.
+  await expect(page.locator("#label")).toHaveValue("");
+  await page.goto(`/transactions?q=${encodeURIComponent(label)}`);
+  const row = page.locator("tbody").getByRole("row").filter({ hasText: label });
   await expect(row).toHaveCount(1);
   await row.getByRole("button", { name: "Modifier" }).click();
   await row.getByLabel("Montant").fill("12,30");
   await row.getByRole("button", { name: "Enregistrer" }).click();
   await expect(row).toContainText("12,30");
   await row.getByRole("button", { name: "Supprimer" }).click();
-  await expect(page.getByRole("row").filter({ hasText: "E2E Librairie" })).toHaveCount(0);
+  await expect(page.locator("tbody").getByRole("row").filter({ hasText: label })).toHaveCount(0);
 });
 
 test("catégorie : créer, doublon refusé clairement, renommer, supprimer (F8, R5)", async ({ page }) => {
   acceptDialogs(page);
-  await page.goto("/settings");
+  await page.goto("/settings", { waitUntil: "networkidle" });
+  // En mode édition, le nom passe dans un champ : on cible l'éditeur ouvert (un seul à la fois).
+  const editor = () => page.getByRole("listitem").filter({ has: page.getByLabel("Nom de la catégorie") });
+  // Restes d'un passage interrompu.
+  for (const name of ["E2E Voyage", "E2E Vacances"]) {
+    const leftover = page.getByRole("listitem").filter({ hasText: name });
+    if ((await leftover.count()) > 0) {
+      await leftover.first().getByRole("button", { name: "Modifier" }).click();
+      await editor().getByRole("button", { name: "Supprimer la catégorie" }).click();
+      await expect(page.getByRole("listitem").filter({ hasText: name })).toHaveCount(0);
+    }
+  }
   const add = async () => {
     await page.getByText("Ajouter une catégorie").click();
     await page.locator("#cat-name").fill("E2E Voyage");
@@ -102,29 +125,35 @@ test("catégorie : créer, doublon refusé clairement, renommer, supprimer (F8, 
   await page.getByRole("button", { name: "Ajouter la catégorie" }).click();
   await expect(page.getByText("Cette catégorie existe déjà.")).toBeVisible();
 
-  const item = page.getByRole("listitem").filter({ hasText: "E2E Voyage" });
-  await item.getByRole("button", { name: "Modifier" }).click();
-  await item.getByLabel("Nom de la catégorie").fill("E2E Vacances");
-  await item.getByRole("button", { name: "Enregistrer" }).click();
+  await page.getByRole("listitem").filter({ hasText: "E2E Voyage" }).getByRole("button", { name: "Modifier" }).click();
+  await editor().getByLabel("Nom de la catégorie").fill("E2E Vacances");
+  await editor().getByRole("button", { name: "Enregistrer" }).click();
+  // L'éditeur se referme quand l'enregistrement a réussi.
+  await expect(editor()).toHaveCount(0);
   const renamed = page.getByRole("listitem").filter({ hasText: "E2E Vacances" });
   await expect(renamed).toBeVisible();
   await renamed.getByRole("button", { name: "Modifier" }).click();
-  await renamed.getByRole("button", { name: "Supprimer la catégorie" }).click();
+  await editor().getByRole("button", { name: "Supprimer la catégorie" }).click();
   await expect(page.getByRole("listitem").filter({ hasText: "E2E Vacances" })).toHaveCount(0);
 });
 
 test("devise appliquée partout (R4)", async ({ page }) => {
-  await page.goto("/settings");
-  const profile = page.locator("section").first();
-  await page.locator("#currency").selectOption("USD");
-  await profile.getByRole("button", { name: "Enregistrer" }).first().click();
-  await expect(profile.getByRole("button", { name: "Enregistrer" }).first()).toBeEnabled();
+  const setCurrency = async (code: string) => {
+    await page.goto("/settings");
+    await page.locator("#currency").selectOption(code);
+    await page.locator("section").first().getByRole("button", { name: "Enregistrer" }).first().click();
+    // Attend que la valeur soit enregistrée en base (relue après rechargement).
+    await expect(async () => {
+      await page.reload();
+      await expect(page.locator("#currency")).toHaveValue(code, { timeout: 2_000 });
+    }).toPass({ timeout: 20_000 });
+  };
+  await setCurrency("USD");
   await page.goto("/");
   await expect(page.getByText(/\$/).first()).toBeVisible();
-  await page.goto("/settings");
-  await page.locator("#currency").selectOption("EUR");
-  await profile.getByRole("button", { name: "Enregistrer" }).first().click();
-  await expect(profile.getByRole("button", { name: "Enregistrer" }).first()).toBeEnabled();
+  await setCurrency("EUR");
+  await page.goto("/");
+  await expect(page.getByText(/€/).first()).toBeVisible();
 });
 
 test("tâche : créer, modifier, supprimer (F15)", async ({ page }) => {
@@ -165,17 +194,25 @@ test("(5) dictée de 3 opérations à l'agent", async ({ page }) => {
 
   // La conversation apparaît dans l'historique (F12).
   await page.goto("/agents");
-  await expect(page.getByRole("complementary").getByText(/E2E Alpha/)).toBeVisible();
+  await expect(page.getByRole("complementary").getByText(/E2E Alpha/).first()).toBeVisible();
 });
 
 test("annuler l'import retire ses opérations (F11)", async ({ page }) => {
   acceptDialogs(page);
-  await page.goto("/import");
+  test.setTimeout(180_000);
   const undo = page.getByRole("button", { name: "Annuler cet import" });
-  while ((await undo.count()) > 0) {
+  const openImports = async () => {
+    await page.goto("/import", { waitUntil: "networkidle" });
+    await expect(page.getByRole("heading", { name: "Relevés déjà importés" })).toBeVisible();
+    return undo.count();
+  };
+  let remaining = await openImports();
+  expect(remaining).toBeGreaterThan(0);
+  while (remaining > 0) {
     await undo.first().click();
-    await expect(page.getByText(/opérations? retirées?/).first()).toBeVisible();
-    await page.reload();
+    // La ligne de l'import disparaît du tableau quand l'annulation a réussi.
+    await expect(undo).toHaveCount(remaining - 1);
+    remaining = await openImports();
   }
   await page.goto("/transactions?q=NETFLIX");
   await expect(page.getByText("Aucune opération ne correspond")).toBeVisible();
