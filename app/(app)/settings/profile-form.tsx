@@ -11,16 +11,19 @@ type ProfileView = {
   pendingEmail: string | null;
   avatarColor: string;
   currency: string;
+  timezone: string;
 };
 
 export function ProfileForm({
   profile,
   colors,
   currencies,
+  timezones,
 }: {
   profile: ProfileView;
   colors: readonly string[];
   currencies: readonly (readonly [string, string])[];
+  timezones: readonly string[];
 }) {
   const [first, setFirst] = useState(profile.firstName);
   const [last, setLast] = useState(profile.lastName);
@@ -81,6 +84,17 @@ export function ProfileForm({
             ))}
           </select>
           <p className="mt-1 text-xs text-ink-3">Change l&apos;affichage des montants ; aucune conversion n&apos;est appliquée.</p>
+        </div>
+        <div>
+          <label className="label" htmlFor="timezone">Fuseau horaire</label>
+          <input type="hidden" name="timezoneOriginal" value={profile.timezone} />
+          <select className="input" id="timezone" name="timezone" defaultValue={profile.timezone}>
+            {!timezones.includes(profile.timezone) && <option value={profile.timezone}>{profile.timezone}</option>}
+            {timezones.map((tz) => (
+              <option key={tz} value={tz}>{tz.replace(/_/g, " ")}</option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs text-ink-3">Détecté depuis ton navigateur ; les agents comprennent « demain 14 h » à cette heure-là.</p>
         </div>
       </FormAction>
 

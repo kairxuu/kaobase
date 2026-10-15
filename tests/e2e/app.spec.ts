@@ -158,6 +158,65 @@ test("profil : nom et avatar visibles dans la barre latérale, quota IA affiché
   await save(original.first, original.last);
 });
 
+test("espaces perso/pro : filtre global mémorisé (ticket #1)", async ({ page }) => {
+  acceptDialogs(page);
+  const switcher = page.getByRole("radiogroup", { name: "Espace affiché" });
+  const pick = async (label: "Tout" | "Perso" | "Pro") => {
+    await switcher.getByRole("radio", { name: label }).click();
+    await expect(switcher.getByRole("radio", { name: label })).toHaveAttribute("aria-checked", "true");
+  };
+  const label = `E2E Pro Achat ${Date.now()}`;
+
+  // Compte pro (ou réutilisé s'il reste d'un passage interrompu).
+  await page.goto("/settings", { waitUntil: "networkidle" });
+  await pick("Tout");
+  if ((await page.getByText("E2E Pro", { exact: true }).count()) === 0) {
+    await page.getByText("Ajouter un compte").click();
+    await page.locator("#acc-name").fill("E2E Pro");
+    await page.locator("#acc-space").selectOption("pro");
+    await page.getByRole("button", { name: "Ajouter le compte" }).click();
+    await expect(page.getByText("Compte ajouté.")).toBeVisible();
+  }
+
+  // Une opération sur ce compte.
+  await page.goto("/transactions", { waitUntil: "networkidle" });
+  await page.getByText("Ajouter une opération à la main").click();
+  await page.locator("#label").fill(label);
+  await page.locator("#amount").fill("4,20");
+  await page.locator("#accountId").selectOption({ label: "E2E Pro" });
+  await page.getByRole("button", { name: "Ajouter", exact: true }).click();
+  await expect(page.locator("#label")).toHaveValue("");
+
+  const rows = () => page.locator("tbody").getByRole("row").filter({ hasText: label });
+  const search = `/transactions?q=${encodeURIComponent(label)}`;
+
+  await pick("Pro");
+  await page.goto(search);
+  await expect(page.getByRole("status").filter({ hasText: "Espace Pro" })).toBeVisible();
+  await expect(rows()).toHaveCount(1);
+
+  await pick("Perso");
+  await page.goto(search);
+  await expect(rows()).toHaveCount(0);
+
+  // Le choix survit au rechargement.
+  await page.reload();
+  await expect(switcher.getByRole("radio", { name: "Perso" })).toHaveAttribute("aria-checked", "true");
+
+  await pick("Tout");
+  await page.goto(search);
+  await expect(rows()).toHaveCount(1);
+
+  // Nettoyage : l'opération puis le compte pro.
+  await rows().first().getByRole("button", { name: "Supprimer" }).click();
+  await expect(rows()).toHaveCount(0);
+  await page.goto("/settings", { waitUntil: "networkidle" });
+  const account = page.getByRole("listitem").filter({ hasText: "E2E Pro" });
+  await account.getByRole("button", { name: "Modifier" }).click();
+  await page.getByRole("button", { name: "Supprimer le compte et ses opérations" }).click();
+  await expect(page.getByRole("listitem").filter({ hasText: "E2E Pro" })).toHaveCount(0);
+});
+
 test("devise appliquée partout (R4)", async ({ page }) => {
   const setCurrency = async (code: string) => {
     await page.goto("/settings");

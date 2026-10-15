@@ -3,6 +3,7 @@ import { getUserForApi } from "@/lib/auth";
 import { askAgent } from "@/lib/agents/orchestrator";
 import { checkUserLimit } from "@/lib/agents/limits";
 import { friendlyError } from "@/lib/errors";
+import { getSpaceFilter } from "@/lib/space";
 import { AGENT_IDS } from "@/lib/learning/router";
 
 export const maxDuration = 60;
@@ -29,8 +30,13 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { data: profile } = await session.supabase.from("profiles").select("currency").eq("id", session.userId).single();
-    const reply = await askAgent(session.supabase, { ...parsed.data, currency: profile?.currency ?? "EUR" });
+    const { data: profile } = await session.supabase.from("profiles").select("currency, timezone").eq("id", session.userId).single();
+    const reply = await askAgent(session.supabase, {
+      ...parsed.data,
+      currency: profile?.currency ?? "EUR",
+      timezone: profile?.timezone ?? "Europe/Paris",
+      space: await getSpaceFilter(),
+    });
     return Response.json(reply);
   } catch (error) {
     console.error("[kaobase] /api/agents :", error);

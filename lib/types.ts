@@ -32,6 +32,7 @@ export type Subscription = {
   confidence: number;
   category_id: string | null;
   notes: string | null;
+  space: "perso" | "pro";
 };
 
 export type TaskStatus = "todo" | "doing" | "done";
@@ -49,6 +50,7 @@ export type Task = {
   created_by: "user" | "agent";
   created_at: string;
   completed_at: string | null;
+  space: "perso" | "pro";
 };
 
 export type ImportRecord = {

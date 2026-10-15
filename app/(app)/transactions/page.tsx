@@ -1,4 +1,5 @@
 import { getCurrency, requireUser } from "@/lib/auth";
+import { accountIdsFor, getSpaceFilter } from "@/lib/space";
 import { getAccounts, getCategories, listTransactions, monthRange } from "@/lib/data/finance";
 import { moneyIn, shortDate } from "@/lib/ui/format";
 import { addTransactionAction, categorizeUncategorizedAction } from "../actions";
@@ -21,6 +22,8 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/tra
 
   const { supabase } = await requireUser();
   const money = moneyIn(await getCurrency());
+  const space = await getSpaceFilter();
+  const accountIds = await accountIdsFor(supabase, space);
   const [txs, categories, accounts] = await Promise.all([
     listTransactions(supabase, {
       ...range,
@@ -30,9 +33,10 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/tra
       // Une ligne de plus que la page : indique s'il existe une page suivante.
       limit: PAGE_SIZE + 1,
       offset: (page - 1) * PAGE_SIZE,
+      accountIds,
     }),
     getCategories(supabase),
-    getAccounts(supabase),
+    getAccounts(supabase, space),
   ]);
   const hasNext = txs.length > PAGE_SIZE;
   const rows = txs.slice(0, PAGE_SIZE);

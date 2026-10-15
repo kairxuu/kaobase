@@ -1,3 +1,5 @@
+import type { SpaceFilter } from "@/lib/space-shared";
+import { formatNowForPrompt, localDate } from "@/lib/time";
 import type { AgentId } from "@/lib/learning/router";
 
 export const AGENTS: Record<AgentId, { name: string; tagline: string; prompt: string }> = {
@@ -36,11 +38,27 @@ export const AGENTS: Record<AgentId, { name: string; tagline: string; prompt: st
   },
 };
 
-export function systemPrompt(agent: AgentId, context: string, currency: string) {
-  const today = new Date().toISOString().slice(0, 10);
+export type PromptContext = {
+  currency: string;
+  timezone?: string;
+  space?: SpaceFilter;
+  now?: Date;
+};
+
+// Heure locale et espace actif de l'utilisateur (ticket #1) : « demain 14 h » se comprend dans son fuseau.
+export function systemPrompt(agent: AgentId, context: string, opts: PromptContext) {
+  const now = opts.now ?? new Date();
+  const today = localDate(opts.timezone, now);
+  const space = opts.space ?? "all";
+  const spaceLine =
+    space === "all"
+      ? "Espace actif : tout (perso et pro). Ce que tu crées va dans l'espace perso, sauf si l'utilisateur précise pro."
+      : `Espace actif : ${space}. Ne parle que des données ${space === "pro" ? "professionnelles" : "personnelles"} ; ce que tu crées va dans l'espace ${space}.`;
   return [
     AGENTS[agent].prompt,
-    `Date du jour : ${today}. Devise : ${currency}. Réponds en français, de façon concise et concrète (listes courtes, montants arrondis au centime).`,
+    `Nous sommes le ${formatNowForPrompt(opts.timezone, now)}. Date du jour : ${today}. Convertis toute date relative depuis ce moment, dans ce fuseau.`,
+    spaceLine,
+    `Devise : ${opts.currency}. Réponds en français, de façon concise et concrète (listes courtes, montants arrondis au centime).`,
     "Si une information personnelle durable apparaît (préférence, date de paie, objectif), mémorise-la avec l'outil memoriser.",
     "Tu peux agir, pas seulement répondre. Quand l'utilisateur dicte des dépenses, revenus ou tâches, enregistre-les directement " +
       "(ajouter_operations, creer_taches) sans redemander de confirmation, en un seul appel pour plusieurs éléments, " +

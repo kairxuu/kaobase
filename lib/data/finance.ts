@@ -1,6 +1,7 @@
 import "server-only";
 import type { Supabase } from "@/lib/supabase/server";
 import type { Category, Transaction } from "@/lib/types";
+import type { Space, SpaceFilter } from "@/lib/space-shared";
 import { dedupeHash, normalizeMerchant } from "@/lib/finance/normalize";
 import { applicableRule, groupAssignments, learnFromLlm, learnFromUser, type Rule } from "@/lib/learning/rules";
 import type { ParsedTransaction } from "@/lib/importers/types";
@@ -19,14 +20,17 @@ export async function getCategories(supabase: Supabase): Promise<Category[]> {
   return check(await supabase.from("categories").select("id, name, kind, color").order("kind").order("name"));
 }
 
-export async function getAccounts(supabase: Supabase) {
-  return check(
-    await supabase.from("account_balances").select("id, name, kind, currency, balance").order("name"),
-  ) as { id: string; name: string; kind: string; currency: string; balance: number }[];
+export type AccountBalance = { id: string; name: string; kind: string; currency: string; space: Space; balance: number };
+
+// space : filtre perso/pro (ticket #1) ; « all » ou absent = tous les comptes.
+export async function getAccounts(supabase: Supabase, space: SpaceFilter = "all"): Promise<AccountBalance[]> {
+  let q = supabase.from("account_balances").select("id, name, kind, currency, space, balance");
+  if (space !== "all") q = q.eq("space", space);
+  return check(await q.order("name")) as AccountBalance[];
 }
 
-export async function getTotalBalance(supabase: Supabase): Promise<number> {
-  const accounts = await getAccounts(supabase);
+export async function getTotalBalance(supabase: Supabase, space: SpaceFilter = "all"): Promise<number> {
+  const accounts = await getAccounts(supabase, space);
   return Math.round(accounts.reduce((s, a) => s + Number(a.balance), 0) * 100) / 100;
 }
 
@@ -39,6 +43,8 @@ export type TransactionFilters = {
   merchant?: string;
   limit?: number;
   offset?: number;
+  // Comptes de l'espace actif (ticket #1) ; absent = tous ; [] = aucune opération.
+  accountIds?: string[];
 };
 
 export async function listTransactions(supabase: Supabase, f: TransactionFilters = {}): Promise<Transaction[]> {
@@ -48,6 +54,10 @@ export async function listTransactions(supabase: Supabase, f: TransactionFilters
   if (f.categoryId) q = q.eq("category_id", f.categoryId);
   if (f.uncategorized) q = q.is("category_id", null);
   if (f.merchant) q = q.eq("merchant", f.merchant);
+  if (f.accountIds) {
+    if (f.accountIds.length === 0) return [];
+    q = q.in("account_id", f.accountIds);
+  }
   if (f.search) q = q.or(`label_raw.ilike.%${f.search.replace(/[%,()]/g, "")}%,merchant.ilike.%${f.search.replace(/[%,()]/g, "")}%`);
   const limit = f.limit ?? 200;
   const offset = f.offset ?? 0;
@@ -67,10 +77,10 @@ export function monthRange(month: string): { from: string; to: string } {
   return { from: `${month}-01`, to: `${month}-${String(last).padStart(2, "0")}` };
 }
 
-export async function monthSummary(supabase: Supabase, month: string) {
+export async function monthSummary(supabase: Supabase, month: string, accountIds?: string[]) {
   const { from, to } = monthRange(month);
   const [txs, categories] = await Promise.all([
-    listTransactions(supabase, { from, to, limit: 5000 }),
+    listTransactions(supabase, { from, to, limit: 5000, accountIds }),
     getCategories(supabase),
   ]);
   return summarizeMonth(txs, categories, month);
@@ -413,11 +423,11 @@ export async function createCategory(
 
 export async function createAccount(
   supabase: Supabase,
-  input: { name: string; kind: string; openingBalance: number },
+  input: { name: string; kind: string; openingBalance: number; space?: Space },
 ) {
   const { data, error } = await supabase
     .from("accounts")
-    .insert({ name: input.name.trim(), kind: input.kind, opening_balance: input.openingBalance })
+    .insert({ name: input.name.trim(), kind: input.kind, opening_balance: input.openingBalance, space: input.space ?? "perso" })
     .select("id, name")
     .single();
   if (error) throw error;
@@ -456,11 +466,15 @@ export async function deleteCategory(supabase: Supabase, id: string) {
   if (deleted.length === 0) throw new UserError("Catégorie introuvable");
 }
 
-export async function updateAccount(supabase: Supabase, id: string, input: { name: string; openingBalance: number }) {
+export async function updateAccount(
+  supabase: Supabase,
+  id: string,
+  input: { name: string; openingBalance: number; space?: Space },
+) {
   check(
     await supabase
       .from("accounts")
-      .update({ name: input.name.trim(), opening_balance: input.openingBalance })
+      .update({ name: input.name.trim(), opening_balance: input.openingBalance, ...(input.space ? { space: input.space } : {}) })
       .eq("id", id)
       .select("id")
       .single(),

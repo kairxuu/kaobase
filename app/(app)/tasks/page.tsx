@@ -1,4 +1,6 @@
 import { requireUser } from "@/lib/auth";
+import { defaultSpace, getSpaceFilter } from "@/lib/space";
+import { SpaceField } from "../_components/space-field";
 import { listTasks } from "@/lib/data/tasks";
 import type { TaskStatus } from "@/lib/types";
 import { PRIORITY_LABEL, shortDate, STATUS_LABEL } from "@/lib/ui/format";
@@ -13,7 +15,8 @@ const PRIORITY_TONE = { high: "bg-warn-soft text-warn", medium: "", low: "text-i
 
 export default async function TasksPage() {
   const { supabase } = await requireUser();
-  const tasks = await listTasks(supabase);
+  const space = await getSpaceFilter();
+  const tasks = await listTasks(supabase, undefined, space);
   const today = new Date().toISOString().slice(0, 10);
 
   return (
@@ -50,10 +53,11 @@ export default async function TasksPage() {
             <label className="label" htmlFor="dueDate">Échéance</label>
             <input className="input" id="dueDate" name="dueDate" type="date" />
           </div>
-          <div className="sm:col-span-4">
+          <div className="sm:col-span-3">
             <label className="label" htmlFor="description">Description</label>
             <textarea className="input" id="description" name="description" rows={2} />
           </div>
+          <SpaceField id="task-space" defaultValue={defaultSpace(space)} />
         </FormAction>
       </details>
 

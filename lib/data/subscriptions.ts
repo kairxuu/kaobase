@@ -1,10 +1,11 @@
 import "server-only";
 import type { Supabase } from "@/lib/supabase/server";
 import type { Subscription, SubscriptionStatus } from "@/lib/types";
+import type { Space, SpaceFilter } from "@/lib/space-shared";
 import { detectSubscriptions, rollForward, type Period } from "@/lib/learning/subscriptions";
 import { UserError } from "@/lib/errors";
 
-const SUB_COLUMNS = "id, name, merchant, amount, period, next_due, status, confidence, category_id, notes";
+const SUB_COLUMNS = "id, name, merchant, amount, period, next_due, status, confidence, category_id, notes, space";
 
 function today() {
   return new Date().toISOString().slice(0, 10);
@@ -17,12 +18,11 @@ function titleCase(merchant: string) {
 export async function listSubscriptions(
   supabase: Supabase,
   statuses: SubscriptionStatus[] = ["active", "suggested"],
+  space: SpaceFilter = "all",
 ): Promise<Subscription[]> {
-  const { data, error } = await supabase
-    .from("subscriptions")
-    .select(SUB_COLUMNS)
-    .in("status", statuses)
-    .order("next_due", { ascending: true, nullsFirst: false });
+  let q = supabase.from("subscriptions").select(SUB_COLUMNS).in("status", statuses);
+  if (space !== "all") q = q.eq("space", space);
+  const { data, error } = await q.order("next_due", { ascending: true, nullsFirst: false });
   if (error) throw error;
 
   // Échéance passée : la prochaine occurrence est calculée à l'affichage, sans écrire en base
@@ -48,12 +48,15 @@ export async function runSubscriptionDetection(supabase: Supabase) {
   const [{ data: txs, error }, { data: existing }] = await Promise.all([
     supabase
       .from("transactions")
-      .select("booked_at, amount, merchant, category_id")
+      .select("booked_at, amount, merchant, category_id, account_id")
       .lt("amount", 0)
       .gte("booked_at", since.toISOString().slice(0, 10))
       .limit(10000),
     supabase.from("subscriptions").select("id, merchant, status"),
   ]);
+  // Un abonnement détecté prend l'espace du compte où il est prélevé (ticket #1).
+  const { data: accountRows } = await supabase.from("accounts").select("id, space");
+  const spaceOf = new Map((accountRows ?? []).map((a) => [a.id as string, a.space as Space]));
   if (error) throw error;
 
   const byMerchant = new Map((existing ?? []).map((s) => [s.merchant as string, s as { id: string; status: string }]));
@@ -66,6 +69,7 @@ export async function runSubscriptionDetection(supabase: Supabase) {
     amount: Number(t.amount),
     merchant: t.merchant as string,
     categoryId: t.category_id as string | null,
+    space: spaceOf.get(t.account_id as string) ?? ("perso" as Space),
   }));
   const candidates = detectSubscriptions(rows, { exclude });
 
@@ -94,6 +98,7 @@ export async function runSubscriptionDetection(supabase: Supabase) {
         status: "suggested",
         confidence: c.confidence,
         category_id: categoryId,
+        space: rows.find((r) => r.merchant === c.merchant)?.space ?? "perso",
       });
       if (!insertError) created++;
     }
@@ -118,7 +123,7 @@ export async function updateSubscription(
 
 export async function createSubscription(
   supabase: Supabase,
-  input: { name: string; amount: number; period: Period; nextDue: string | null; merchant?: string },
+  input: { name: string; amount: number; period: Period; nextDue: string | null; merchant?: string; space?: Space },
 ) {
   const { data, error } = await supabase
     .from("subscriptions")
@@ -130,6 +135,7 @@ export async function createSubscription(
       next_due: input.nextDue,
       status: "active",
       confidence: 1,
+      space: input.space ?? "perso",
     })
     .select(SUB_COLUMNS)
     .single();

@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { requireUser } from "@/lib/auth";
+import { getSpaceFilter } from "@/lib/space";
 import { getAccounts } from "@/lib/data/finance";
 import type { ImportRecord } from "@/lib/types";
 import { shortDate } from "@/lib/ui/format";
@@ -9,7 +11,7 @@ import { ActionButton } from "../_components/action-button";
 export default async function ImportPage() {
   const { supabase } = await requireUser();
   const [accounts, { data: imports }] = await Promise.all([
-    getAccounts(supabase),
+    getAccounts(supabase, await getSpaceFilter()),
     supabase
       .from("imports")
       .select("id, filename, format, rows_total, rows_imported, rows_duplicate, rows_invalid, created_at")
@@ -27,7 +29,14 @@ export default async function ImportPage() {
         </p>
       </header>
 
-      <ImportWizard accounts={accounts.map((a) => ({ id: a.id, name: a.name }))} />
+      {accounts.length === 0 ? (
+        <div className="slip text-sm">
+          Aucun compte dans cet espace. Crée-en un dans <Link href="/settings" className="text-accent hover:underline">Réglages</Link>,
+          ou repasse sur « Tout » dans la barre latérale.
+        </div>
+      ) : (
+        <ImportWizard accounts={accounts.map((a) => ({ id: a.id, name: a.name }))} />
+      )}
 
       <section className="overflow-x-auto">
         <h2 className="section-title">Relevés déjà importés</h2>

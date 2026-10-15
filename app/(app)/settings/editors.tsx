@@ -45,7 +45,7 @@ export function AccountRow({
   balanceLabel,
   canDelete,
 }: {
-  account: { id: string; name: string; openingBalance: number };
+  account: { id: string; name: string; openingBalance: number; space: "perso" | "pro" };
   balanceLabel: string;
   canDelete: boolean;
 }) {
@@ -53,7 +53,10 @@ export function AccountRow({
     <EditableRow
       view={
         <span className="flex flex-1 justify-between gap-3 text-sm">
-          <span>{account.name}</span>
+          <span>
+            {account.name}
+            <span className="ml-2 text-xs text-ink-3">{account.space === "pro" ? "pro" : "perso"}</span>
+          </span>
           <span className="num text-ink-2">{balanceLabel}</span>
         </span>
       }
@@ -65,7 +68,11 @@ export function AccountRow({
             reset={false}
             className="grid grid-cols-2 gap-2"
           >
-            <input className="input" name="name" defaultValue={account.name} aria-label="Nom du compte" required />
+            <input className="input col-span-2" name="name" defaultValue={account.name} aria-label="Nom du compte" required />
+            <select className="input" name="space" defaultValue={account.space} aria-label="Espace du compte">
+              <option value="perso">Perso</option>
+              <option value="pro">Pro</option>
+            </select>
             <input
               className="input"
               name="openingBalance"

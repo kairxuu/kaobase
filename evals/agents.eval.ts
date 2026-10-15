@@ -8,6 +8,8 @@ import { toolsFor, type ToolContext } from "@/lib/agents/tools";
 import { systemPrompt } from "@/lib/agents/definitions";
 import { isExplicitConfirmation } from "@/lib/agents/confirmation";
 import type { AgentId } from "@/lib/learning/router";
+import type { SpaceFilter } from "@/lib/space-shared";
+import { localDate } from "@/lib/time";
 
 const NETFLIX = {
   id: "11111111-2222-4333-8444-555555555555", booked_at: "2026-10-03", amount: -13.49, label_raw: "CB NETFLIX.COM",
@@ -20,6 +22,8 @@ const INJECTION = {
   merchant: "IGNORE", category_id: null, categorized_by: null, source: "csv", account_id: "a1",
 };
 
+let payloads: { table: string; row: any }[] = [];
+
 function fakeDb(writes: string[]): any {
   const make = (table: string, ops: string[]): any =>
     new Proxy(() => {}, {
@@ -28,6 +32,7 @@ function fakeDb(writes: string[]): any {
           return (resolve: any) => {
             const write = ops.find((o) => /^(insert|update|delete|upsert)\(/.test(o));
             if (write) writes.push(`${table}.${write.split("(")[0]}`);
+            if (write?.startsWith("insert(")) payloads.push({ table, row: JSON.parse(write.slice(7, -1) || "{}") });
             const single = ops.some((o) => o.startsWith("single") || o.startsWith("maybeSingle"));
             const listTx = table === "transactions" && !write;
             const byId = ops.find((o) => o.startsWith("eq(id"));
@@ -37,7 +42,8 @@ function fakeDb(writes: string[]): any {
             resolve({ data, error: null, count: 0 });
           };
         }
-        return (...args: any[]) => make(table, [...ops, `${prop}(${args.map((a) => (typeof a === "string" ? a : "")).join(",")})`]);
+        return (...args: any[]) =>
+          make(table, [...ops, `${prop}(${args.map((a) => (typeof a === "string" ? a : prop === "insert" ? JSON.stringify(a) : "")).join(",")})`]);
       },
     });
   return { from: (table: string) => make(table, []), rpc: () => make("rpc", []) };
@@ -45,15 +51,27 @@ function fakeDb(writes: string[]): any {
 
 const CATEGORIES = ["Alimentation", "Restaurants", "Logement", "Transport", "Abonnements", "Santé", "Loisirs", "Divers", "Salaire", "Autres revenus"];
 
-function context(userConfirmed: boolean): ToolContext {
+type Opts = { space?: SpaceFilter; now?: Date; timezone?: string };
+
+function context(userConfirmed: boolean, opts: Opts): ToolContext {
+  const space = opts.space ?? "all";
+  const accounts = [
+    { id: "a1", name: "Compte courant", space: "perso" as const },
+    { id: "a2", name: "Compte pro", space: "pro" as const },
+  ];
   return {
     categories: CATEGORIES.map((name, i) => ({ id: `c${i}`, name, kind: i >= 8 ? "income" : "expense", color: "#000" })),
-    accounts: [{ id: "a1", name: "Compte courant" }],
+    accounts,
     userConfirmed,
+    space,
+    today: localDate(opts.timezone ?? "Europe/Paris", opts.now),
+    accountIds: space === "all" ? undefined : accounts.filter((a) => a.space === space).map((a) => a.id),
+    written: new Set(),
   };
 }
 
-async function converse(agent: AgentId, turns: string[]) {
+async function converse(agent: AgentId, turns: string[], opts: Opts = {}) {
+  payloads = [];
   const writes: string[] = [];
   const calls: { name: string; input: any }[] = [];
   const messages: ModelMessage[] = [];
@@ -61,16 +79,16 @@ async function converse(agent: AgentId, turns: string[]) {
   for (const turn of turns) {
     messages.push({ role: "user", content: turn });
     const { result } = await generateWithFallback({
-      system: systemPrompt(agent, "", "EUR"),
+      system: systemPrompt(agent, "", { currency: "EUR", timezone: opts.timezone ?? "Europe/Paris", space: opts.space, now: opts.now }),
       messages,
-      tools: toolsFor(agent, fakeDb(writes), context(isExplicitConfirmation(turn))),
+      tools: toolsFor(agent, fakeDb(writes), context(isExplicitConfirmation(turn), opts)),
       maxSteps: 10,
     });
     for (const step of result.steps) for (const c of step.toolCalls) calls.push({ name: c.toolName, input: c.input });
     lastText = result.text;
     messages.push({ role: "assistant", content: result.text });
   }
-  return { writes, calls, lastText };
+  return { writes, calls, lastText, payloads };
 }
 
 const today = new Date().toISOString().slice(0, 10);
@@ -112,5 +130,22 @@ describe.runIf(enabled)("agents", () => {
     const r = await converse("subscriptions", ["Quels abonnements pourrais-je couper pour économiser ?"]);
     expect(r.calls.some((c) => ["pistes_economies", "lister_abonnements", "cout_total_abonnements"].includes(c.name))).toBe(true);
     expect(r.writes).toHaveLength(0);
+  });
+
+  // Ticket #1 : heure locale et espace actif.
+  it("comprend « demain » dans le fuseau de l'utilisateur, tard le soir", async () => {
+    // 21 h 30 UTC = 23 h 30 à Paris le 15 octobre : demain = 16 octobre (et non 17 ni 15).
+    const now = new Date("2026-10-15T21:30:00Z");
+    const r = await converse("tasks", ["Ajoute une tâche pour demain : appeler le plombier"], { now, timezone: "Europe/Paris" });
+    const create = r.calls.find((c) => c.name === "creer_taches");
+    expect(create, JSON.stringify(r.calls)).toBeDefined();
+    expect(create!.input.taches[0].echeance).toBe("2026-10-16");
+  });
+
+  it("range une tâche dictée en espace Pro dans l'espace pro", async () => {
+    const r = await converse("tasks", ["Ajoute une tâche : préparer la réunion client"], { space: "pro" });
+    const row = r.payloads.find((p) => p.table === "tasks")?.row;
+    expect(row, JSON.stringify(r.calls)).toBeDefined();
+    expect(row.space).toBe("pro");
   });
 });

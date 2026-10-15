@@ -1,4 +1,6 @@
 import { getCurrency, requireUser } from "@/lib/auth";
+import { defaultSpace, getSpaceFilter } from "@/lib/space";
+import { SpaceField } from "../_components/space-field";
 import { listSubscriptions } from "@/lib/data/subscriptions";
 import { annualCost, monthlyCost } from "@/lib/learning/subscriptions";
 import { daysUntil, moneyIn, PERIOD_LABEL, shortDate } from "@/lib/ui/format";
@@ -22,7 +24,8 @@ const PERIODS = [
 export default async function SubscriptionsPage() {
   const { supabase } = await requireUser();
   const money = moneyIn(await getCurrency());
-  const subs = await listSubscriptions(supabase, ["active", "suggested", "cancelled"]);
+  const space = await getSpaceFilter();
+  const subs = await listSubscriptions(supabase, ["active", "suggested", "cancelled"], space);
   const active = subs.filter((s) => s.status === "active");
   const suggested = subs.filter((s) => s.status === "suggested");
   const cancelled = subs.filter((s) => s.status === "cancelled");
@@ -170,10 +173,11 @@ export default async function SubscriptionsPage() {
                 ))}
               </select>
             </div>
-            <div className="col-span-2">
+            <div>
               <label className="label" htmlFor="sub-due">Prochaine échéance</label>
               <input className="input" id="sub-due" name="nextDue" type="date" />
             </div>
+            <SpaceField id="sub-space" defaultValue={defaultSpace(space)} />
           </FormAction>
         </div>
         {cancelled.length > 0 && (

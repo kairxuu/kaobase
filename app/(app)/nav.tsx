@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { AiUsage } from "@/lib/data/account";
 import { AccountCard, Avatar, type AccountPreview } from "./account-card";
+import type { SpaceFilter } from "@/lib/space-shared";
+import { SpaceSwitcher } from "./space-switcher";
 
 const LINKS = [
   { href: "/", label: "Vue d'ensemble" },
@@ -16,7 +18,7 @@ const LINKS = [
   { href: "/settings", label: "Réglages" },
 ] as const;
 
-export function Nav({ account, usage }: { account: AccountPreview; usage: AiUsage }) {
+export function Nav({ account, usage, space }: { account: AccountPreview; usage: AiUsage; space: SpaceFilter }) {
   const pathname = usePathname();
   const isActive = (href: string) =>
     href === "/" || href === "/agents" ? pathname === href : pathname === href || pathname.startsWith(href + "/");
@@ -36,7 +38,10 @@ export function Nav({ account, usage }: { account: AccountPreview; usage: AiUsag
           </Link>
         </span>
       </div>
-      <nav className="flex gap-1 overflow-x-auto px-3 py-3 md:mt-8 md:flex-col md:gap-0.5 md:px-3" aria-label="Navigation principale">
+      <div className="px-4 pt-3 md:mt-6 md:px-6 md:pt-0">
+        <SpaceSwitcher value={space} />
+      </div>
+      <nav className="flex gap-1 overflow-x-auto px-3 py-3 md:mt-4 md:flex-col md:gap-0.5 md:px-3" aria-label="Navigation principale">
         {LINKS.map((l) => {
           const active = isActive(l.href);
           return (

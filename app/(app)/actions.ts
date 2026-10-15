@@ -3,6 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { friendlyError, UserError } from "@/lib/errors";
 import { siteOrigin } from "@/lib/site";
+import { cookies } from "next/headers";
+import { getSpaceFilter } from "@/lib/space";
+import { defaultSpace, isSpace, parseSpaceFilter, SPACE_COOKIE, type Space, type SpaceFilter } from "@/lib/space-shared";
+import { isValidTimezone } from "@/lib/time";
 import { AVATAR_COLORS } from "@/lib/data/account";
 import { requireUser } from "@/lib/auth";
 import {
@@ -58,6 +62,12 @@ function text(formData: FormData, field: string, label: string, max = 200): stri
   const value = String(formData.get(field) ?? "").trim();
   if (!value) throw new UserError(`${label} : ce champ est obligatoire.`);
   return value.slice(0, max);
+}
+
+// Espace d'un formulaire : le champ « space » s'il est valide, sinon l'espace actif.
+async function spaceFrom(formData: FormData): Promise<Space> {
+  const value = formData.get("space");
+  return isSpace(value) ? value : defaultSpace(await getSpaceFilter());
 }
 
 function isoDate(formData: FormData, field: string): string | null {
@@ -161,12 +171,13 @@ export async function updateSubscriptionAction(id: string, formData: FormData) {
 export async function createSubscriptionAction(formData: FormData) {
   const { supabase } = await requireUser();
   return run(
-    () =>
+    async () =>
       createSubscription(supabase, {
         name: text(formData, "name", "Nom"),
         amount: amountFrom(formData),
         period: formData.get("period") as Period,
-        nextDue: String(formData.get("nextDue") || "") || null,
+        nextDue: isoDate(formData, "nextDue"),
+        space: await spaceFrom(formData),
       }),
     ["/subscriptions", "/"],
   );
@@ -182,14 +193,16 @@ export async function detectSubscriptionsAction() {
 export async function createTaskAction(formData: FormData) {
   const { supabase } = await requireUser();
   return run(
-    () =>
+    async () =>
       createTask(supabase, {
-        title: String(formData.get("title") ?? "").trim(),
+        title: text(formData, "title", "Titre"),
         description: String(formData.get("description") ?? "").trim() || null,
         priority: (formData.get("priority") as TaskPriority) || "medium",
-        dueDate: String(formData.get("dueDate") || "") || null,
+        dueDate: isoDate(formData, "dueDate"),
+        space: await spaceFrom(formData),
       }),
     ["/tasks", "/"],
+    () => "Tâche ajoutée.",
   );
 }
 
@@ -205,7 +218,8 @@ export async function deleteTaskAction(id: string) {
 
 export async function planRemindersAction() {
   const { supabase } = await requireUser();
-  return run(async () => (await planSubscriptionReminders(supabase, 7)).length, ["/tasks", "/"], (n) => `${n} rappel(s) créé(s)`);
+  const space = await getSpaceFilter();
+  return run(async () => (await planSubscriptionReminders(supabase, 7, space)).length, ["/tasks", "/"], (n) => `${n} rappel(s) créé(s)`);
 }
 
 // --- Réglages --------------------------------------------------------------
@@ -216,11 +230,15 @@ export async function updateProfileAction(formData: FormData) {
     async () => {
       const currency = String(formData.get("currency") ?? "");
       const color = String(formData.get("avatarColor") ?? "");
+      const timezone = String(formData.get("timezone") ?? "");
+      const timezoneChanged = Boolean(timezone) && timezone !== String(formData.get("timezoneOriginal") ?? "");
+      if (timezone && !isValidTimezone(timezone)) throw new UserError("Ce fuseau horaire n'est pas reconnu.");
       const { error } = await supabase
         .from("profiles")
         .update({
           display_name: String(formData.get("firstName") ?? "").trim().slice(0, 60) || null,
           currency: /^[A-Z]{3}$/.test(currency) ? currency : "EUR",
+          ...(timezone ? { timezone } : {}),
         })
         .eq("id", userId);
       if (error) throw error;
@@ -229,6 +247,8 @@ export async function updateProfileAction(formData: FormData) {
         data: {
           last_name: String(formData.get("lastName") ?? "").trim().slice(0, 60),
           ...((AVATAR_COLORS as readonly string[]).includes(color) ? { avatar_color: color } : {}),
+          // Un fuseau choisi à la main n'est plus remplacé par la détection automatique.
+          ...(timezoneChanged ? { timezone_manual: true } : {}),
         },
       });
       if (authError) throw authError;
@@ -264,12 +284,13 @@ export async function createAccountAction(formData: FormData) {
   const { supabase } = await requireUser();
   return run(async () => {
     const { error } = await supabase.from("accounts").insert({
-      name: String(formData.get("name") ?? "").trim(),
+      name: text(formData, "name", "Nom", 60),
       kind: String(formData.get("kind") ?? "checking"),
       opening_balance: parseAmount(String(formData.get("openingBalance") || "0")) ?? 0,
+      space: await spaceFrom(formData),
     });
     if (error) throw error;
-  }, ["/settings", "/"]);
+  }, ["/settings", "/"], () => "Compte ajouté.");
 }
 
 export async function createCategoryAction(formData: FormData) {
@@ -328,6 +349,7 @@ export async function updateAccountAction(id: string, formData: FormData) {
       updateAccount(supabase, id, {
         name: text(formData, "name", "Nom", 60),
         openingBalance: parseAmount(String(formData.get("openingBalance") || "0")) ?? 0,
+        space: isSpace(formData.get("space")) ? (formData.get("space") as Space) : undefined,
       }),
     ["/settings", "/"],
     () => "Compte mis à jour.",
@@ -395,4 +417,25 @@ export async function deleteMemoryAction(id: string, type: "memory" | "example")
 export async function clearExchangesAction() {
   const { supabase } = await requireUser();
   return run(() => clearExchanges(supabase), ["/agents/performance"], () => "Échanges effacés.");
+}
+
+// --- Espaces perso/pro et fuseau (ticket #1) --------------------------------
+
+export async function setSpaceAction(filter: SpaceFilter) {
+  await requireUser();
+  const value = parseSpaceFilter(filter);
+  (await cookies()).set(SPACE_COOKIE, value, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax", httpOnly: false });
+  revalidatePath("/", "layout");
+  return { ok: true as const, data: value };
+}
+
+// Fuseau détecté par le navigateur : enregistré seulement si l'utilisateur ne l'a pas choisi à la main.
+export async function syncTimezoneAction(timezone: string) {
+  const { supabase, userId } = await requireUser();
+  if (!isValidTimezone(timezone)) return { ok: false as const, error: "Fuseau inconnu." };
+  const { data } = await supabase.auth.getUser();
+  if (data.user?.user_metadata?.timezone_manual) return { ok: true as const };
+  const { error } = await supabase.from("profiles").update({ timezone }).eq("id", userId);
+  if (error) return { ok: false as const, error: friendlyError(error) };
+  return { ok: true as const };
 }

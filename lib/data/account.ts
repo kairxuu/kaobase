@@ -13,6 +13,8 @@ export type Profile = {
   pendingEmail: string | null;
   avatarColor: string;
   currency: string;
+  timezone: string;
+  timezoneManual: boolean;
   memberSince: string | null;
 };
 
@@ -20,7 +22,7 @@ export type Profile = {
 // getUser() plutôt que le jeton : les métadonnées du jeton ne changent qu'au renouvellement de session.
 export const getProfile = cache(async (supabase: Supabase, userId: string): Promise<Profile> => {
   const [{ data: row }, { data: auth }] = await Promise.all([
-    supabase.from("profiles").select("display_name, currency, created_at").eq("id", userId).single(),
+    supabase.from("profiles").select("display_name, currency, timezone, created_at").eq("id", userId).single(),
     supabase.auth.getUser(),
   ]);
   const meta = (auth.user?.user_metadata ?? {}) as Record<string, unknown>;
@@ -32,6 +34,8 @@ export const getProfile = cache(async (supabase: Supabase, userId: string): Prom
     pendingEmail: auth.user?.new_email ?? null,
     avatarColor: color,
     currency: (row?.currency as string | undefined) ?? "EUR",
+    timezone: (row?.timezone as string | undefined) ?? "Europe/Paris",
+    timezoneManual: meta.timezone_manual === true,
     memberSince: (row?.created_at as string | undefined) ?? auth.user?.created_at ?? null,
   };
 });

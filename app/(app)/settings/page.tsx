@@ -10,6 +10,8 @@ import { FormAction } from "../_components/form-action";
 import { AccountRow, BudgetRow, CategoryRow } from "./editors";
 import { ProfileForm } from "./profile-form";
 import { AVATAR_COLORS, getProfile } from "@/lib/data/account";
+import { defaultSpace, getSpaceFilter } from "@/lib/space";
+import { SpaceField } from "../_components/space-field";
 
 export const metadata: Metadata = { title: "Réglages" };
 
@@ -37,7 +39,7 @@ export default async function SettingsPage() {
   const [profile, balances, { data: accountRows }, categories, budgets, statuses] = await Promise.all([
     getProfile(supabase, userId),
     getAccounts(supabase),
-    supabase.from("accounts").select("id, name, opening_balance").order("name"),
+    supabase.from("accounts").select("id, name, opening_balance, space").order("name"),
     getCategories(supabase),
     listBudgets(supabase).catch(() => null),
     budgetStatus(supabase, month).catch(() => null),
@@ -65,7 +67,7 @@ export default async function SettingsPage() {
             {email}
             {profile.memberSince && `, sur Kaobase depuis le ${new Date(profile.memberSince).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}`}
           </p>
-          <ProfileForm profile={profile} colors={AVATAR_COLORS} currencies={CURRENCIES} />
+          <ProfileForm profile={profile} colors={AVATAR_COLORS} currencies={CURRENCIES} timezones={Intl.supportedValuesOf("timeZone")} />
         </div>
 
         <div className="card">
@@ -81,7 +83,12 @@ export default async function SettingsPage() {
             {(accountRows ?? []).map((a) => (
               <AccountRow
                 key={a.id as string}
-                account={{ id: a.id as string, name: a.name as string, openingBalance: Number(a.opening_balance) }}
+                account={{
+                  id: a.id as string,
+                  name: a.name as string,
+                  openingBalance: Number(a.opening_balance),
+                  space: a.space === "pro" ? "pro" : "perso",
+                }}
                 balanceLabel={money(balanceOf.get(a.id as string) ?? 0)}
                 canDelete={(accountRows ?? []).length > 1}
               />
@@ -108,6 +115,7 @@ export default async function SettingsPage() {
                 <label className="label" htmlFor="acc-balance">Solde d&apos;ouverture</label>
                 <input className="input" id="acc-balance" name="openingBalance" inputMode="decimal" defaultValue="0" />
               </div>
+              <SpaceField id="acc-space" defaultValue={defaultSpace(await getSpaceFilter())} />
             </FormAction>
           </details>
         </div>

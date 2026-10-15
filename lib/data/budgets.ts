@@ -45,12 +45,12 @@ export async function deleteBudget(supabase: Supabase, categoryId: string) {
   if (error) throw error;
 }
 
-export async function budgetStatus(supabase: Supabase, month: string): Promise<BudgetStatus[] | null> {
+export async function budgetStatus(supabase: Supabase, month: string, accountIds?: string[]): Promise<BudgetStatus[] | null> {
   const budgets = await listBudgets(supabase);
   if (!budgets) return null;
   if (budgets.length === 0) return [];
   const { from, to } = monthRange(month);
-  const [txs, categories] = await Promise.all([listTransactions(supabase, { from, to, limit: 5000 }), getCategories(supabase)]);
+  const [txs, categories] = await Promise.all([listTransactions(supabase, { from, to, limit: 5000, accountIds }), getCategories(supabase)]);
   const summary = summarizeMonth(txs, categories, month);
   const spentBy = new Map(summary.byCategory.map((c) => [c.categoryId, c.total]));
   const nameOf = new Map(categories.map((c) => [c.id, c.name]));

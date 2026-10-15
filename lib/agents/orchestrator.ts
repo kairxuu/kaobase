@@ -7,6 +7,8 @@ import { generateWithFallback } from "@/lib/ai/provider";
 import { systemPrompt } from "./definitions";
 import { loadToolContext, toolsFor } from "./tools";
 import { isExplicitConfirmation } from "./confirmation";
+import type { SpaceFilter } from "@/lib/space-shared";
+import { localDate } from "@/lib/time";
 import { recordRun } from "./runs";
 
 export type AgentReply = {
@@ -55,14 +57,24 @@ async function route(supabase: Supabase, message: string): Promise<{ agent: Agen
 
 export async function askAgent(
   supabase: Supabase,
-  input: { message: string; agent: AgentId | "auto"; conversationId: string; currency: string },
+  input: {
+    message: string;
+    agent: AgentId | "auto";
+    conversationId: string;
+    currency: string;
+    timezone?: string;
+    space?: SpaceFilter;
+  },
 ): Promise<AgentReply> {
   const { agent, routedBy } =
     input.agent === "auto" ? await route(supabase, input.message) : { agent: input.agent, routedBy: "user" as const };
 
   const [context, toolContext, history] = await Promise.all([
     recall(supabase, agent, input.message),
-    loadToolContext(supabase, isExplicitConfirmation(input.message)),
+    loadToolContext(supabase, isExplicitConfirmation(input.message), {
+      space: input.space ?? "all",
+      today: localDate(input.timezone),
+    }),
     supabase
       .from("agent_messages")
       .select("role, content")
@@ -86,7 +98,11 @@ export async function askAgent(
 
   try {
     const generated = await generateWithFallback({
-      system: systemPrompt(agent, contextBlock(context), input.currency),
+      system: systemPrompt(agent, contextBlock(context), {
+        currency: input.currency,
+        timezone: input.timezone,
+        space: input.space,
+      }),
       messages,
       tools: toolsFor(agent, supabase, toolContext),
       maxSteps: 10,

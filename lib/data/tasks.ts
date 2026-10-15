@@ -1,14 +1,16 @@
 import "server-only";
 import type { Supabase } from "@/lib/supabase/server";
 import type { Task, TaskPriority, TaskStatus } from "@/lib/types";
+import type { Space, SpaceFilter } from "@/lib/space-shared";
 import { listSubscriptions } from "./subscriptions";
 
 const TASK_COLUMNS =
-  "id, title, description, status, priority, due_date, subscription_id, transaction_id, created_by, created_at, completed_at";
+  "id, title, description, status, priority, due_date, subscription_id, transaction_id, created_by, created_at, completed_at, space";
 
-export async function listTasks(supabase: Supabase, statuses?: TaskStatus[]): Promise<Task[]> {
+export async function listTasks(supabase: Supabase, statuses?: TaskStatus[], space: SpaceFilter = "all"): Promise<Task[]> {
   let q = supabase.from("tasks").select(TASK_COLUMNS);
   if (statuses?.length) q = q.in("status", statuses);
+  if (space !== "all") q = q.eq("space", space);
   const { data, error } = await q.order("due_date", { ascending: true, nullsFirst: false }).order("created_at");
   if (error) throw error;
   return data as Task[];
@@ -24,6 +26,7 @@ export async function createTask(
     subscriptionId?: string | null;
     transactionId?: string | null;
     createdBy?: "user" | "agent";
+    space?: Space;
   },
 ) {
   const { data, error } = await supabase
@@ -36,6 +39,7 @@ export async function createTask(
       subscription_id: input.subscriptionId ?? null,
       transaction_id: input.transactionId ?? null,
       created_by: input.createdBy ?? "user",
+      space: input.space ?? "perso",
     })
     .select(TASK_COLUMNS)
     .single();
@@ -62,12 +66,12 @@ export async function deleteTask(supabase: Supabase, id: string) {
 
 // Crée une tâche de vérification pour chaque abonnement actif qui tombe dans les `days` prochains jours
 // (sans doublon si une tâche ouverte existe déjà pour cet abonnement).
-export async function planSubscriptionReminders(supabase: Supabase, days = 7) {
+export async function planSubscriptionReminders(supabase: Supabase, days = 7, space: SpaceFilter = "all") {
   const horizon = new Date();
   horizon.setUTCDate(horizon.getUTCDate() + days);
   const limit = horizon.toISOString().slice(0, 10);
 
-  const [subs, open] = await Promise.all([listSubscriptions(supabase, ["active"]), listTasks(supabase, ["todo", "doing"])]);
+  const [subs, open] = await Promise.all([listSubscriptions(supabase, ["active"], space), listTasks(supabase, ["todo", "doing"], space)]);
   const covered = new Set(open.map((t) => t.subscription_id).filter(Boolean));
   const created: Task[] = [];
   for (const s of subs) {
@@ -80,6 +84,7 @@ export async function planSubscriptionReminders(supabase: Supabase, days = 7) {
         dueDate: s.next_due,
         subscriptionId: s.id,
         createdBy: "agent",
+        space: s.space,
       }),
     );
   }

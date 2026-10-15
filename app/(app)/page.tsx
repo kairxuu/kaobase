@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getCurrency, requireUser } from "@/lib/auth";
+import { accountIdsFor, getSpaceFilter } from "@/lib/space";
 import { getCategories, getTotalBalance, listTransactions, summarizeMonth } from "@/lib/data/finance";
 import { listSubscriptions } from "@/lib/data/subscriptions";
 import { listTasks } from "@/lib/data/tasks";
@@ -20,12 +21,15 @@ export default async function Dashboard() {
   since.setUTCDate(since.getUTCDate() - 90);
 
   // Une seule lecture des 90 derniers jours sert au mois en cours, au cadran et à la prévision.
+  // Espace actif (ticket #1) : solde, mois, cadran, prévision, prélèvements et tâches filtrés.
+  const space = await getSpaceFilter();
+  const accountIds = await accountIdsFor(supabase, space);
   const [balance, recent, categories, subs, tasks, { data: profile }, budgets] = await Promise.all([
-    getTotalBalance(supabase),
-    listTransactions(supabase, { from: since.toISOString().slice(0, 10), limit: 5000 }),
+    getTotalBalance(supabase, space),
+    listTransactions(supabase, { from: since.toISOString().slice(0, 10), limit: 5000, accountIds }),
     getCategories(supabase),
-    listSubscriptions(supabase, ["active", "suggested"]),
-    listTasks(supabase, ["todo", "doing"]),
+    listSubscriptions(supabase, ["active", "suggested"], space),
+    listTasks(supabase, ["todo", "doing"], space),
     supabase.from("profiles").select("display_name").eq("id", userId).single(),
     listBudgets(supabase).catch(() => null),
   ]);
