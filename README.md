@@ -17,16 +17,20 @@ Webapp multi-utilisateurs de gestion des finances, des abonnements récurrents e
 
 ## Architecture
 
-| Secteur | Agent | Outils (lecture/écriture sous RLS) |
+Tous les agents peuvent **agir** : enregistrer des opérations dictées (« 12 € de pain hier et 40 € d'essence »), chercher, corriger ou supprimer une opération (suppression uniquement après confirmation explicite), créer des tâches et mémoriser une préférence. Chacun ajoute ensuite ses compétences :
+
+| Secteur | Agent | Compétences propres |
 |---|---|---|
-| Finance | `finance` | résumé du mois, transactions, catégorisation, soldes, prévision |
-| Abonnements | `subscriptions` | liste, coûts, détection, confirmation/résiliation |
-| Tâches | `tasks` | liste, création, mise à jour, rappels de prélèvements |
-| Imports | `imports` | historique, contrôle qualité, catégorisation en masse |
+| Finance | `finance` | résumé du mois, comparaison de deux mois, top commerçants, catégorisation, catégories, comptes, soldes, prévision, budgets |
+| Abonnements | `subscriptions` | liste, coûts, pistes d'économies, détection, ajout, confirmation/résiliation |
+| Tâches | `tasks` | liste, mise à jour, suppression, rappels de prélèvements |
+| Imports | `imports` | historique, contrôle qualité, catégorisation en masse, détection d'abonnements |
+
+Les budgets demandent la 2e migration : `supabase/migrations/20261015120000_budgets.sql`.
 
 L'**orchestrateur** (`lib/agents/orchestrator.ts`) route chaque question : mots-clés d'abord (gratuit), petit modèle rapide si c'est ambigu.
 
-Fournisseurs : Groq (`openai/gpt-oss-120b`) puis bascule automatique sur Gemini en cas de quota ou d'erreur (`lib/ai/provider.ts`). Les modèles se changent dans `.env.local`.
+Fournisseurs : Groq (`openai/gpt-oss-120b`, puis `openai/gpt-oss-20b` qui a son propre quota gratuit), puis bascule automatique sur Gemini en cas de quota ou d'erreur (`lib/ai/provider.ts`). Les modèles se changent dans `.env.local`.
 
 ## Comment l'IA s'améliore (sans fine-tuning)
 

@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/auth";
 import { getCategories, getTotalBalance, listTransactions, summarizeMonth } from "@/lib/data/finance";
 import { listSubscriptions } from "@/lib/data/subscriptions";
 import { listTasks } from "@/lib/data/tasks";
+import { listBudgets } from "@/lib/data/budgets";
 import { forecastBalance } from "@/lib/learning/forecast";
 import { daysUntil, money, shortDate } from "@/lib/ui/format";
 import { MonthDial, type DialMark } from "./_components/month-dial";
@@ -17,13 +18,14 @@ export default async function Dashboard() {
   since.setUTCDate(since.getUTCDate() - 90);
 
   // Une seule lecture des 90 derniers jours sert au mois en cours, au cadran et à la prévision.
-  const [balance, recent, categories, subs, tasks, { data: profile }] = await Promise.all([
+  const [balance, recent, categories, subs, tasks, { data: profile }, budgets] = await Promise.all([
     getTotalBalance(supabase),
     listTransactions(supabase, { from: since.toISOString().slice(0, 10), limit: 5000 }),
     getCategories(supabase),
     listSubscriptions(supabase, ["active", "suggested"]),
     listTasks(supabase, ["todo", "doing"]),
     supabase.from("profiles").select("display_name").eq("id", userId).single(),
+    listBudgets(supabase).catch(() => null),
   ]);
 
   const summary = summarizeMonth(recent, categories, month);
@@ -59,8 +61,17 @@ export default async function Dashboard() {
     subscriptions: active.map((s) => ({ merchant: s.merchant, amount: s.amount, period: s.period, nextDue: s.next_due })),
     recentTransactions: recent.map((t) => ({ bookedAt: t.booked_at, amount: t.amount, merchant: t.merchant })),
   });
-  const topCategories = summary.byCategory.slice(0, 6);
-  const maxCat = topCategories[0]?.total ?? 1;
+  // Catégories budgétées toujours visibles, même sans dépense ce mois-ci.
+  const limitOf = new Map((budgets ?? []).map((b) => [b.category_id, b.monthly_limit]));
+  const shown = summary.byCategory.slice(0, 6);
+  for (const id of limitOf.keys()) {
+    if (!shown.some((c) => c.categoryId === id)) {
+      const c = categories.find((x) => x.id === id);
+      if (c) shown.push({ categoryId: id, name: c.name, color: c.color, total: 0 });
+    }
+  }
+  const topCategories = shown.map((c) => ({ ...c, limit: c.categoryId ? limitOf.get(c.categoryId) : undefined }));
+  const maxCat = Math.max(1, ...topCategories.map((c) => Math.max(c.total, c.limit ?? 0)));
   const firstName = profile?.display_name?.split(" ")[0];
 
   return (
@@ -155,17 +166,27 @@ export default async function Dashboard() {
             <ul className="space-y-3">
               {topCategories.map((c) => (
                 <li key={c.name}>
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between gap-3 text-sm">
                     <Link
                       href={c.categoryId ? `/transactions?mois=${month}&categorie=${c.categoryId}` : `/transactions?mois=${month}&non=1`}
                       className="hover:text-accent"
                     >
                       {c.name}
                     </Link>
-                    <span className="num text-ink-2">{money(c.total)}</span>
+                    <span className={`num ${c.limit && c.total > c.limit ? "text-neg" : "text-ink-2"}`}>
+                      {money(c.total)}
+                      {c.limit && <span className="text-ink-3"> sur {money(c.limit)}</span>}
+                    </span>
                   </div>
-                  <div className="mt-1.5 h-[3px] bg-surface-2">
+                  <div className="relative mt-1.5 h-[3px] bg-surface-2">
                     <div className="h-[3px]" style={{ width: `${(c.total / maxCat) * 100}%`, background: c.color }} />
+                    {c.limit && (
+                      <span
+                        className="absolute -top-1 h-[11px] w-px bg-ink"
+                        style={{ left: `${(c.limit / maxCat) * 100}%` }}
+                        title={`Budget : ${money(c.limit)}`}
+                      />
+                    )}
                   </div>
                 </li>
               ))}

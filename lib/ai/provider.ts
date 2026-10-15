@@ -14,8 +14,9 @@ function providers(tier: "smart" | "fast"): ProviderChoice[] {
   const groqKey = env.groqKey();
   if (groqKey) {
     const groq = createGroq({ apiKey: groqKey });
-    const model = tier === "fast" ? env.groqFastModel() : env.groqModel();
-    list.push({ provider: "groq", model, instance: groq(model) });
+    // Le quota gratuit de Groq est compté par modèle : un 2e modèle double la capacité avant Gemini.
+    const models = tier === "fast" ? [env.groqFastModel()] : [env.groqModel(), env.groqFallbackModel()];
+    for (const model of new Set(models)) list.push({ provider: "groq", model, instance: groq(model) });
   }
   const geminiKey = env.geminiKey();
   if (geminiKey) {
@@ -58,7 +59,7 @@ export async function generateWithFallback(options: GenerateOptions) {
         tools: options.tools,
         stopWhen: isStepCount(options.maxSteps ?? 6),
         temperature: 0.3,
-        maxRetries: 1,
+        maxRetries: 2,
       });
       return { result, provider: choice.provider, model: choice.model, fallbackErrors: errors };
     } catch (error) {

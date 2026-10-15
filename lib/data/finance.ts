@@ -51,6 +51,12 @@ export async function listTransactions(supabase: Supabase, f: TransactionFilters
   return rows.map((r) => ({ ...r, amount: Number(r.amount) }));
 }
 
+export async function getTransaction(supabase: Supabase, id: string): Promise<Transaction | null> {
+  const { data, error } = await supabase.from("transactions").select(TX_COLUMNS).eq("id", id).maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? { ...(data as Transaction), amount: Number((data as Transaction).amount) } : null;
+}
+
 export function monthRange(month: string): { from: string; to: string } {
   const [y, m] = month.split("-").map(Number);
   const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
@@ -301,10 +307,20 @@ export async function importTransactions(
   };
 }
 
+// Ajout à la main ou par un agent. Catégorie choisie par l'utilisateur -> règle apprise ;
+// proposée par l'IA -> règle faible ; absente -> on applique une règle connue s'il y en a une.
 export async function addManualTransaction(
   supabase: Supabase,
-  input: { accountId: string | null; bookedAt: string; amount: number; label: string; categoryId: string | null },
+  input: {
+    accountId: string | null;
+    bookedAt: string;
+    amount: number;
+    label: string;
+    categoryId: string | null;
+    categorizedBy?: "user" | "llm";
+  },
 ) {
+  const merchant = normalizeMerchant(input.label);
   const tx = check(
     await supabase
       .from("transactions")
@@ -313,19 +329,102 @@ export async function addManualTransaction(
         booked_at: input.bookedAt,
         amount: input.amount,
         label_raw: input.label,
-        merchant: normalizeMerchant(input.label),
+        merchant,
         source: "manual",
         dedupe_hash: dedupeHash({
           accountId: input.accountId,
           bookedAt: input.bookedAt,
           amount: input.amount,
           labelRaw: input.label,
-          occurrence: Date.now(),
+          occurrence: crypto.randomUUID(),
         }),
       })
       .select("id")
       .single(),
   ) as { id: string };
-  if (input.categoryId) await setTransactionCategory(supabase, tx.id, input.categoryId);
-  return tx;
+
+  const by = input.categorizedBy ?? "user";
+  if (input.categoryId && by === "user") {
+    await setTransactionCategory(supabase, tx.id, input.categoryId);
+    return { id: tx.id, merchant, categoryId: input.categoryId };
+  }
+  const existing = (await loadRules(supabase, [merchant])).get(merchant);
+  const rule = applicableRule(existing);
+  const categoryId = rule?.categoryId ?? input.categoryId;
+  if (categoryId) {
+    check(
+      await supabase
+        .from("transactions")
+        .update({ category_id: categoryId, categorized_by: rule ? "rule" : "llm" })
+        .eq("id", tx.id),
+    );
+    if (!rule && input.categoryId) {
+      const learned = learnFromLlm(existing, merchant, input.categoryId);
+      if (learned) await saveRule(supabase, learned);
+    }
+  }
+  return { id: tx.id, merchant, categoryId: categoryId ?? null };
+}
+
+export async function updateTransaction(
+  supabase: Supabase,
+  id: string,
+  patch: { bookedAt?: string; amount?: number; label?: string },
+) {
+  const update: Record<string, unknown> = {};
+  if (patch.bookedAt) update.booked_at = patch.bookedAt;
+  if (patch.amount != null) update.amount = patch.amount;
+  if (patch.label) {
+    update.label_raw = patch.label;
+    update.merchant = normalizeMerchant(patch.label);
+  }
+  if (Object.keys(update).length === 0) throw new Error("Rien à modifier");
+  return check(await supabase.from("transactions").update(update).eq("id", id).select(TX_COLUMNS).single()) as Transaction;
+}
+
+export async function deleteTransaction(supabase: Supabase, id: string) {
+  const deleted = check(await supabase.from("transactions").delete().eq("id", id).select("id")) as { id: string }[];
+  if (deleted.length === 0) throw new Error("Opération introuvable");
+}
+
+export async function createCategory(
+  supabase: Supabase,
+  input: { name: string; kind: "expense" | "income" | "transfer"; color?: string },
+) {
+  const { data, error } = await supabase
+    .from("categories")
+    .insert({ name: input.name.trim(), kind: input.kind, color: input.color ?? "#64748b" })
+    .select("id, name, kind, color")
+    .single();
+  if (error) throw new Error(error.code === "23505" ? `La catégorie « ${input.name} » existe déjà.` : error.message);
+  return data as Category;
+}
+
+export async function createAccount(
+  supabase: Supabase,
+  input: { name: string; kind: string; openingBalance: number },
+) {
+  const { data, error } = await supabase
+    .from("accounts")
+    .insert({ name: input.name.trim(), kind: input.kind, opening_balance: input.openingBalance })
+    .select("id, name")
+    .single();
+  if (error) throw new Error(error.message);
+  return data as { id: string; name: string };
+}
+
+// Classement des commerçants par montant dépensé sur une période.
+export function rankMerchants(txs: Transaction[], limit = 10) {
+  const byMerchant = new Map<string, { total: number; count: number }>();
+  for (const t of txs) {
+    if (t.amount >= 0) continue;
+    const m = byMerchant.get(t.merchant) ?? { total: 0, count: 0 };
+    m.total += -t.amount;
+    m.count++;
+    byMerchant.set(t.merchant, m);
+  }
+  return [...byMerchant.entries()]
+    .map(([merchant, v]) => ({ merchant, total: Math.round(v.total * 100) / 100, count: v.count }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, limit);
 }

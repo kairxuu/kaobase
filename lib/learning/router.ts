@@ -8,7 +8,8 @@ const KEYWORDS: Record<AgentId, string[]> = {
   finance: [
     "depense", "dépense", "budget", "solde", "revenu", "salaire", "categorie", "catégorie", "argent",
     "economie", "économie", "epargne", "épargne", "prevision", "prévision", "transaction", "combien",
-    "mois", "paye", "payé", "restaurant", "courses", "compte",
+    "mois", "paye", "payé", "restaurant", "courses", "compte", "euros", "achete", "acheté", "recu", "reçu",
+    "essence", "loyer", "commercant", "commerçant",
   ],
   subscriptions: [
     "abonnement", "abonne", "abonné", "recurrent", "récurrent", "netflix", "spotify", "resilier",

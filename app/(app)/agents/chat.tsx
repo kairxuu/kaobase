@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Markdown } from "./markdown";
 
@@ -14,33 +15,50 @@ type Message = {
 };
 
 const SUGGESTIONS = [
+  "J'ai payé 23 € au restaurant hier et 60 € de courses aujourd'hui",
   "Combien j'ai dépensé en restaurants ce mois-ci ?",
-  "Quels abonnements pourrais-je résilier pour économiser ?",
-  "Rappelle-moi les prélèvements de la semaine",
-  "Reste-t-il des opérations à trier ?",
+  "Mets un budget de 300 € par mois pour l'alimentation",
+  "Quels abonnements pourrais-je couper pour économiser ?",
+  "Rappelle-moi de résilier ma salle de sport avant vendredi",
+  "Compare mes dépenses de ce mois avec le mois dernier",
 ];
 
-// Ce que chaque outil a consulté ou fait, dit en clair dans la ligne au-dessus de la réponse.
-const TOOL_LABEL: Record<string, string> = {
+// Ce que l'agent a consulté, dit en clair au-dessus de la réponse.
+const READ_LABEL: Record<string, string> = {
   resume_mois: "le résumé du mois",
-  lister_transactions: "tes opérations",
-  lister_categories: "tes catégories",
-  categoriser_transaction: "la catégorie d'une opération",
+  comparer_mois: "deux mois côte à côte",
+  top_commercants: "tes principaux commerçants",
+  rechercher_operations: "tes opérations",
   soldes: "tes soldes",
   prevision: "la prévision de solde",
+  suivi_budgets: "tes budgets",
   lister_abonnements: "tes abonnements",
   cout_total_abonnements: "le coût de tes abonnements",
+  pistes_economies: "les pistes d'économies",
   detecter_abonnements: "tes paiements réguliers",
-  modifier_abonnement: "un abonnement",
-  creer_abonnement: "un nouvel abonnement",
   lister_taches: "tes tâches",
-  creer_tache: "une nouvelle tâche",
-  modifier_tache: "une tâche",
-  planifier_rappels_abonnements: "tes rappels",
   historique_imports: "tes imports",
   controle_qualite: "la qualité de tes données",
-  categoriser_non_classees: "les opérations à trier",
-  memoriser: "sa mémoire",
+};
+
+// Ce que l'agent a modifié, avec la page où le vérifier.
+const ACTIONS: Record<string, { done: string; href: string; link: string }> = {
+  ajouter_operations: { done: "a enregistré des opérations", href: "/transactions", link: "Voir les opérations" },
+  modifier_operation: { done: "a corrigé une opération", href: "/transactions", link: "Voir les opérations" },
+  supprimer_operation: { done: "a supprimé une opération", href: "/transactions", link: "Voir les opérations" },
+  categoriser_operation: { done: "a changé une catégorie", href: "/transactions", link: "Voir les opérations" },
+  categoriser_non_classees: { done: "a trié des opérations", href: "/transactions", link: "Voir les opérations" },
+  creer_categorie: { done: "a créé une catégorie", href: "/settings", link: "Voir les réglages" },
+  creer_compte: { done: "a ajouté un compte", href: "/settings", link: "Voir les réglages" },
+  definir_budget: { done: "a fixé un budget", href: "/", link: "Voir la vue d'ensemble" },
+  supprimer_budget: { done: "a retiré un budget", href: "/", link: "Voir la vue d'ensemble" },
+  creer_abonnement: { done: "a ajouté un abonnement", href: "/subscriptions", link: "Voir les abonnements" },
+  modifier_abonnement: { done: "a mis à jour un abonnement", href: "/subscriptions", link: "Voir les abonnements" },
+  creer_taches: { done: "a créé des tâches", href: "/tasks", link: "Voir les tâches" },
+  modifier_tache: { done: "a mis à jour une tâche", href: "/tasks", link: "Voir les tâches" },
+  supprimer_tache: { done: "a supprimé une tâche", href: "/tasks", link: "Voir les tâches" },
+  planifier_rappels_abonnements: { done: "a créé des rappels", href: "/tasks", link: "Voir les tâches" },
+  memoriser: { done: "a retenu une information", href: "/agents/performance", link: "Voir ce qu'ils ont appris" },
 };
 
 function frenchList(items: string[]) {
@@ -48,13 +66,23 @@ function frenchList(items: string[]) {
 }
 
 function describe(agentName: string, meta: NonNullable<Message["meta"]>) {
-  const tools = [...new Set(meta.toolsUsed.map((t) => TOOL_LABEL[t]).filter(Boolean))];
+  const used = [...new Set(meta.toolsUsed)];
+  const done = used.map((t) => ACTIONS[t]?.done).filter(Boolean) as string[];
+  const read = used.map((t) => READ_LABEL[t]).filter(Boolean) as string[];
   const recalled = meta.memoriesUsed + meta.examplesUsed;
-  let line = `L'agent ${agentName}`;
-  if (tools.length) line += ` a consulté ${frenchList(tools)}`;
-  else line += " a répondu";
+  const parts = [...done, ...(read.length ? [`a consulté ${frenchList(read)}`] : [])];
+  let line = `L'agent ${agentName} ${parts.length ? frenchList(parts) : "a répondu"}`;
   if (recalled) line += `, en s'appuyant sur ${recalled} souvenir${recalled > 1 ? "s" : ""}`;
   return line;
+}
+
+function actionLinks(meta: NonNullable<Message["meta"]>) {
+  const seen = new Map<string, string>();
+  for (const t of meta.toolsUsed) {
+    const a = ACTIONS[t];
+    if (a && t !== "memoriser") seen.set(a.href, a.link);
+  }
+  return [...seen.entries()];
 }
 
 export function Chat({ agents }: { agents: AgentOption[] }) {
@@ -226,6 +254,15 @@ function AssistantMessage({
       <div className="rounded-2xl rounded-bl-sm bg-surface-2 px-4 py-2 text-sm">
         <Markdown text={message.content} />
       </div>
+      {meta && actionLinks(meta).length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-2">
+          {actionLinks(meta).map(([href, label]) => (
+            <Link key={href} href={href} className="btn-ghost btn-sm">
+              {label}
+            </Link>
+          ))}
+        </div>
+      )}
       {message.runId && (
         <div className="mt-1 flex items-center gap-2 text-xs text-ink-3">
           <button onClick={() => onFeedback(1, null)} className={message.rating === 1 ? "text-pos" : "hover:text-ink"} aria-label="Bonne réponse">

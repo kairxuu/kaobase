@@ -5,7 +5,7 @@ import { AGENT_IDS, routeByKeywords, type AgentId } from "@/lib/learning/router"
 import { contextBlock, recall, storeExchange } from "@/lib/learning/memory";
 import { generateWithFallback } from "@/lib/ai/provider";
 import { systemPrompt } from "./definitions";
-import { toolsFor } from "./tools";
+import { loadToolContext, toolsFor } from "./tools";
 import { recordRun } from "./runs";
 
 export type AgentReply = {
@@ -59,8 +59,9 @@ export async function askAgent(
   const { agent, routedBy } =
     input.agent === "auto" ? await route(supabase, input.message) : { agent: input.agent, routedBy: "user" as const };
 
-  const [context, history] = await Promise.all([
+  const [context, toolContext, history] = await Promise.all([
     recall(supabase, agent, input.message),
+    loadToolContext(supabase),
     supabase
       .from("agent_messages")
       .select("role, content")
@@ -86,8 +87,8 @@ export async function askAgent(
     const generated = await generateWithFallback({
       system: systemPrompt(agent, contextBlock(context), input.currency),
       messages,
-      tools: toolsFor(agent, supabase),
-      maxSteps: 6,
+      tools: toolsFor(agent, supabase, toolContext),
+      maxSteps: 10,
     });
     const { result } = generated;
     provider = generated.provider;

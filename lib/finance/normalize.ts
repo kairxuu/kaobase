@@ -71,7 +71,7 @@ export function dedupeHash(parts: {
   bookedAt: string;
   amount: number;
   labelRaw: string;
-  occurrence?: number;
+  occurrence?: number | string;
 }): string {
   const input = [
     parts.accountId ?? "",
