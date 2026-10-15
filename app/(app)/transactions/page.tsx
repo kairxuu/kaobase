@@ -6,7 +6,7 @@ import { ActionButton } from "../_components/action-button";
 import { FormAction } from "../_components/form-action";
 import { CategorySelect } from "./category-select";
 
-const BY_LABEL = { rule: "règle", llm: "IA", user: "toi" } as const;
+const BY_LABEL = { rule: "règle apprise", llm: "proposé par l'IA", user: "choisi par toi" } as const;
 
 export default async function TransactionsPage({ searchParams }: PageProps<"/transactions">) {
   const params = await searchParams;
@@ -32,23 +32,24 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/tra
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Transactions</h1>
-          <p className="text-sm text-ink-2">
-            Corrige une catégorie : KAOBASE en tire une règle et l&apos;applique aux opérations du même marchand.
+          <h1 className="page-title">Opérations</h1>
+          <p className="page-lede">
+            Change la catégorie d&apos;une opération : Kaobase applique ton choix aux autres opérations du même commerçant,
+            et s&apos;en souviendra pour les prochains imports.
           </p>
         </div>
         <ActionButton
           action={categorizeUncategorizedAction}
           className="btn-ghost"
         >
-          Catégoriser les non classées
+          Trier les opérations sans catégorie
         </ActionButton>
       </header>
 
-      <form className="card flex flex-wrap items-end gap-3" method="get">
+      <form className="flex flex-wrap items-end gap-3" method="get" role="search">
         <div className="min-w-40 flex-1">
           <label className="label" htmlFor="q">Recherche</label>
-          <input className="input" id="q" name="q" defaultValue={get("q")} placeholder="Libellé ou marchand" />
+          <input className="input" id="q" name="q" defaultValue={get("q")} placeholder="Netflix, loyer, Carrefour…" />
         </div>
         <div>
           <label className="label" htmlFor="mois">Mois</label>
@@ -64,12 +65,12 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/tra
           </select>
         </div>
         <label className="flex items-center gap-2 pb-2 text-sm">
-          <input type="checkbox" name="non" value="1" defaultChecked={get("non") === "1"} /> Non catégorisées
+          <input type="checkbox" name="non" value="1" defaultChecked={get("non") === "1"} className="accent-accent" /> Sans catégorie seulement
         </label>
         <button className="btn-ghost">Filtrer</button>
       </form>
 
-      <div className="card overflow-x-auto p-0">
+      <div className="-mx-3 overflow-x-auto">
         <table className="table">
           <thead>
             <tr>
@@ -82,7 +83,7 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/tra
           <tbody>
             {txs.length === 0 && (
               <tr>
-                <td colSpan={4} className="py-8 text-center text-ink-3">Aucune transaction.</td>
+                <td colSpan={4} className="py-10 text-center text-ink-3">Aucune opération ne correspond. Élargis les filtres ou importe un relevé.</td>
               </tr>
             )}
             {txs.map((t) => (
@@ -95,17 +96,17 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/tra
                 <td className={`num whitespace-nowrap text-right ${t.amount > 0 ? "text-pos" : ""}`}>{money(t.amount)}</td>
                 <td className="whitespace-nowrap">
                   <CategorySelect transactionId={t.id} value={t.category_id} categories={categories} />
-                  {t.categorized_by && <span className="badge ml-2">{BY_LABEL[t.categorized_by]}</span>}
+                  {t.categorized_by && <span className="ml-2 text-xs text-ink-3">{BY_LABEL[t.categorized_by]}</span>}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      {uncategorized > 0 && <p className="text-xs text-ink-3">{uncategorized} transaction(s) sans catégorie dans cette vue.</p>}
+      {uncategorized > 0 && <p className="text-xs text-ink-3">{uncategorized === 1 ? "Une opération" : `${uncategorized} opérations`} sans catégorie dans cette liste.</p>}
 
       <details className="card">
-        <summary className="cursor-pointer text-sm font-medium">Ajouter une opération manuelle</summary>
+        <summary className="cursor-pointer text-sm font-medium">Ajouter une opération à la main</summary>
         <FormAction action={addTransactionAction} submitLabel="Ajouter" className="mt-4 grid gap-3 sm:grid-cols-3">
           <div className="sm:col-span-2">
             <label className="label" htmlFor="label">Libellé</label>

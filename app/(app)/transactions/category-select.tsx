@@ -30,7 +30,7 @@ export function CategorySelect({
             if (!res.ok) setNote(res.error);
             else {
               const n = (res.data as { propagated: number } | undefined)?.propagated ?? 0;
-              setNote(n > 0 ? `+${n} appris` : null);
+              setNote(n > 0 ? `appliqué à ${n} autre${n > 1 ? "s" : ""}` : "retenu");
             }
           });
         }}

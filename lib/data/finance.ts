@@ -63,11 +63,20 @@ export async function monthSummary(supabase: Supabase, month: string) {
     listTransactions(supabase, { from, to, limit: 5000 }),
     getCategories(supabase),
   ]);
+  return summarizeMonth(txs, categories, month);
+}
+
+// Calcul pur : permet au tableau de bord de réutiliser des transactions déjà chargées.
+export function summarizeMonth(txs: Transaction[], categories: Category[], month: string) {
+  const { from, to } = monthRange(month);
   const transferIds = new Set(categories.filter((c) => c.kind === "transfer").map((c) => c.id));
   const byCategory = new Map<string, number>();
   let income = 0;
   let expenses = 0;
+  let count = 0;
   for (const t of txs) {
+    if (t.booked_at < from || t.booked_at > to) continue;
+    count++;
     if (t.category_id && transferIds.has(t.category_id)) continue;
     if (t.amount > 0) income += t.amount;
     else {
@@ -82,7 +91,7 @@ export async function monthSummary(supabase: Supabase, month: string) {
     income: Math.round(income * 100) / 100,
     expenses: Math.round(expenses * 100) / 100,
     net: Math.round((income - expenses) * 100) / 100,
-    count: txs.length,
+    count,
     byCategory: [...byCategory.entries()]
       .map(([id, total]) => ({
         categoryId: id === "none" ? null : id,

@@ -1,32 +1,57 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
-import { getTotalBalance, listTransactions, monthSummary } from "@/lib/data/finance";
+import { getCategories, getTotalBalance, listTransactions, summarizeMonth } from "@/lib/data/finance";
 import { listSubscriptions } from "@/lib/data/subscriptions";
 import { listTasks } from "@/lib/data/tasks";
 import { forecastBalance } from "@/lib/learning/forecast";
-import { monthlyCost } from "@/lib/learning/subscriptions";
-import { daysUntil, money, PERIOD_LABEL, shortDate } from "@/lib/ui/format";
-import { ForecastChart } from "./_components/charts";
+import { daysUntil, money, shortDate } from "@/lib/ui/format";
+import { MonthDial, type DialMark } from "./_components/month-dial";
+import { ForecastLine } from "./_components/forecast-line";
 
 export default async function Dashboard() {
-  const { supabase } = await requireUser();
-  const today = new Date().toISOString().slice(0, 10);
-  const since = new Date();
+  const { supabase, userId } = await requireUser();
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+  const month = today.slice(0, 7);
+  const since = new Date(now);
   since.setUTCDate(since.getUTCDate() - 90);
 
-  const [balance, summary, subs, tasks, recent] = await Promise.all([
+  // Une seule lecture des 90 derniers jours sert au mois en cours, au cadran et à la prévision.
+  const [balance, recent, categories, subs, tasks, { data: profile }] = await Promise.all([
     getTotalBalance(supabase),
-    monthSummary(supabase, today.slice(0, 7)),
+    listTransactions(supabase, { from: since.toISOString().slice(0, 10), limit: 5000 }),
+    getCategories(supabase),
     listSubscriptions(supabase, ["active", "suggested"]),
     listTasks(supabase, ["todo", "doing"]),
-    listTransactions(supabase, { from: since.toISOString().slice(0, 10), limit: 5000 }),
+    supabase.from("profiles").select("display_name").eq("id", userId).single(),
   ]);
 
+  const summary = summarizeMonth(recent, categories, month);
   const active = subs.filter((s) => s.status === "active");
   const suggested = subs.filter((s) => s.status === "suggested");
-  const upcoming = active.filter((s) => (daysUntil(s.next_due) ?? 99) <= 30).slice(0, 6);
-  const subsMonthly = active.reduce((s, x) => s + monthlyCost(x.amount, x.period), 0);
-  const dueTasks = tasks.filter((t) => !t.due_date || t.due_date <= today).slice(0, 6);
+
+  // Cadran : prélèvements déjà passés ce mois (vus dans les opérations) et ceux à venir.
+  const daysInMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0)).getUTCDate();
+  const byMerchant = new Map(active.map((s) => [s.merchant, s]));
+  const marks: DialMark[] = [];
+  const paidMerchants = new Set<string>();
+  for (const t of recent) {
+    const sub = byMerchant.get(t.merchant);
+    if (sub && t.amount < 0 && t.booked_at.startsWith(month) && !paidMerchants.has(t.merchant)) {
+      paidMerchants.add(t.merchant);
+      marks.push({ day: Number(t.booked_at.slice(8, 10)), label: sub.name, amount: -t.amount, paid: true });
+    }
+  }
+  for (const s of active) {
+    if (s.next_due?.startsWith(month) && !paidMerchants.has(s.merchant)) {
+      marks.push({ day: Number(s.next_due.slice(8, 10)), label: s.name, amount: s.amount, paid: false });
+    }
+  }
+  const remaining = marks.filter((m) => !m.paid).reduce((a, m) => a + m.amount, 0);
+  const totalThisMonth = marks.reduce((a, m) => a + m.amount, 0);
+
+  const upcoming = active.filter((s) => (daysUntil(s.next_due) ?? 99) <= 30).slice(0, 5);
+  const dueTasks = tasks.filter((t) => !t.due_date || t.due_date <= today).slice(0, 5);
   const forecast = forecastBalance({
     today,
     balance,
@@ -34,114 +59,134 @@ export default async function Dashboard() {
     subscriptions: active.map((s) => ({ merchant: s.merchant, amount: s.amount, period: s.period, nextDue: s.next_due })),
     recentTransactions: recent.map((t) => ({ bookedAt: t.booked_at, amount: t.amount, merchant: t.merchant })),
   });
-  const maxCat = summary.byCategory[0]?.total ?? 1;
-  const empty = recent.length === 0;
+  const topCategories = summary.byCategory.slice(0, 6);
+  const maxCat = topCategories[0]?.total ?? 1;
+  const firstName = profile?.display_name?.split(" ")[0];
 
   return (
-    <div className="space-y-6">
-      <header className="flex flex-wrap items-end justify-between gap-3">
+    <div className="space-y-12">
+      <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Tableau de bord</h1>
-          <p className="text-sm text-ink-2">
-            {new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
+          <h1 className="page-title">{firstName ? `Bonjour ${firstName}` : "Bonjour"}</h1>
+          <p className="page-lede">
+            {now.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}, jour {now.getUTCDate()} sur {daysInMonth}.
           </p>
         </div>
-        <Link href="/agents" className="btn-primary">Demander à un agent</Link>
+        <Link href="/agents" className="btn-primary">Poser une question</Link>
       </header>
 
-      {empty && (
-        <div className="card flex flex-wrap items-center justify-between gap-3 border-accent bg-accent-soft">
-          <p className="text-sm">Commence par importer un relevé bancaire : les agents ont besoin d&apos;historique pour apprendre.</p>
+      {recent.length === 0 && (
+        <div className="slip flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm">
+            Aucune opération pour l&apos;instant. Importe un relevé de ta banque : le cadran, la prévision et les agents se rempliront.
+          </p>
           <Link href="/import" className="btn-primary">Importer un relevé</Link>
         </div>
       )}
 
       {suggested.length > 0 && (
-        <div className="card flex flex-wrap items-center justify-between gap-3 border-warn bg-warn-soft">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-warn-soft px-4 py-3">
           <p className="text-sm">
-            {suggested.length} abonnement{suggested.length > 1 ? "s" : ""} détecté{suggested.length > 1 ? "s" : ""} automatiquement, à confirmer.
+            {suggested.length === 1
+              ? "Un paiement revient chaque mois sans être suivi comme abonnement."
+              : `${suggested.length} paiements reviennent régulièrement sans être suivis comme abonnements.`}
           </p>
-          <Link href="/subscriptions" className="btn-ghost btn-sm">Vérifier</Link>
+          <Link href="/subscriptions" className="btn-ghost btn-sm">Les vérifier</Link>
         </div>
       )}
 
-      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="Solde total" value={money(balance)} />
-        <Stat label="Revenus du mois" value={money(summary.income)} tone="pos" />
-        <Stat label="Dépenses du mois" value={money(summary.expenses)} tone="neg" />
-        <Stat label="Abonnements / mois" value={money(subsMonthly)} hint={`${active.length} actifs`} />
+      <section className="grid items-center gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+        <MonthDial today={now.getUTCDate()} daysInMonth={daysInMonth} marks={marks} remaining={remaining} total={totalThisMonth} />
+
+        <div className="space-y-8">
+          <div>
+            <p className="text-sm text-ink-2">Sur tes comptes</p>
+            <p className="figure mt-1 text-5xl md:text-6xl">{money(balance)}</p>
+          </div>
+
+          <dl className="grid grid-cols-2 gap-x-6 border-t border-line pt-4 text-sm">
+            <div>
+              <dt className="text-ink-2">Entré ce mois</dt>
+              <dd className="figure mt-1 text-2xl text-pos">{money(summary.income)}</dd>
+            </div>
+            <div>
+              <dt className="text-ink-2">Sorti ce mois</dt>
+              <dd className="figure mt-1 text-2xl text-neg">{money(summary.expenses)}</dd>
+            </div>
+          </dl>
+
+          <div>
+            <h2 className="section-title">Prochains prélèvements</h2>
+            {upcoming.length === 0 ? (
+              <p className="text-sm text-ink-3">Rien de prévu dans les 30 jours.</p>
+            ) : (
+              <ul>
+                {upcoming.map((s) => (
+                  <li key={s.id} className="flex items-baseline gap-4 border-b border-line py-2 text-sm last:border-0">
+                    <span className="figure w-14 shrink-0 text-ink-2">{shortDate(s.next_due)}</span>
+                    <span className="flex-1 truncate">{s.name}</span>
+                    <span className="num">{money(s.amount)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-3">
-        <div className="card lg:col-span-2">
-          <div className="flex items-baseline justify-between">
-            <h2 className="card-title">Solde projeté — 30 jours</h2>
-            <span className="text-xs text-ink-3">
-              tendance <span className="num">{money(forecast.variableDaily)}</span>/jour
-            </span>
+      {recent.length > 0 && (
+        <section>
+          <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="font-display text-2xl">Ton solde sur les 30 prochains jours</h2>
+            <p className="text-sm text-ink-2">
+              Abonnements connus, plus ta tendance habituelle : {money(forecast.variableDaily)} par jour.
+            </p>
           </div>
-          <ForecastChart points={forecast.points} />
-        </div>
-        <div className="card">
-          <h2 className="card-title">Dépenses par catégorie</h2>
-          {summary.byCategory.length === 0 ? (
-            <p className="text-sm text-ink-3">Aucune dépense ce mois-ci.</p>
+          <ForecastLine points={forecast.points} />
+        </section>
+      )}
+
+      <section className="grid gap-10 lg:grid-cols-2">
+        <div>
+          <h2 className="section-title">Où part l&apos;argent ce mois-ci</h2>
+          {topCategories.length === 0 ? (
+            <p className="text-sm text-ink-3">Aucune dépense enregistrée ce mois-ci.</p>
           ) : (
-            <ul className="space-y-2.5">
-              {summary.byCategory.slice(0, 7).map((c) => (
+            <ul className="space-y-3">
+              {topCategories.map((c) => (
                 <li key={c.name}>
                   <div className="flex justify-between text-sm">
-                    <span>{c.name}</span>
+                    <Link
+                      href={c.categoryId ? `/transactions?mois=${month}&categorie=${c.categoryId}` : `/transactions?mois=${month}&non=1`}
+                      className="hover:text-accent"
+                    >
+                      {c.name}
+                    </Link>
                     <span className="num text-ink-2">{money(c.total)}</span>
                   </div>
-                  <div className="mt-1 h-1.5 rounded-full bg-surface-2">
-                    <div className="h-1.5 rounded-full" style={{ width: `${(c.total / maxCat) * 100}%`, background: c.color }} />
+                  <div className="mt-1.5 h-[3px] bg-surface-2">
+                    <div className="h-[3px]" style={{ width: `${(c.total / maxCat) * 100}%`, background: c.color }} />
                   </div>
                 </li>
               ))}
             </ul>
           )}
         </div>
-      </section>
 
-      <section className="grid gap-4 lg:grid-cols-2">
-        <div className="card">
-          <div className="flex items-baseline justify-between">
-            <h2 className="card-title">Prochains prélèvements</h2>
-            <Link href="/subscriptions" className="text-xs text-accent">Tout voir</Link>
-          </div>
-          {upcoming.length === 0 ? (
-            <p className="text-sm text-ink-3">Rien dans les 30 prochains jours.</p>
-          ) : (
-            <ul className="divide-y divide-line">
-              {upcoming.map((s) => (
-                <li key={s.id} className="flex items-center justify-between py-2 text-sm">
-                  <span>
-                    {s.name} <span className="text-ink-3">/ {PERIOD_LABEL[s.period]}</span>
-                  </span>
-                  <span className="flex items-center gap-3">
-                    <span className="text-xs text-ink-3">{shortDate(s.next_due)}</span>
-                    <span className="num">{money(s.amount)}</span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-        <div className="card">
-          <div className="flex items-baseline justify-between">
-            <h2 className="card-title">Tâches du jour et en retard</h2>
-            <Link href="/tasks" className="text-xs text-accent">Tout voir</Link>
+        <div>
+          <div className="mb-3 flex items-baseline justify-between">
+            <h2 className="section-title mb-0">À faire maintenant</h2>
+            <Link href="/tasks" className="text-sm text-accent hover:underline">Toutes les tâches</Link>
           </div>
           {dueTasks.length === 0 ? (
-            <p className="text-sm text-ink-3">Rien d&apos;urgent.</p>
+            <p className="text-sm text-ink-3">Rien en retard ni prévu pour aujourd&apos;hui.</p>
           ) : (
-            <ul className="divide-y divide-line">
+            <ul>
               {dueTasks.map((t) => (
-                <li key={t.id} className="flex items-center justify-between py-2 text-sm">
+                <li key={t.id} className="flex items-baseline justify-between gap-3 border-b border-line py-2 text-sm last:border-0">
                   <span>{t.title}</span>
-                  <span className={`text-xs ${t.due_date && t.due_date < today ? "text-neg" : "text-ink-3"}`}>
-                    {t.due_date ? shortDate(t.due_date) : "sans date"}
+                  <span className={`shrink-0 text-xs ${t.due_date && t.due_date < today ? "text-neg" : "text-ink-3"}`}>
+                    {t.due_date ? (t.due_date < today ? `en retard, ${shortDate(t.due_date)}` : "aujourd'hui") : "sans date"}
                   </span>
                 </li>
               ))}
@@ -149,16 +194,6 @@ export default async function Dashboard() {
           )}
         </div>
       </section>
-    </div>
-  );
-}
-
-function Stat({ label, value, tone, hint }: { label: string; value: string; tone?: "pos" | "neg"; hint?: string }) {
-  return (
-    <div className="card">
-      <p className="text-xs text-ink-3">{label}</p>
-      <p className={`num mt-1 text-xl font-semibold ${tone === "pos" ? "text-pos" : tone === "neg" ? "text-neg" : ""}`}>{value}</p>
-      {hint && <p className="mt-0.5 text-xs text-ink-3">{hint}</p>}
     </div>
   );
 }

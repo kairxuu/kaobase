@@ -13,21 +13,21 @@ export default async function SettingsPage() {
     getCategories(supabase),
   ]);
   const providers = [
-    { name: "Groq", ok: Boolean(env.groqKey()), model: env.groqModel(), role: "principal" },
-    { name: "Gemini", ok: Boolean(env.geminiKey()), model: env.geminiModel(), role: "secours" },
+    { name: "Groq", ok: Boolean(env.groqKey()), model: env.groqModel(), role: "répond en premier" },
+    { name: "Gemini", ok: Boolean(env.geminiKey()), model: env.geminiModel(), role: "prend le relais si Groq ne répond pas" },
   ];
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Réglages</h1>
+      <h1 className="page-title">Réglages</h1>
 
       <section className="grid gap-4 lg:grid-cols-2">
         <div className="card">
-          <h2 className="card-title">Profil</h2>
+          <h2 className="section-title">Toi</h2>
           <p className="mb-3 text-sm text-ink-2">{email}</p>
           <FormAction action={updateProfileAction} submitLabel="Enregistrer" reset={false} className="grid grid-cols-3 gap-3">
             <div className="col-span-2">
-              <label className="label" htmlFor="displayName">Nom affiché</label>
+              <label className="label" htmlFor="displayName">Prénom</label>
               <input className="input" id="displayName" name="displayName" defaultValue={profile?.display_name ?? ""} />
             </div>
             <div>
@@ -38,27 +38,27 @@ export default async function SettingsPage() {
         </div>
 
         <div className="card">
-          <h2 className="card-title">Fournisseurs IA</h2>
+          <h2 className="section-title">IA utilisée</h2>
           <ul className="space-y-2 text-sm">
             {providers.map((p) => (
               <li key={p.name} className="flex items-center justify-between">
                 <span>
-                  {p.name} <span className="text-ink-3">({p.role})</span>
-                  <span className="ml-2 font-mono text-xs text-ink-3">{p.model}</span>
+                  <span className="font-medium">{p.name}</span>
+                  <span className="block text-xs text-ink-3">{p.role}, modèle {p.model}</span>
                 </span>
-                <span className={`badge ${p.ok ? "bg-accent-soft text-ink" : "text-neg"}`}>{p.ok ? "configuré" : "clé manquante"}</span>
+                <span className={`text-xs ${p.ok ? "text-pos" : "text-ink-3"}`}>{p.ok ? "actif" : "non configuré"}</span>
               </li>
             ))}
           </ul>
           <p className="mt-3 text-xs text-ink-3">
-            Les clés restent côté serveur dans <code>.env.local</code> et ne sont jamais envoyées au navigateur.
+            Les clés d&apos;accès restent sur le serveur : elles ne sont jamais envoyées à ton navigateur.
           </p>
         </div>
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
         <div className="card">
-          <h2 className="card-title">Comptes</h2>
+          <h2 className="section-title">Comptes bancaires</h2>
           <ul className="mb-4 divide-y divide-line text-sm">
             {accounts.map((a) => (
               <li key={a.id} className="flex justify-between py-2">
@@ -90,7 +90,7 @@ export default async function SettingsPage() {
         </div>
 
         <div className="card">
-          <h2 className="card-title">Catégories</h2>
+          <h2 className="section-title">Catégories</h2>
           <div className="mb-4 flex flex-wrap gap-1.5">
             {categories.map((c) => (
               <span key={c.id} className="badge">

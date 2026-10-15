@@ -7,6 +7,7 @@ import { ActionButton } from "../_components/action-button";
 import { FormAction } from "../_components/form-action";
 
 const COLUMNS: TaskStatus[] = ["todo", "doing", "done"];
+const MOVE_LABEL = { todo: "Remettre à faire", doing: "Commencer", done: "Terminer" } as const;
 const PRIORITY_TONE = { high: "bg-warn-soft text-warn", medium: "", low: "text-ink-3" } as const;
 
 export default async function TasksPage() {
@@ -18,20 +19,20 @@ export default async function TasksPage() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Tâches</h1>
-          <p className="text-sm text-ink-2">Les tâches créées par un agent portent le badge « agent ».</p>
+          <h1 className="page-title">Tâches</h1>
+          <p className="page-lede">Tes démarches et rappels. Celles qu&apos;un agent a créées pour toi sont signalées.</p>
         </div>
         <ActionButton
           action={planRemindersAction}
           className="btn-ghost"
         >
-          Rappels des prélèvements à 7 jours
+          Me rappeler les prélèvements de la semaine
         </ActionButton>
       </header>
 
       <details className="card">
-        <summary className="cursor-pointer text-sm font-medium">Nouvelle tâche</summary>
-        <FormAction action={createTaskAction} submitLabel="Créer" className="mt-4 grid gap-3 sm:grid-cols-4">
+        <summary className="cursor-pointer text-sm font-medium">Ajouter une tâche</summary>
+        <FormAction action={createTaskAction} submitLabel="Ajouter la tâche" className="mt-4 grid gap-3 sm:grid-cols-4">
           <div className="sm:col-span-2">
             <label className="label" htmlFor="title">Titre</label>
             <input className="input" id="title" name="title" required />
@@ -59,13 +60,13 @@ export default async function TasksPage() {
         {COLUMNS.map((col) => {
           const items = tasks.filter((t) => t.status === col);
           return (
-            <section key={col} className="rounded-xl bg-surface-2 p-3">
+            <section key={col} className="rounded-md bg-surface-2/70 p-3">
               <h2 className="mb-3 flex items-center justify-between px-1 text-sm font-semibold">
                 {STATUS_LABEL[col]} <span className="badge bg-surface">{items.length}</span>
               </h2>
               <ul className="space-y-2">
                 {items.map((t) => (
-                  <li key={t.id} className="rounded-lg border border-line bg-surface p-3">
+                  <li key={t.id} className="reply rounded-md bg-surface p-3 shadow-[0_1px_0_var(--rule)]">
                     <p className={`text-sm font-medium ${t.status === "done" ? "text-ink-3 line-through" : ""}`}>{t.title}</p>
                     {t.description && <p className="mt-1 text-xs text-ink-2">{t.description}</p>}
                     <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -75,12 +76,12 @@ export default async function TasksPage() {
                           {shortDate(t.due_date)}
                         </span>
                       )}
-                      {t.created_by === "agent" && <span className="badge bg-accent-soft">agent</span>}
+                      {t.created_by === "agent" && <span className="badge bg-accent-soft text-ink">créée par un agent</span>}
                     </div>
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {COLUMNS.filter((c) => c !== col).map((c) => (
                         <ActionButton key={c} action={setTaskStatusAction.bind(null, t.id, c)}>
-                          → {STATUS_LABEL[c]}
+                          {MOVE_LABEL[c]}
                         </ActionButton>
                       ))}
                       <ActionButton action={deleteTaskAction.bind(null, t.id)} confirm="Supprimer cette tâche ?">

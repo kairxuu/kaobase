@@ -79,10 +79,10 @@ export function ImportWizard({ accounts }: { accounts: { id: string; name: strin
   );
 
   return (
-    <section className="card space-y-5">
+    <section className="card space-y-5 p-6">
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
-          <label className="label" htmlFor="account">Compte</label>
+          <label className="label" htmlFor="account">Compte concerné</label>
           <select className="input" id="account" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
             {accounts.map((a) => (
               <option key={a.id} value={a.id}>{a.name}</option>
@@ -90,7 +90,7 @@ export function ImportWizard({ accounts }: { accounts: { id: string; name: strin
           </select>
         </div>
         <div>
-          <label className="label" htmlFor="file">Fichier (.csv, .ofx)</label>
+          <label className="label" htmlFor="file">Relevé (CSV ou OFX)</label>
           <input
             className="input file:mr-3 file:rounded file:border-0 file:bg-surface-2 file:px-2 file:py-1 file:text-xs"
             id="file"
@@ -104,7 +104,7 @@ export function ImportWizard({ accounts }: { accounts: { id: string; name: strin
       {file?.format === "csv" && preview && mapping && (
         <div className="space-y-4">
           <p className="text-sm">
-            {preview.mapping ? "Colonnes détectées automatiquement — vérifie avant d'importer." : "Colonnes non reconnues : indique-les."}
+            {preview.mapping ? "Kaobase a reconnu les colonnes de ta banque. Vérifie-les avec l'aperçu avant d'importer." : "Kaobase n'a pas reconnu ces colonnes. Indique laquelle contient la date, le libellé et le montant."}
           </p>
           <div className="grid gap-3 sm:grid-cols-3">
             {columnSelect("date", "Date")}
@@ -160,28 +160,32 @@ export function ImportWizard({ accounts }: { accounts: { id: string; name: strin
         </div>
       )}
 
-      {file?.format === "ofx" && <p className="text-sm text-ink-2">Fichier OFX détecté : aucune configuration nécessaire.</p>}
+      {file?.format === "ofx" && <p className="text-sm text-ink-2">Relevé OFX : rien à régler, tu peux importer.</p>}
 
       <div className="flex items-center gap-3">
         <button className="btn-primary" disabled={!file || pending || (file.format === "csv" && !mapping)} onClick={runImport}>
-          {pending ? "Import en cours…" : "Importer"}
+          {pending ? "Import en cours…" : "Importer le relevé"}
         </button>
         {error && <span className="text-sm text-neg">{error}</span>}
       </div>
 
       {result && (
-        <div className="rounded-lg bg-accent-soft p-4 text-sm">
+        <div className="reply space-y-1 rounded-md bg-accent-soft p-4 text-sm" role="status">
           <p className="font-medium">
-            {result.imported} opération(s) importée(s) · {result.duplicates} doublon(s) ignoré(s) · {result.invalid} ligne(s) invalide(s)
+            {result.imported} opérations ajoutées.
+            {result.duplicates > 0 && ` ${result.duplicates} étaient déjà là et ont été ignorées.`}
+            {result.invalid > 0 && ` ${result.invalid} lignes illisibles ont été écartées.`}
           </p>
-          <p className="mt-1 text-ink-2">
-            Catégorisation : {result.categorization.byRule} par règles apprises, {result.categorization.byLlm} par l&apos;IA,{" "}
-            {result.categorization.uncategorized} à classer.
-            {result.categorization.llmError && " (IA indisponible : vérifie tes clés dans .env.local)"}
+          <p className="text-ink-2">
+            {result.categorization.byRule} triées grâce à tes choix passés, {result.categorization.byLlm} par l&apos;IA
+            {result.categorization.uncategorized > 0 ? `, ${result.categorization.uncategorized} restent à trier.` : "."}
+            {result.categorization.llmError && " L'IA n'a pas répondu : les opérations restantes pourront être triées plus tard depuis Opérations."}
           </p>
-          <p className="mt-1 text-ink-2">
-            Abonnements : {result.subscriptions.created} nouveau(x) détecté(s), {result.subscriptions.updated} mis à jour.
-          </p>
+          {result.subscriptions.created > 0 && (
+            <p className="text-ink-2">
+              {result.subscriptions.created} paiements réguliers repérés : confirme-les dans Abonnements.
+            </p>
+          )}
         </div>
       )}
     </section>

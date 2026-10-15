@@ -18,32 +18,32 @@ export default async function ImportPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Import de relevés</h1>
-        <p className="text-sm text-ink-2">
-          CSV ou OFX exporté depuis ta banque. Les doublons sont ignorés, les opérations catégorisées (règles puis IA) et
-          les abonnements détectés automatiquement.
+        <h1 className="page-title">Importer un relevé</h1>
+        <p className="page-lede">
+          Télécharge un relevé CSV ou OFX depuis l&apos;espace client de ta banque, puis dépose-le ici. Tu peux importer
+          deux fois la même période : les opérations déjà présentes sont ignorées.
         </p>
       </header>
 
       <ImportWizard accounts={accounts.map((a) => ({ id: a.id, name: a.name }))} />
 
-      <section className="card overflow-x-auto p-0">
-        <h2 className="card-title px-5 pt-5">Historique</h2>
+      <section className="overflow-x-auto">
+        <h2 className="section-title">Relevés déjà importés</h2>
         <table className="table">
           <thead>
             <tr>
               <th>Fichier</th>
               <th>Date</th>
-              <th className="text-right">Importées</th>
-              <th className="text-right">Doublons</th>
-              <th className="text-right">Invalides</th>
+              <th className="text-right">Ajoutées</th>
+              <th className="text-right">Déjà présentes</th>
+              <th className="text-right">Illisibles</th>
             </tr>
           </thead>
           <tbody>
             {((imports ?? []) as ImportRecord[]).map((i) => (
               <tr key={i.id}>
                 <td>
-                  {i.filename} <span className="badge ml-1 uppercase">{i.format}</span>
+                  {i.filename}
                 </td>
                 <td className="text-ink-2">{shortDate(i.created_at)}</td>
                 <td className="num text-right">{i.rows_imported}</td>
@@ -53,7 +53,7 @@ export default async function ImportPage() {
             ))}
             {(imports ?? []).length === 0 && (
               <tr>
-                <td colSpan={5} className="py-6 text-center text-ink-3">Aucun import pour l&apos;instant.</td>
+                <td colSpan={5} className="py-6 text-center text-ink-3">Aucun relevé importé pour l&apos;instant.</td>
               </tr>
             )}
           </tbody>

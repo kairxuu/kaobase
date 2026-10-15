@@ -12,7 +12,10 @@ export async function signIn(_: AuthState, formData: FormData): Promise<AuthStat
     email: String(formData.get("email") ?? ""),
     password: String(formData.get("password") ?? ""),
   });
-  if (error) return { error: "Email ou mot de passe incorrect." };
+  if (error) {
+    if (error.code === "email_not_confirmed") return { error: "Adresse pas encore confirmée : ouvre le lien reçu par email." };
+    return { error: "Email ou mot de passe incorrect." };
+  }
   redirect("/");
 }
 
@@ -31,5 +34,5 @@ export async function signUp(_: AuthState, formData: FormData): Promise<AuthStat
   });
   if (error) return { error: error.message };
   if (data.session) redirect("/");
-  return { info: "Compte créé. Confirme ton adresse via l'email reçu, puis connecte-toi." };
+  return { info: "Compte créé. Ouvre le lien de confirmation reçu par email, puis connecte-toi." };
 }

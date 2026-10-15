@@ -1,85 +1,135 @@
 @import "tailwindcss";
 
+/* Kaobase — impression de sécurité.
+   Papier vert-de-gris froid, encre aubergine, outremer pour ce qui agit, guilloché pour ce qui se souvient. */
+
 :root {
-  --bg: #f6f5f1;
-  --surface: #ffffff;
-  --surface-2: #efede7;
-  --ink: #17181c;
-  --ink-2: #55575f;
-  --ink-3: #8a8c94;
-  --line: #e2e0d9;
-  --accent: #0f766e;
-  --accent-ink: #ffffff;
-  --accent-soft: #d8efec;
-  --pos: #15803d;
-  --neg: #b42318;
-  --warn: #b45309;
-  --warn-soft: #fdf0dc;
+  --paper: #eceee8;
+  --sheet: #f6f7f2;
+  --well: #e1e4dc;
+  --ink: #231a38;
+  --ink-2: #605a6e;
+  --ink-3: #8e8a96;
+  --rule: #cfd3c8;
+  --signal: #4433e0;
+  --signal-ink: #ffffff;
+  --signal-soft: #dcd6ff;
+  --gain: #1d7348;
+  --loss: #b0284e;
+  --warn: #8a5a00;
+  --warn-soft: #f3e7c6;
+  --engrave: #4433e0;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #111214;
-    --surface: #18191c;
-    --surface-2: #202226;
-    --ink: #ecebe7;
-    --ink-2: #a9aab0;
-    --ink-3: #74767e;
-    --line: #2b2d32;
-    --accent: #2dd4bf;
-    --accent-ink: #062b27;
-    --accent-soft: #123532;
-    --pos: #4ade80;
-    --neg: #f87171;
-    --warn: #fbbf24;
-    --warn-soft: #3a2e14;
+    --paper: #17121f;
+    --sheet: #201a2c;
+    --well: #2a2338;
+    --ink: #eeeaf6;
+    --ink-2: #b4adc4;
+    --ink-3: #807a8f;
+    --rule: #352d45;
+    --signal: #9a90ff;
+    --signal-ink: #17121f;
+    --signal-soft: #322a5c;
+    --gain: #6fd39f;
+    --loss: #ff7d9c;
+    --warn: #f0c35a;
+    --warn-soft: #3a2f16;
+    --engrave: #9a90ff;
   }
 }
 
 @theme inline {
-  --color-bg: var(--bg);
-  --color-surface: var(--surface);
-  --color-surface-2: var(--surface-2);
+  --color-bg: var(--paper);
+  --color-surface: var(--sheet);
+  --color-surface-2: var(--well);
   --color-ink: var(--ink);
   --color-ink-2: var(--ink-2);
   --color-ink-3: var(--ink-3);
-  --color-line: var(--line);
-  --color-accent: var(--accent);
-  --color-accent-ink: var(--accent-ink);
-  --color-accent-soft: var(--accent-soft);
-  --color-pos: var(--pos);
-  --color-neg: var(--neg);
+  --color-line: var(--rule);
+  --color-accent: var(--signal);
+  --color-accent-ink: var(--signal-ink);
+  --color-accent-soft: var(--signal-soft);
+  --color-pos: var(--gain);
+  --color-neg: var(--loss);
   --color-warn: var(--warn);
   --color-warn-soft: var(--warn-soft);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-sans-ui);
+  --font-display: var(--font-display);
 }
 
 body {
-  background: var(--bg);
+  background: var(--paper);
   color: var(--ink);
+  font-feature-settings: "ss01";
 }
 
-@utility card {
-  @apply rounded-xl border border-line bg-surface p-5;
+::selection {
+  background: var(--signal-soft);
 }
+
+:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* --- Typographie ---------------------------------------------------------- */
+
+/* Titre de page : Bodoni, échelle de valeur faciale. */
+@utility page-title {
+  font-family: var(--font-display);
+  font-variation-settings: "opsz" 72;
+  @apply text-[2.25rem] leading-[1.05] font-medium tracking-[-0.01em] md:text-[2.75rem];
+}
+@utility page-lede {
+  @apply mt-2 max-w-[62ch] text-[0.95rem] leading-relaxed text-ink-2;
+}
+/* Montant affiché comme une coupure : chiffres Bodoni, alignés. */
+@utility figure {
+  font-family: var(--font-display);
+  font-variation-settings: "opsz" 48;
+  font-variant-numeric: lining-nums tabular-nums;
+  @apply font-medium tracking-[-0.01em];
+}
+@utility num {
+  font-variant-numeric: tabular-nums;
+}
+@utility section-title {
+  @apply mb-3 text-[0.95rem] font-semibold text-ink;
+}
+/* Compatibilité : anciens titres de panneau, désormais en casse normale. */
 @utility card-title {
-  @apply mb-3 text-xs font-semibold uppercase tracking-[0.08em] text-ink-3;
+  @apply section-title;
 }
+
+/* --- Surfaces ------------------------------------------------------------- */
+
+@utility card {
+  @apply rounded-md border border-line bg-surface p-5;
+}
+@utility slip {
+  @apply rounded-md bg-surface-2 p-4;
+}
+
+/* --- Contrôles ------------------------------------------------------------ */
+
 @utility btn {
-  @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+  @apply inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-[background-color,color,transform] duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50;
 }
 @utility btn-primary {
-  @apply btn bg-accent text-accent-ink hover:opacity-90;
+  @apply btn bg-accent text-accent-ink hover:brightness-110;
 }
 @utility btn-ghost {
-  @apply btn border border-line bg-surface text-ink hover:bg-surface-2;
+  @apply btn border border-line bg-transparent text-ink hover:bg-surface-2;
 }
 @utility btn-sm {
-  @apply px-2.5 py-1 text-xs;
+  @apply px-3 py-1 text-xs;
 }
 @utility input {
-  @apply w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink outline-none placeholder:text-ink-3 focus:border-accent;
+  @apply w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink transition-colors placeholder:text-ink-3 focus:border-accent focus:ring-2 focus:ring-accent-soft focus-visible:outline-none;
 }
 @utility label {
   @apply mb-1 block text-xs font-medium text-ink-2;
@@ -87,18 +137,78 @@ body {
 @utility badge {
   @apply inline-flex items-center rounded-full bg-surface-2 px-2 py-0.5 text-[11px] font-medium text-ink-2;
 }
-@utility num {
-  @apply font-mono tabular-nums;
-}
 
 @layer components {
   .table {
     @apply w-full text-sm;
+    font-variant-numeric: tabular-nums;
   }
   .table th {
     @apply border-b border-line px-3 py-2 text-left text-xs font-medium text-ink-3;
   }
   .table td {
-    @apply border-b border-line px-3 py-2 align-middle;
+    @apply border-b border-line px-3 py-2.5 align-middle;
+  }
+  .table tbody tr {
+    @apply transition-colors hover:bg-surface-2/60;
+  }
+}
+
+/* --- Mouvement -----------------------------------------------------------
+   Deux moments orchestrés seulement : la rosace qui se grave (connexion)
+   et l'aiguille du cadran (tableau de bord). Le reste répond aux actions. */
+
+@keyframes engrave {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+@keyframes sweep {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(var(--angle)); }
+}
+@keyframes mark-in {
+  from { opacity: 0; transform: scale(0.2); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes learned {
+  0% { background-color: var(--signal-soft); }
+  100% { background-color: transparent; }
+}
+
+.engrave path {
+  stroke-dasharray: 1;
+  animation: engrave 2.4s cubic-bezier(0.6, 0, 0.2, 1) both;
+  animation-delay: calc(var(--i) * 70ms);
+}
+.needle {
+  transform-box: view-box;
+  transform-origin: 200px 200px;
+  transform: rotate(var(--angle));
+  animation: sweep 1.6s cubic-bezier(0.65, 0, 0.15, 1) both 0.2s;
+}
+.dial-mark {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: mark-in 0.35s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+  animation-delay: calc(0.3s + var(--t) * 1.5s);
+}
+.reply {
+  animation: rise 0.25s ease-out both;
+}
+.flash-learned {
+  animation: learned 1.2s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
   }
 }

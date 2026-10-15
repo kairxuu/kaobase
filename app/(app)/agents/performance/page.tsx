@@ -45,67 +45,66 @@ export default async function PerformancePage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Performance IA</h1>
-        <p className="text-sm text-ink-2">
-          Ce que KAOBASE a appris de toi, et comment chaque agent s&apos;en sert. Plus il y a de règles et d&apos;exemples validés, moins
-          l&apos;IA a besoin de deviner.
+        <h1 className="page-title">Ce qu&apos;ils ont appris</h1>
+        <p className="page-lede">
+          Chaque correction et chaque réponse validée s&apos;ajoutent ici. Plus il y en a, moins les agents ont besoin de deviner.
         </p>
       </header>
 
-      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="Règles de catégorisation" value={rules} hint={`${userRules} confirmées par toi`} />
-        <Stat label="Exemples validés" value={examples} hint="réutilisés en few-shot" />
-        <Stat label="Souvenirs" value={memories} hint={`${corrections} corrections · ${facts} faits`} />
-        <Stat label="Résolu sans IA" value={`${pct(byRule + byUser)} %`} hint="des transactions catégorisées par règles ou par toi" />
+      <section className="grid grid-cols-2 gap-6 lg:grid-cols-4">
+        <Stat label="Commerçants reconnus" value={rules} hint={`dont ${userRules} choisis par toi`} />
+        <Stat label="Réponses validées" value={examples} hint="servent de modèle aux agents" />
+        <Stat label="Souvenirs" value={memories} hint={`dont ${corrections} corrections et ${facts} préférences`} />
+        <Stat label="Triées sans IA" value={`${pct(byRule + byUser)} %`} hint="des opérations, grâce à tes choix" />
       </section>
 
-      <section className="card">
-        <h2 className="card-title">Qui catégorise tes transactions</h2>
+      <section>
+        <h2 className="section-title">Qui trie tes opérations</h2>
         <div className="flex h-3 overflow-hidden rounded-full bg-surface-2">
           <div style={{ width: `${pct(byRule)}%` }} className="bg-accent" title="Règles" />
           <div style={{ width: `${pct(byUser)}%` }} className="bg-pos" title="Toi" />
           <div style={{ width: `${pct(byLlm)}%` }} className="bg-warn" title="IA" />
         </div>
         <ul className="mt-3 flex flex-wrap gap-4 text-xs text-ink-2">
-          <li><span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-accent" />Règles apprises {byRule}</li>
-          <li><span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-pos" />Toi {byUser}</li>
-          <li><span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-warn" />IA {byLlm}</li>
-          <li><span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-surface-2" />Non catégorisées {none}</li>
+          <li><span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-accent" />Tes choix, réappliqués : {byRule}</li>
+          <li><span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-pos" />Toi, directement : {byUser}</li>
+          <li><span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-warn" />L&apos;IA : {byLlm}</li>
+          <li><span className="mr-1.5 inline-block h-2 w-2 rounded-full border border-line" />Pas encore triées : {none}</li>
         </ul>
       </section>
 
-      <section className="card overflow-x-auto p-0">
-        <h2 className="card-title px-5 pt-5">Par agent</h2>
+      <section className="overflow-x-auto">
+        <h2 className="section-title">Agent par agent</h2>
         <table className="table">
           <thead>
             <tr>
               <th>Agent</th>
-              <th className="text-right">Appels</th>
-              <th className="text-right">Satisfaction</th>
-              <th className="text-right">Latence moy.</th>
-              <th className="text-right">Mémoire / exemples moy.</th>
+              <th className="text-right">Questions</th>
+              <th className="text-right">Réponses appréciées</th>
+              <th className="text-right">Temps de réponse</th>
+              <th className="text-right">Souvenirs utilisés</th>
               <th className="text-right">Erreurs</th>
-              <th>Dernier appel</th>
+              <th>Dernière question</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 && (
               <tr>
-                <td colSpan={7} className="py-8 text-center text-ink-3">Aucun appel pour l&apos;instant.</td>
+                <td colSpan={7} className="py-8 text-center text-ink-3">Aucune question posée pour l&apos;instant.</td>
               </tr>
             )}
             {rows.map((r) => {
               const rated = r.thumbs_up + r.thumbs_down;
               return (
                 <tr key={r.agent}>
-                  <td className="font-medium">{r.agent === "orchestrator" ? "Orchestrateur" : AGENTS[r.agent].name}</td>
+                  <td className="font-medium">{r.agent === "orchestrator" ? "Aiguillage" : AGENTS[r.agent].name}</td>
                   <td className="num text-right">{r.runs}</td>
                   <td className="num text-right">
                     {rated ? `${Math.round((r.thumbs_up / rated) * 100)} %` : "—"}
-                    <span className="ml-1 text-xs text-ink-3">({r.thumbs_up}👍 {r.thumbs_down}👎)</span>
+                    <span className="ml-1 text-xs text-ink-3">sur {rated}</span>
                   </td>
                   <td className="num text-right">{r.avg_latency_ms != null ? `${(r.avg_latency_ms / 1000).toFixed(1)} s` : "—"}</td>
-                  <td className="num text-right">{Number(r.avg_memories ?? 0).toFixed(1)} / {Number(r.avg_examples ?? 0).toFixed(1)}</td>
+                  <td className="num text-right">{(Number(r.avg_memories ?? 0) + Number(r.avg_examples ?? 0)).toFixed(1)}</td>
                   <td className={`num text-right ${r.errors ? "text-neg" : ""}`}>{r.errors}</td>
                   <td className="text-ink-2">{shortDate(r.last_run_at)}</td>
                 </tr>
@@ -120,10 +119,10 @@ export default async function PerformancePage() {
 
 function Stat({ label, value, hint }: { label: string; value: number | string; hint: string }) {
   return (
-    <div className="card">
-      <p className="text-xs text-ink-3">{label}</p>
-      <p className="num mt-1 text-xl font-semibold">{value}</p>
-      <p className="mt-0.5 text-xs text-ink-3">{hint}</p>
+    <div className="border-t border-line pt-3">
+      <p className="text-sm text-ink-2">{label}</p>
+      <p className="figure mt-1 text-4xl">{value}</p>
+      <p className="mt-1 text-xs text-ink-3">{hint}</p>
     </div>
   );
 }

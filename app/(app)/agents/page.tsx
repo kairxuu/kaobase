@@ -11,14 +11,14 @@ export default async function AgentsPage() {
   return (
     <div className="space-y-4">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Agents IA</h1>
-        <p className="text-sm text-ink-2">
-          Un agent spécialisé par secteur. En mode Auto, l&apos;orchestrateur choisit pour toi. Note les réponses : chaque 👍 ou
-          correction devient un exemple que l&apos;agent réutilisera.
+        <h1 className="page-title">Agents</h1>
+        <p className="page-lede">
+          Quatre agents, un par domaine. Pose ta question, Kaobase choisit le bon. Quand une réponse te convient ou que tu la
+          corriges, l&apos;agent s&apos;en sert pour les questions suivantes.
         </p>
       </header>
       {!aiConfigured() && (
-        <div className="card border-warn bg-warn-soft text-sm">
+        <div className="rounded-md bg-warn-soft p-4 text-sm">
           Aucune clé IA configurée. Ajoute <code>GROQ_API_KEY</code> (et/ou <code>GOOGLE_GENERATIVE_AI_API_KEY</code>) dans{" "}
           <code>.env.local</code>, puis redémarre le serveur.
         </div>
