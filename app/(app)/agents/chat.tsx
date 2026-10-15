@@ -42,8 +42,13 @@ export function Chat({ agents }: { agents: AgentOption[] }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message, agent, conversationId }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Erreur");
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data) {
+        throw new Error(
+          data?.error ??
+            (res.status === 504 ? "délai dépassé côté serveur, réessaie" : `le serveur a répondu ${res.status}`),
+        );
+      }
       setMessages((m) => [
         ...m,
         {

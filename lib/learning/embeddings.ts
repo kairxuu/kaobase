@@ -24,9 +24,20 @@ async function getExtractor(): Promise<Extractor> {
   }
 }
 
+// Au démarrage à froid (téléchargement du modèle + moteur ONNX), le chargement peut être long :
+// passé ce délai, l'agent répond sans mémoire et le chargement continue en arrière-plan.
+const LOAD_BUDGET_MS = 8000;
+
 export async function embed(text: string): Promise<number[] | null> {
   try {
-    const extractor = await getExtractor();
+    const extractor = await Promise.race([
+      getExtractor(),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), LOAD_BUDGET_MS)),
+    ]);
+    if (!extractor) {
+      console.warn("[kaobase] embeddings : modèle pas encore prêt, réponse sans mémoire");
+      return null;
+    }
     const output = await extractor(text.slice(0, 2000), { pooling: "mean", normalize: true });
     return Array.from(output.data);
   } catch (error) {

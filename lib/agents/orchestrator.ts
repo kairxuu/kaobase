@@ -111,6 +111,7 @@ export async function askAgent(
     await storeExchange(supabase, agent, input.message, text, context.embedding);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    console.error(`[kaobase] agent ${agent} en échec :`, message);
     runId = await recordRun(supabase, {
       agent,
       routedBy,
