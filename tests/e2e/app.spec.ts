@@ -161,16 +161,20 @@ test("profil : nom et avatar visibles dans la barre latérale, quota IA affiché
 test("espaces perso/pro : filtre global mémorisé (ticket #1)", async ({ page }) => {
   acceptDialogs(page);
   const switcher = page.getByRole("radiogroup", { name: "Espace affiché" });
+  // Le bouton change tout de suite à l'écran ; on attend la confirmation du serveur (bandeau de l'espace).
+  const banner = () => page.getByRole("status").filter({ hasText: /^Espace (Perso|Pro)/ });
   const pick = async (label: "Tout" | "Perso" | "Pro") => {
     await switcher.getByRole("radio", { name: label }).click();
-    await expect(switcher.getByRole("radio", { name: label })).toHaveAttribute("aria-checked", "true");
+    if (label === "Tout") await expect(banner()).toHaveCount(0);
+    else await expect(banner()).toContainText(`Espace ${label}`);
   };
   const label = `E2E Pro Achat ${Date.now()}`;
 
   // Compte pro (ou réutilisé s'il reste d'un passage interrompu).
   await page.goto("/settings", { waitUntil: "networkidle" });
   await pick("Tout");
-  if ((await page.getByText("E2E Pro", { exact: true }).count()) === 0) {
+  const accounts = page.locator("#accounts").getByRole("listitem").filter({ hasText: "E2E Pro" });
+  if ((await accounts.count()) === 0) {
     await page.getByText("Ajouter un compte").click();
     await page.locator("#acc-name").fill("E2E Pro");
     await page.locator("#acc-space").selectOption("pro");
@@ -192,7 +196,7 @@ test("espaces perso/pro : filtre global mémorisé (ticket #1)", async ({ page }
 
   await pick("Pro");
   await page.goto(search);
-  await expect(page.getByRole("status").filter({ hasText: "Espace Pro" })).toBeVisible();
+  await expect(banner()).toContainText("Espace Pro");
   await expect(rows()).toHaveCount(1);
 
   await pick("Perso");
@@ -211,10 +215,13 @@ test("espaces perso/pro : filtre global mémorisé (ticket #1)", async ({ page }
   await rows().first().getByRole("button", { name: "Supprimer" }).click();
   await expect(rows()).toHaveCount(0);
   await page.goto("/settings", { waitUntil: "networkidle" });
-  const account = page.getByRole("listitem").filter({ hasText: "E2E Pro" });
-  await account.getByRole("button", { name: "Modifier" }).click();
-  await page.getByRole("button", { name: "Supprimer le compte et ses opérations" }).click();
-  await expect(page.getByRole("listitem").filter({ hasText: "E2E Pro" })).toHaveCount(0);
+  // Supprime tous les comptes de test (y compris ceux d'un passage interrompu).
+  while ((await accounts.count()) > 0) {
+    const before = await accounts.count();
+    await accounts.first().getByRole("button", { name: "Modifier" }).click();
+    await page.locator("#accounts").getByRole("button", { name: "Supprimer le compte et ses opérations" }).click();
+    await expect(accounts).toHaveCount(before - 1);
+  }
 });
 
 test("devise appliquée partout (R4)", async ({ page }) => {

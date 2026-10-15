@@ -77,7 +77,7 @@ export default async function SettingsPage() {
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
-        <div className="card">
+        <div className="card" id="accounts">
           <h2 className="section-title">Comptes bancaires</h2>
           <ul className="mb-4 divide-y divide-line">
             {(accountRows ?? []).map((a) => (
