@@ -139,6 +139,25 @@ test("catégorie : créer, doublon refusé clairement, renommer, supprimer (F8, 
   await expect(card.getByRole("listitem").filter({ hasText: "E2E Vacances" })).toHaveCount(0);
 });
 
+test("profil : nom et avatar visibles dans la barre latérale, quota IA affiché", async ({ page }) => {
+  await page.goto("/settings", { waitUntil: "networkidle" });
+  const sidebar = page.getByRole("complementary").first();
+  await expect(sidebar.getByText("Agents IA, 24 h")).toBeVisible();
+  await expect(sidebar.getByRole("meter", { name: /Questions posées aux agents/ })).toBeVisible();
+
+  const original = { first: await page.locator("#firstName").inputValue(), last: await page.locator("#lastName").inputValue() };
+  const save = async (first: string, last: string) => {
+    await page.locator("#firstName").fill(first);
+    await page.locator("#lastName").fill(last);
+    await page.getByRole("button", { name: "Enregistrer le profil" }).click();
+    await expect(page.getByText("Profil enregistré.")).toBeVisible();
+  };
+  await save("Testeur", "Kaobase");
+  await page.reload();
+  await expect(sidebar.getByText("Testeur Kaobase")).toBeVisible();
+  await save(original.first, original.last);
+});
+
 test("devise appliquée partout (R4)", async ({ page }) => {
   const setCurrency = async (code: string) => {
     await page.goto("/settings");

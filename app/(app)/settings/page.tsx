@@ -5,9 +5,11 @@ import { budgetStatus, listBudgets } from "@/lib/data/budgets";
 import { env } from "@/lib/env";
 import { moneyIn } from "@/lib/ui/format";
 import { PasswordForm } from "@/app/auth/reset/password-form";
-import { createAccountAction, createCategoryAction, updateProfileAction } from "../actions";
+import { createAccountAction, createCategoryAction } from "../actions";
 import { FormAction } from "../_components/form-action";
 import { AccountRow, BudgetRow, CategoryRow } from "./editors";
+import { ProfileForm } from "./profile-form";
+import { AVATAR_COLORS, getProfile } from "@/lib/data/account";
 
 export const metadata: Metadata = { title: "Réglages" };
 
@@ -32,8 +34,8 @@ export default async function SettingsPage() {
   const currency = await getCurrency();
   const money = moneyIn(currency);
   const month = new Date().toISOString().slice(0, 7);
-  const [{ data: profile }, balances, { data: accountRows }, categories, budgets, statuses] = await Promise.all([
-    supabase.from("profiles").select("display_name, currency").eq("id", userId).single(),
+  const [profile, balances, { data: accountRows }, categories, budgets, statuses] = await Promise.all([
+    getProfile(supabase, userId),
     getAccounts(supabase),
     supabase.from("accounts").select("id, name, opening_balance").order("name"),
     getCategories(supabase),
@@ -44,7 +46,6 @@ export default async function SettingsPage() {
   const limitOf = new Map((budgets ?? []).map((b) => [b.category_id, b.monthly_limit]));
   const statusOf = new Map((statuses ?? []).map((s) => [s.categoryId, s]));
   const expenseCategories = categories.filter((c) => c.kind === "expense");
-  const knownCurrency = CURRENCIES.some(([code]) => code === (profile?.currency ?? "EUR"));
   const providers = [
     { name: "Groq", ok: Boolean(env.groqKey()), model: env.groqModel(), role: "répond en premier" },
     { name: "Gemini", ok: Boolean(env.geminiKey()), model: env.geminiModel(), role: "prend le relais si Groq ne répond pas" },
@@ -59,26 +60,12 @@ export default async function SettingsPage() {
 
       <section className="grid gap-4 lg:grid-cols-2">
         <div className="card">
-          <h2 className="section-title">Toi</h2>
-          <p className="mb-3 text-sm text-ink-2">{email}</p>
-          <FormAction action={updateProfileAction} submitLabel="Enregistrer" reset={false} className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <label className="label" htmlFor="displayName">Prénom</label>
-              <input className="input" id="displayName" name="displayName" defaultValue={profile?.display_name ?? ""} maxLength={60} />
-            </div>
-            <div>
-              <label className="label" htmlFor="currency">Devise d&apos;affichage</label>
-              <select className="input" id="currency" name="currency" defaultValue={profile?.currency ?? "EUR"}>
-                {!knownCurrency && <option value={profile?.currency ?? "EUR"}>{profile?.currency}</option>}
-                {CURRENCIES.map(([code, label]) => (
-                  <option key={code} value={code}>{label}</option>
-                ))}
-              </select>
-            </div>
-            <p className="text-xs text-ink-3 sm:col-span-2">
-              La devise change l&apos;affichage des montants ; aucune conversion n&apos;est appliquée.
-            </p>
-          </FormAction>
+          <h2 className="section-title">Ton profil</h2>
+          <p className="mb-4 text-xs text-ink-3">
+            {email}
+            {profile.memberSince && `, sur Kaobase depuis le ${new Date(profile.memberSince).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}`}
+          </p>
+          <ProfileForm profile={profile} colors={AVATAR_COLORS} currencies={CURRENCIES} />
         </div>
 
         <div className="card">

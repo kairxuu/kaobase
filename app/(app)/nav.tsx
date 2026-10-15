@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { AiUsage } from "@/lib/data/account";
+import { AccountCard, Avatar, type AccountPreview } from "./account-card";
 
 const LINKS = [
   { href: "/", label: "Vue d'ensemble" },
@@ -14,7 +16,7 @@ const LINKS = [
   { href: "/settings", label: "Réglages" },
 ] as const;
 
-export function Nav() {
+export function Nav({ account, usage }: { account: AccountPreview; usage: AiUsage }) {
   const pathname = usePathname();
   const isActive = (href: string) =>
     href === "/" || href === "/agents" ? pathname === href : pathname === href || pathname.startsWith(href + "/");
@@ -25,9 +27,14 @@ export function Nav() {
         <Link href="/" className="font-display text-[1.7rem] leading-none tracking-tight" aria-label="Kaobase, vue d'ensemble">
           kaobase
         </Link>
-        <form action="/auth/signout" method="post" className="md:hidden">
-          <button className="text-sm text-ink-2 hover:text-ink">Se déconnecter</button>
-        </form>
+        <span className="flex items-center gap-3 md:hidden">
+          <span className="num text-xs text-ink-3" title="Questions posées aux agents sur 24 h">
+            IA {usage.questionsToday}/{usage.questionsLimit}
+          </span>
+          <Link href="/settings" aria-label={`Profil de ${account.name}`}>
+            <Avatar account={account} size="sm" />
+          </Link>
+        </span>
       </div>
       <nav className="flex gap-1 overflow-x-auto px-3 py-3 md:mt-8 md:flex-col md:gap-0.5 md:px-3" aria-label="Navigation principale">
         {LINKS.map((l) => {
@@ -52,9 +59,9 @@ export function Nav() {
           );
         })}
       </nav>
-      <form action="/auth/signout" method="post" className="mt-auto hidden px-6 pb-6 md:block">
-        <button className="text-sm text-ink-3 hover:text-ink">Se déconnecter</button>
-      </form>
+      <div className="mt-auto hidden border-t border-line px-6 py-5 md:block">
+        <AccountCard account={account} usage={usage} />
+      </div>
     </aside>
   );
 }

@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { friendlyError, UserError } from "@/lib/errors";
+import { siteOrigin } from "@/lib/site";
+import { AVATAR_COLORS } from "@/lib/data/account";
 import { requireUser } from "@/lib/auth";
 import {
   addManualTransaction,
@@ -210,16 +212,52 @@ export async function planRemindersAction() {
 
 export async function updateProfileAction(formData: FormData) {
   const { supabase, userId } = await requireUser();
-  return run(async () => {
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        display_name: String(formData.get("displayName") ?? "").trim().slice(0, 60) || null,
-        currency: /^[A-Z]{3}$/.test(String(formData.get("currency") ?? "")) ? String(formData.get("currency")) : "EUR",
-      })
-      .eq("id", userId);
-    if (error) throw error;
-  }, ["/settings"]);
+  return run(
+    async () => {
+      const currency = String(formData.get("currency") ?? "");
+      const color = String(formData.get("avatarColor") ?? "");
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          display_name: String(formData.get("firstName") ?? "").trim().slice(0, 60) || null,
+          currency: /^[A-Z]{3}$/.test(currency) ? currency : "EUR",
+        })
+        .eq("id", userId);
+      if (error) throw error;
+      // Nom et couleur d'avatar : métadonnées Supabase Auth (aucune migration nécessaire).
+      const { error: authError } = await supabase.auth.updateUser({
+        data: {
+          last_name: String(formData.get("lastName") ?? "").trim().slice(0, 60),
+          ...((AVATAR_COLORS as readonly string[]).includes(color) ? { avatar_color: color } : {}),
+        },
+      });
+      if (authError) throw authError;
+      // La barre latérale (dans la mise en page) affiche le nom et l'avatar.
+      revalidatePath("/", "layout");
+    },
+    ["/settings"],
+    () => "Profil enregistré.",
+  );
+}
+
+// Changement d'email : Supabase envoie un lien de confirmation à la nouvelle adresse.
+export async function updateEmailAction(formData: FormData) {
+  const { supabase, email } = await requireUser();
+  return run(
+    async () => {
+      const next = text(formData, "email", "Email", 254).toLowerCase();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(next)) throw new UserError("Cette adresse email n'est pas valide.");
+      if (next === email.toLowerCase()) throw new UserError("C'est déjà ton adresse actuelle.");
+      const { error } = await supabase.auth.updateUser(
+        { email: next },
+        { emailRedirectTo: `${await siteOrigin()}/auth/confirm?next=/settings` },
+      );
+      if (error) throw error;
+      return next;
+    },
+    ["/settings"],
+    (next) => `Lien de confirmation envoyé à ${next}. Ton adresse changera après le clic.`,
+  );
 }
 
 export async function createAccountAction(formData: FormData) {

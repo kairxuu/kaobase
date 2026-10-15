@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition, type ReactNode } from "react";
 
-type Result = { ok: true; data?: unknown } | { ok: false; error: string };
+type Result = { ok: true; data?: unknown; message?: string } | { ok: false; error: string };
 
 // Formulaire branché sur une Server Action qui renvoie { ok, error } ; se vide en cas de succès.
 export function FormAction({
@@ -21,6 +21,7 @@ export function FormAction({
   const ref = useRef<HTMLFormElement>(null);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   return (
     <form
@@ -31,9 +32,12 @@ export function FormAction({
         const formData = new FormData(e.currentTarget);
         start(async () => {
           const res = await action(formData);
-          if (!res.ok) setError(res.error);
-          else {
+          if (!res.ok) {
+            setError(res.error);
+            setSuccess(null);
+          } else {
             setError(null);
+            setSuccess(res.message ?? null);
             if (reset) ref.current?.reset();
           }
         });
@@ -44,7 +48,8 @@ export function FormAction({
         <button className="btn-primary" disabled={pending}>
           {pending ? "…" : submitLabel}
         </button>
-        {error && <span className="text-xs text-neg">{error}</span>}
+        {error && <span className="text-xs text-neg" role="alert">{error}</span>}
+        {success && <span className="text-xs text-pos" role="status">{success}</span>}
       </div>
     </form>
   );
