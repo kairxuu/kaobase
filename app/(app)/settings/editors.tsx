@@ -172,7 +172,11 @@ export function BudgetRow({
               />
             </div>
           </FormAction>
-          {limit != null && <ActionButton action={deleteBudgetAction.bind(null, category.id)}>Retirer le budget</ActionButton>}
+          {limit != null && (
+            <ActionButton action={deleteBudgetAction.bind(null, category.id)} onSuccess={close}>
+              Retirer le budget
+            </ActionButton>
+          )}
         </>
       )}
     />

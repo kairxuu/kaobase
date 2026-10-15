@@ -10,11 +10,13 @@ export function ActionButton({
   children,
   className = "btn-ghost btn-sm",
   confirm,
+  onSuccess,
 }: {
   action: () => Promise<Result>;
   children: ReactNode;
   className?: string;
   confirm?: string;
+  onSuccess?: () => void;
 }) {
   const [pending, start] = useTransition();
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
@@ -30,7 +32,10 @@ export function ActionButton({
           start(async () => {
             const res = await action();
             if (!res.ok) setMessage({ ok: false, text: res.error });
-            else setMessage(res.message ? { ok: true, text: res.message } : null);
+            else {
+              setMessage(res.message ? { ok: true, text: res.message } : null);
+              onSuccess?.();
+            }
           });
         }}
       >

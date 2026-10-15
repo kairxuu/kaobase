@@ -156,6 +156,22 @@ test("devise appliquée partout (R4)", async ({ page }) => {
   await expect(page.getByText(/€/).first()).toBeVisible();
 });
 
+test("budget : fixer, afficher, retirer (F9)", async ({ page }) => {
+  await page.goto("/settings#budgets", { waitUntil: "networkidle" });
+  const budgets = page.locator("#budgets");
+  const row = budgets.getByRole("listitem").filter({ hasText: "Alimentation" });
+  await row.getByRole("button", { name: "Modifier" }).click();
+  await budgets.getByLabel(/Budget mensuel pour Alimentation/).fill("300");
+  await budgets.getByRole("button", { name: "Enregistrer le budget" }).click();
+  await expect(row).toContainText("sur 300,00");
+  await page.goto("/");
+  await expect(page.getByText(/sur 300,00/).first()).toBeVisible();
+  await page.goto("/settings#budgets", { waitUntil: "networkidle" });
+  await row.getByRole("button", { name: "Modifier" }).click();
+  await budgets.getByRole("button", { name: "Retirer le budget" }).click();
+  await expect(row).toContainText("sans budget");
+});
+
 test("tâche : créer, modifier, supprimer (F15)", async ({ page }) => {
   acceptDialogs(page);
   await page.goto("/tasks");
