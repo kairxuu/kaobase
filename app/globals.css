@@ -1,26 +1,104 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --bg: #f6f5f1;
+  --surface: #ffffff;
+  --surface-2: #efede7;
+  --ink: #17181c;
+  --ink-2: #55575f;
+  --ink-3: #8a8c94;
+  --line: #e2e0d9;
+  --accent: #0f766e;
+  --accent-ink: #ffffff;
+  --accent-soft: #d8efec;
+  --pos: #15803d;
+  --neg: #b42318;
+  --warn: #b45309;
+  --warn-soft: #fdf0dc;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --bg: #111214;
+    --surface: #18191c;
+    --surface-2: #202226;
+    --ink: #ecebe7;
+    --ink-2: #a9aab0;
+    --ink-3: #74767e;
+    --line: #2b2d32;
+    --accent: #2dd4bf;
+    --accent-ink: #062b27;
+    --accent-soft: #123532;
+    --pos: #4ade80;
+    --neg: #f87171;
+    --warn: #fbbf24;
+    --warn-soft: #3a2e14;
   }
 }
 
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-pos: var(--pos);
+  --color-neg: var(--neg);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+@utility card {
+  @apply rounded-xl border border-line bg-surface p-5;
+}
+@utility card-title {
+  @apply mb-3 text-xs font-semibold uppercase tracking-[0.08em] text-ink-3;
+}
+@utility btn {
+  @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+}
+@utility btn-primary {
+  @apply btn bg-accent text-accent-ink hover:opacity-90;
+}
+@utility btn-ghost {
+  @apply btn border border-line bg-surface text-ink hover:bg-surface-2;
+}
+@utility btn-sm {
+  @apply px-2.5 py-1 text-xs;
+}
+@utility input {
+  @apply w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink outline-none placeholder:text-ink-3 focus:border-accent;
+}
+@utility label {
+  @apply mb-1 block text-xs font-medium text-ink-2;
+}
+@utility badge {
+  @apply inline-flex items-center rounded-full bg-surface-2 px-2 py-0.5 text-[11px] font-medium text-ink-2;
+}
+@utility num {
+  @apply font-mono tabular-nums;
+}
+
+@layer components {
+  .table {
+    @apply w-full text-sm;
+  }
+  .table th {
+    @apply border-b border-line px-3 py-2 text-left text-xs font-medium text-ink-3;
+  }
+  .table td {
+    @apply border-b border-line px-3 py-2 align-middle;
+  }
 }

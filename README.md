@@ -1,36 +1,49 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# KAOBASE
 
-## Getting Started
+Webapp multi-utilisateurs de gestion des finances, des abonnements récurrents et des tâches, pilotée par des **agents IA gratuits spécialisés par secteur** qui s'améliorent à l'usage grâce à la base de données KAOBASE.
 
-First, run the development server:
+## Démarrage
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+1. **Supabase** : crée un projet (gratuit) sur supabase.com, puis exécute `supabase/migrations/20261015000000_init.sql` dans *SQL Editor* (ou `supabase db push` avec la CLI).
+2. **Clés IA gratuites** (au moins une) :
+   - Groq : https://console.groq.com/keys (principal)
+   - Gemini : https://aistudio.google.com/apikey (secours automatique)
+3. `cp .env.example .env.local` et remplis les valeurs (URL + clé *anon* Supabase, clés IA).
+4. `npm install && npm run dev` puis http://localhost:3000 : crée un compte.
+5. Page **Import** : importe `demo/releve-demo.csv` pour tester avec 6 mois de données réalistes.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+> Confirmation d'email : dans Supabase > Authentication > Email Templates, fais pointer le lien vers
+> `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email`, ou désactive la confirmation en développement.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Architecture
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Secteur | Agent | Outils (lecture/écriture sous RLS) |
+|---|---|---|
+| Finance | `finance` | résumé du mois, transactions, catégorisation, soldes, prévision |
+| Abonnements | `subscriptions` | liste, coûts, détection, confirmation/résiliation |
+| Tâches | `tasks` | liste, création, mise à jour, rappels de prélèvements |
+| Imports | `imports` | historique, contrôle qualité, catégorisation en masse |
 
-## Learn More
+L'**orchestrateur** (`lib/agents/orchestrator.ts`) route chaque question : mots-clés d'abord (gratuit), petit modèle rapide si c'est ambigu.
 
-To learn more about Next.js, take a look at the following resources:
+Fournisseurs : Groq (`openai/gpt-oss-120b`) puis bascule automatique sur Gemini en cas de quota ou d'erreur (`lib/ai/provider.ts`). Les modèles se changent dans `.env.local`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Comment l'IA s'améliore (sans fine-tuning)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Tout est stocké dans la base KAOBASE et réinjecté dans les prompts :
 
-## Deploy on Vercel
+1. **Règles apprises** (`categorization_rules`) : chaque correction de catégorie crée ou renforce une règle marchand → catégorie, avec une confiance lissée. Les règles passent *avant* le LLM, qui ne traite que les marchands inconnus.
+2. **Mémoire RAG** (`agent_memories`, pgvector) : échanges, faits mémorisés et corrections, retrouvés par similarité (embeddings locaux gratuits all-MiniLM-L6-v2). Les corrections pèsent deux fois plus.
+3. **Few-shot dynamique** (`agent_examples`) : les réponses 👍 ou corrigées deviennent des exemples réutilisés sur les questions proches.
+4. **Détection d'abonnements** : algorithme déterministe (périodicité + stabilité des montants + récence) ; un rejet est mémorisé définitivement.
+5. **Métriques** (`agent_runs`, `agent_feedback`) : page *Performance IA* (satisfaction, latence, part résolue sans IA).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Scripts
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `npm run dev` / `npm run build`
+- `npm test` : tests unitaires (parsers CSV/OFX, normalisation, détection d'abonnements, règles, prévision, routage, relevé de démo)
+- `npm run typecheck`, `npm run lint`
+
+## Déploiement
+
+Compatible Vercel (free tier). Les embeddings locaux téléchargent un modèle d'environ 25 Mo au premier appel : en serverless, le premier appel est plus lent ; si le modèle ne peut pas être chargé, la mémoire retombe sur les souvenirs récents sans casser les agents.
