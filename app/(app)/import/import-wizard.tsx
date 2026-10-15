@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import type { CsvMapping, CsvPreview } from "@/lib/importers/csv";
 import { importFileAction, previewCsvAction } from "../actions";
 
@@ -20,6 +20,7 @@ export function ImportWizard({ accounts }: { accounts: { id: string; name: strin
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const fileInput = useRef<HTMLInputElement>(null);
 
   async function onFile(f: File | undefined) {
     setResult(null);
@@ -61,6 +62,12 @@ export function ImportWizard({ accounts }: { accounts: { id: string; name: strin
     });
   }
 
+  // Fichier choisi avant que la page soit interactive (téléphone lent) : on le traite dès qu'elle l'est.
+  useEffect(() => {
+    const pendingFile = fileInput.current?.files?.[0];
+    if (pendingFile) void onFile(pendingFile);
+  }, []);
+
   const headers = preview?.headers ?? [];
   const amountMode = mapping?.amount ? "signed" : "split";
   const columnSelect = (key: keyof CsvMapping, label: string) => (
@@ -94,6 +101,7 @@ export function ImportWizard({ accounts }: { accounts: { id: string; name: strin
           <input
             className="input file:mr-3 file:rounded file:border-0 file:bg-surface-2 file:px-2 file:py-1 file:text-xs"
             id="file"
+            ref={fileInput}
             type="file"
             accept=".csv,.ofx,.qfx,.txt"
             onChange={(e) => onFile(e.target.files?.[0])}

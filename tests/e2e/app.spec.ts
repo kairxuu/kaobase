@@ -16,7 +16,8 @@ function acceptDialogs(page: Page) {
 }
 
 async function importDemo(page: Page) {
-  await page.goto("/import");
+  // networkidle : la page est hydratée avant de choisir le fichier.
+  await page.goto("/import", { waitUntil: "networkidle" });
   await page.getByLabel("Relevé (CSV ou OFX)").setInputFiles(DEMO);
   await expect(page.getByText(/Kaobase a reconnu les colonnes/)).toBeVisible();
   await page.getByRole("button", { name: "Importer le relevé" }).click();
@@ -44,23 +45,28 @@ test("(2) import puis ré-import sans doublon, (3) abonnements proposés", async
   await expect(second).toContainText("déjà là");
 
   await page.goto("/subscriptions");
+  // count() n'attend pas : on attend d'abord que la section des propositions soit affichée.
+  await expect(page.getByRole("heading", { name: /reviennent régulièrement/ })).toBeVisible();
   const suggestions = page.getByRole("button", { name: "Oui, le suivre" });
   expect(await suggestions.count()).toBeGreaterThanOrEqual(5);
 });
 
 test("(1) recatégoriser une opération l'applique aux autres du même commerçant", async ({ page }) => {
   await page.goto("/transactions?q=NETFLIX");
-  const selects = page.getByRole("combobox", { name: "Catégorie" });
+  // Menus des lignes du tableau (le premier menu « Catégorie » de la page est le filtre de recherche).
+  const rowSelects = () => page.locator("tbody").getByRole("combobox", { name: "Catégorie" });
+  const selects = rowSelects();
+  await expect(selects.first()).toBeVisible();
   expect(await selects.count()).toBeGreaterThanOrEqual(3);
   await selects.first().selectOption({ label: "Loisirs" });
   await expect(page.getByText(/appliqué à \d+ autres?/)).toBeVisible();
   await page.reload();
-  const values = await page.getByRole("combobox", { name: "Catégorie" }).evaluateAll((els) =>
+  const values = await rowSelects().evaluateAll((els) =>
     els.map((el) => (el as HTMLSelectElement).selectedOptions[0]?.text),
   );
   expect(values.every((v) => v === "Loisirs")).toBe(true);
   // Remet la catégorie d'origine pour les prochains passages.
-  await page.getByRole("combobox", { name: "Catégorie" }).first().selectOption({ label: "Abonnements" });
+  await rowSelects().first().selectOption({ label: "Abonnements" });
   await expect(page.getByText(/appliqué à \d+ autres?/)).toBeVisible();
 });
 
