@@ -24,7 +24,6 @@ export default async function TasksPage() {
         <ActionButton
           action={planRemindersAction}
           className="btn-ghost"
-          success={(n) => `${n as number} rappel(s) créé(s)`}
         >
           Rappels des prélèvements à 7 jours
         </ActionButton>

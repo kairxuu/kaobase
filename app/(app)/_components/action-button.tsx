@@ -2,20 +2,18 @@
 
 import { useState, useTransition, type ReactNode } from "react";
 
-type Result = { ok: true; data?: unknown } | { ok: false; error: string };
+type Result = { ok: true; data?: unknown; message?: string } | { ok: false; error: string };
 
 // Bouton qui appelle une Server Action et affiche le résultat (ou l'erreur) sur place.
 export function ActionButton({
   action,
   children,
   className = "btn-ghost btn-sm",
-  success,
   confirm,
 }: {
   action: () => Promise<Result>;
   children: ReactNode;
   className?: string;
-  success?: (data: unknown) => string;
   confirm?: string;
 }) {
   const [pending, start] = useTransition();
@@ -32,7 +30,7 @@ export function ActionButton({
           start(async () => {
             const res = await action();
             if (!res.ok) setMessage({ ok: false, text: res.error });
-            else setMessage(success ? { ok: true, text: success(res.data) } : null);
+            else setMessage(res.message ? { ok: true, text: res.message } : null);
           });
         }}
       >

@@ -39,10 +39,6 @@ export default async function SubscriptionsPage() {
         <ActionButton
           action={detectSubscriptionsAction}
           className="btn-ghost"
-          success={(d) => {
-            const r = d as { created: number; updated: number };
-            return `${r.created} nouveau(x), ${r.updated} mis à jour`;
-          }}
         >
           Relancer la détection
         </ActionButton>

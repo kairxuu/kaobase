@@ -10,8 +10,11 @@ let extractorPromise: Promise<Extractor> | null = null;
 
 async function getExtractor(): Promise<Extractor> {
   extractorPromise ??= import("@huggingface/transformers").then(
-    async ({ pipeline }) =>
-      (await pipeline("feature-extraction", "Xenova/all-MiniLM-L6-v2", { dtype: "q8" })) as unknown as Extractor,
+    async ({ pipeline, env }) => {
+      // Sur Vercel, seul /tmp est inscriptible : le modèle y est mis en cache entre deux appels à chaud.
+      if (process.env.VERCEL) env.cacheDir = "/tmp/hf-cache";
+      return (await pipeline("feature-extraction", "Xenova/all-MiniLM-L6-v2", { dtype: "q8" })) as unknown as Extractor;
+    },
   );
   try {
     return await extractorPromise;

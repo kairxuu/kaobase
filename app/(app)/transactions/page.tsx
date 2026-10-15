@@ -40,12 +40,6 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/tra
         <ActionButton
           action={categorizeUncategorizedAction}
           className="btn-ghost"
-          success={(d) => {
-            const r = d as { byRule: number; byLlm: number; uncategorized: number; llmError: string | null };
-            return r.llmError
-              ? `${r.byRule} par règles — IA indisponible`
-              : `${r.byRule} par règles, ${r.byLlm} par IA, ${r.uncategorized} restantes`;
-          }}
         >
           Catégoriser les non classées
         </ActionButton>

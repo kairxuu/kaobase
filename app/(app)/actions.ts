@@ -19,13 +19,13 @@ import { parseCsv, previewCsv, type CsvMapping } from "@/lib/importers/csv";
 import { parseOfx } from "@/lib/importers/ofx";
 import type { Period, SubscriptionStatus, TaskPriority, TaskStatus } from "@/lib/types";
 
-type Result<T = undefined> = { ok: true; data?: T } | { ok: false; error: string };
+type Result<T = undefined> = { ok: true; data?: T; message?: string } | { ok: false; error: string };
 
-async function run<T>(fn: () => Promise<T>, paths: string[]): Promise<Result<T>> {
+async function run<T>(fn: () => Promise<T>, paths: string[], message?: (data: T) => string): Promise<Result<T>> {
   try {
     const data = await fn();
     for (const p of paths) revalidatePath(p);
-    return { ok: true, data };
+    return { ok: true, data, message: message?.(data) };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "Erreur inconnue" };
   }
@@ -62,7 +62,11 @@ export async function categorizeUncategorizedAction() {
   return run(async () => {
     const txs = await listTransactions(supabase, { uncategorized: true, limit: 1000 });
     return categorizeTransactions(supabase, txs);
-  }, ["/transactions", "/"]);
+  }, ["/transactions", "/"], (r) =>
+    r.llmError
+      ? `${r.byRule} par règles — IA indisponible`
+      : `${r.byRule} par règles, ${r.byLlm} par IA, ${r.uncategorized} restantes`,
+  );
 }
 
 // --- Import ----------------------------------------------------------------
@@ -136,7 +140,7 @@ export async function createSubscriptionAction(formData: FormData) {
 
 export async function detectSubscriptionsAction() {
   const { supabase } = await requireUser();
-  return run(() => runSubscriptionDetection(supabase), ["/subscriptions", "/"]);
+  return run(() => runSubscriptionDetection(supabase), ["/subscriptions", "/"], (r) => `${r.created} nouveau(x), ${r.updated} mis à jour`);
 }
 
 // --- Tâches ----------------------------------------------------------------
@@ -167,7 +171,7 @@ export async function deleteTaskAction(id: string) {
 
 export async function planRemindersAction() {
   const { supabase } = await requireUser();
-  return run(async () => (await planSubscriptionReminders(supabase, 7)).length, ["/tasks", "/"]);
+  return run(async () => (await planSubscriptionReminders(supabase, 7)).length, ["/tasks", "/"], (n) => `${n} rappel(s) créé(s)`);
 }
 
 // --- Réglages --------------------------------------------------------------
