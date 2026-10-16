@@ -37,6 +37,7 @@ export type SubscriptionCandidate = {
   occurrences: number;
   lastDate: string;
   nextDue: string;
+  anchorDay: number | null;
   confidence: number; // 0..1
 };
 
@@ -56,12 +57,12 @@ function median(values: number[]): number {
   return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
 }
 
-export function addPeriod(iso: string, period: Period, times = 1): string {
+export function addPeriod(iso: string, period: Period, times = 1, anchorDay?: number | null): string {
   const d = new Date(iso + "T00:00:00Z");
   if (period === "weekly") d.setUTCDate(d.getUTCDate() + 7 * times);
   else {
     const months = (period === "monthly" ? 1 : period === "quarterly" ? 3 : 12) * times;
-    const day = d.getUTCDate();
+    const day = anchorDay ?? d.getUTCDate();
     d.setUTCDate(1);
     d.setUTCMonth(d.getUTCMonth() + months);
     const lastDay = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
@@ -71,10 +72,12 @@ export function addPeriod(iso: string, period: Period, times = 1): string {
 }
 
 // Prochaine échéance à partir d'aujourd'hui, sans rien écrire.
-export function rollForward(nextDue: string | null, period: Period, today: string): string | null {
+export function rollForward(nextDue: string | null, period: Period, today: string, anchorDay?: number | null): string | null {
   if (!nextDue) return null;
   let due = nextDue;
-  while (due < today) due = addPeriod(due, period);
+  // Toujours repartir de l'échéance initiale : le 31 janvier peut devenir le
+  // 28 février, mais cette troncature ne doit pas déplacer les mois suivants.
+  for (let occurrence = 1; due < today; occurrence++) due = addPeriod(nextDue, period, occurrence, anchorDay);
   return due;
 }
 
@@ -136,8 +139,18 @@ export function detectSubscriptions(
     if (confidence < minConfidence) continue;
 
     const lastDate = fromDay(lastDay);
-    let nextDue = addPeriod(lastDate, period);
-    while (nextDue < today) nextDue = addPeriod(nextDue, period);
+    // Retrouver le jour contractuel lorsque les paiements suivent exactement un
+    // calendrier tronqué en fin de mois (31 janvier, 28 février, 31 mars...).
+    // En présence de décalages bancaires, conserver le jour du dernier paiement.
+    const dates = days.map((day) => new Date(day * DAY_MS));
+    const maxDay = Math.max(...dates.map((date) => date.getUTCDate()));
+    const followsCalendar = dates.every((date) => date.getUTCDate() === Math.min(
+      maxDay, new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate(),
+    ));
+    const anchorDay = period === "weekly" ? null : followsCalendar ? maxDay : dates[dates.length - 1].getUTCDate();
+    let occurrence = 1;
+    let nextDue = addPeriod(lastDate, period, occurrence, anchorDay);
+    while (nextDue < today) nextDue = addPeriod(lastDate, period, ++occurrence, anchorDay);
 
     candidates.push({
       merchant,
@@ -146,6 +159,7 @@ export function detectSubscriptions(
       occurrences: days.length,
       lastDate,
       nextDue,
+      anchorDay,
       confidence,
     });
   }

@@ -6,7 +6,8 @@ import { contextBlock, recall, storeExchange } from "@/lib/learning/memory";
 import { generateWithFallback } from "@/lib/ai/provider";
 import { systemPrompt } from "./definitions";
 import { loadToolContext, toolsFor } from "./tools";
-import { isExplicitConfirmation } from "./confirmation";
+import { successfulToolNames, type DeletionRequest } from "./confirmation";
+import { friendlyError } from "@/lib/errors";
 import type { SpaceFilter } from "@/lib/space-shared";
 import { localDate } from "@/lib/time";
 import { recordRun } from "./runs";
@@ -20,6 +21,7 @@ export type AgentReply = {
   memoriesUsed: number;
   examplesUsed: number;
   toolsUsed: string[];
+  deletions: DeletionRequest[];
 };
 
 // 1) mots-clés (gratuit), 2) petit modèle rapide si ambigu, 3) Finance par défaut.
@@ -71,9 +73,10 @@ export async function askAgent(
 
   const [context, toolContext, history] = await Promise.all([
     recall(supabase, agent, input.message),
-    loadToolContext(supabase, isExplicitConfirmation(input.message), {
+    loadToolContext(supabase, {
       space: input.space ?? "all",
       today: localDate(input.timezone),
+      conversationId: input.conversationId,
     }),
     supabase
       .from("agent_messages")
@@ -109,8 +112,8 @@ export async function askAgent(
     });
     const { result } = generated;
     provider = generated.provider;
-    for (const step of result.steps) for (const call of step.toolCalls) toolsUsed.push(call.toolName);
-    text = result.text.trim() || "C'est fait.";
+    toolsUsed.push(...successfulToolNames(result.steps));
+    text = result.text.trim() || (toolContext.deletions.length ? "Confirme la suppression de l'élément indiqué ci-dessous." : "Je n'ai pas de réponse à afficher. Vérifie les résultats des actions dans les pages concernées.");
     runId = await recordRun(supabase, {
       agent,
       routedBy,
@@ -121,7 +124,7 @@ export async function askAgent(
       latencyMs: Date.now() - started,
       inputTokens: result.usage.inputTokens,
       outputTokens: result.usage.outputTokens,
-      toolCalls: toolsUsed.length,
+      toolCalls: result.steps.reduce((count, step) => count + step.toolCalls.length, 0),
       memoriesUsed: context.memories.length,
       examplesUsed: context.examples.length,
       error: generated.fallbackErrors.length ? `fallback: ${generated.fallbackErrors.join(" | ")}` : null,
@@ -137,7 +140,7 @@ export async function askAgent(
       latencyMs: Date.now() - started,
       error: message,
     });
-    text = `Je n'ai pas pu répondre : ${message}`;
+    text = `Je n'ai pas pu répondre : ${friendlyError(error)}`;
   }
 
   await supabase.from("agent_messages").insert([
@@ -155,5 +158,6 @@ export async function askAgent(
     memoriesUsed: context.memories.length,
     examplesUsed: context.examples.length,
     toolsUsed,
+    deletions: toolContext.deletions,
   };
 }

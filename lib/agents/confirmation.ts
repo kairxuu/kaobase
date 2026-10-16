@@ -1,26 +1,19 @@
-// Garde serveur des suppressions : seul un accord explicite dans le message de l'utilisateur
-// autorise un outil de suppression. Le modèle ne peut pas l'accorder à sa place.
+// Contrat partagé avec le chat. Aucun mot-clé ou texte généré n'autorise une suppression.
+export type DeletionRequest = {
+  id: string;
+  kind: "transaction" | "task" | "budget";
+  description: string;
+  expiresAt: string;
+};
 
-const YES = [
-  "oui", "ouais", "yes", "ok", "okay", "d'accord", "daccord", "dac", "vas-y", "vas y", "go",
-  "confirme", "je confirme", "confirmé", "confirmer", "supprime", "supprime-la", "supprime-le",
-  "supprime les", "supprimer", "efface", "efface-la", "efface-le", "c'est bon", "exact", "valide",
-];
-const NO = ["non", "pas", "annule", "stop", "attends", "surtout pas", "ne supprime"];
-
-function normalize(s: string) {
-  return s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[’]/g, "'")
-    .replace(/[^a-z0-9' -]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-export function isExplicitConfirmation(message: string): boolean {
-  const text = ` ${normalize(message)} `;
-  if (NO.some((w) => text.includes(` ${normalize(w)} `))) return false;
-  return YES.some((w) => text.includes(` ${normalize(w)} `));
+// Les badges d'action reflètent les résultats réussis, jamais les simples appels d'outils.
+export function successfulToolNames(steps: readonly {
+  toolResults: readonly { toolName: string; output: unknown }[];
+}[]): string[] {
+  return [...new Set(steps.flatMap((step) => step.toolResults.filter(({ output }) => {
+    if (output == null) return false;
+    if (typeof output !== "object") return true;
+    const value = output as Record<string, unknown>;
+    return !value.erreur && !value.error && !value.refus && !value.confirmation_requise;
+  }).map((r) => r.toolName)))];
 }

@@ -1,18 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { isExplicitConfirmation } from "@/lib/agents/confirmation";
+import { successfulToolNames } from "@/lib/agents/confirmation";
 import { decideLimit, LIMITS } from "@/lib/agents/limits";
 import { friendlyError, UserError } from "@/lib/errors";
 
-describe("isExplicitConfirmation", () => {
-  // Contrat D4 : le message de l'utilisateur lui-même doit contenir un accord ou une demande de suppression.
-  it.each(["Oui", "oui, supprime-la", "Vas-y", "ok", "Je confirme", "Supprime l'opération Netflix", "c'est bon"])(
-    "autorise « %s »",
-    (m) => expect(isExplicitConfirmation(m)).toBe(true),
+describe("résultats d'outils affichés", () => {
+  it.each([{ refus: "Refusé" }, { erreur: "Introuvable" }, { error: "Failed" }, { confirmation_requise: true }, null])(
+    "n'annonce pas une suppression pour un résultat %j", (output) => {
+      expect(successfulToolNames([{ toolResults: [{ toolName: "supprimer_operation", output }] }])).toEqual([]);
+    },
   );
-  it.each(["non", "Non, ne supprime pas", "attends", "Quels abonnements je paie ?", "Montre mes dépenses du mois"])(
-    "refuse « %s »",
-    (m) => expect(isExplicitConfirmation(m)).toBe(false),
-  );
+  it("retient les succès dédupliqués, sans les simples appels", () => {
+    expect(successfulToolNames([
+      { toolResults: [{ toolName: "creer_taches", output: { creees: [{ id: "1" }] } }] },
+      { toolResults: [{ toolName: "creer_taches", output: { creees: [{ id: "2" }] } }] },
+      { toolResults: [] },
+    ])).toEqual(["creer_taches"]);
+  });
 });
 
 describe("decideLimit", () => {

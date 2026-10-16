@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { getUserForApi } from "@/lib/auth";
 import { askAgent } from "@/lib/agents/orchestrator";
-import { checkUserLimit } from "@/lib/agents/limits";
+import { checkUserLimit, LimitUnavailableError } from "@/lib/agents/limits";
 import { friendlyError } from "@/lib/errors";
 import { getSpaceFilter } from "@/lib/space";
 import { AGENT_IDS } from "@/lib/learning/router";
@@ -21,15 +21,14 @@ export async function POST(request: Request) {
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "Requête invalide" }, { status: 400 });
 
-  const limit = await checkUserLimit(session.supabase);
-  if (!limit.allowed) {
-    return Response.json(
-      { error: limit.message, retryAfter: limit.retryAfterSeconds },
-      { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } },
-    );
-  }
-
   try {
+    const limit = await checkUserLimit(session.supabase);
+    if (!limit.allowed) {
+      return Response.json(
+        { error: limit.message, retryAfter: limit.retryAfterSeconds },
+        { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } },
+      );
+    }
     const { data: profile } = await session.supabase.from("profiles").select("currency, timezone").eq("id", session.userId).single();
     const reply = await askAgent(session.supabase, {
       ...parsed.data,
@@ -39,6 +38,9 @@ export async function POST(request: Request) {
     });
     return Response.json(reply);
   } catch (error) {
+    if (error instanceof LimitUnavailableError) {
+      return Response.json({ error: error.message }, { status: 503, headers: { "Retry-After": "10" } });
+    }
     console.error("[kaobase] /api/agents :", error);
     return Response.json({ error: friendlyError(error) }, { status: 500 });
   }

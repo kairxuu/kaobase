@@ -49,6 +49,19 @@ export async function generateWithFallback(options: GenerateOptions) {
   const candidates = providers(options.tier ?? "smart");
   if (candidates.length === 0) throw new NoProviderError();
 
+  let toolExecutionStarted = false;
+  const tools = options.tools && Object.fromEntries(Object.entries(options.tools).map(([name, definition]) => {
+    const execute = definition.execute;
+    return [name, execute ? {
+      ...definition,
+      execute: (...args: Parameters<typeof execute>) => {
+        // L'outil peut écrire puis échouer : marquer AVANT son exécution.
+        toolExecutionStarted = true;
+        return execute(...args);
+      },
+    } : definition];
+  }));
+
   const errors: string[] = [];
   for (const choice of candidates) {
     try {
@@ -56,13 +69,15 @@ export async function generateWithFallback(options: GenerateOptions) {
         model: choice.instance,
         system: options.system,
         messages: options.messages,
-        tools: options.tools,
+        tools,
         stopWhen: isStepCount(options.maxSteps ?? 6),
         temperature: 0.3,
         maxRetries: 2,
       });
       return { result, provider: choice.provider, model: choice.model, fallbackErrors: errors };
     } catch (error) {
+      // Rejouer les mêmes messages après un outil pourrait doubler ses effets.
+      if (toolExecutionStarted) throw error;
       errors.push(`${choice.provider}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }

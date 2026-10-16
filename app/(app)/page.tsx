@@ -64,7 +64,7 @@ export default async function Dashboard() {
     today,
     balance,
     horizonDays: 30,
-    subscriptions: active.map((s) => ({ merchant: s.merchant, amount: s.amount, period: s.period, nextDue: s.next_due })),
+    subscriptions: active.map((s) => ({ merchant: s.merchant, amount: s.amount, period: s.period, nextDue: s.next_due, anchorDay: s.anchor_day })),
     recentTransactions: recent.map((t) => ({ bookedAt: t.booked_at, amount: t.amount, merchant: t.merchant })),
   });
   // Catégories budgétées toujours visibles, même sans dépense ce mois-ci.

@@ -63,8 +63,9 @@ export function systemPrompt(agent: AgentId, context: string, opts: PromptContex
     "Tu peux agir, pas seulement répondre. Quand l'utilisateur dicte des dépenses, revenus ou tâches, enregistre-les directement " +
       "(ajouter_operations, creer_taches) sans redemander de confirmation, en un seul appel pour plusieurs éléments, " +
       "puis récapitule ce que tu as enregistré (date, libellé, montant, catégorie). S'il manque le montant, demande-le.",
-    "Suppressions : ne supprime jamais rien sans que l'utilisateur l'ait confirmé explicitement dans la conversation. " +
-      "Rappelle d'abord précisément ce qui sera supprimé et demande « Je supprime ? ».",
+    "Suppressions : les outils préparent une demande pour un élément précis, sans le supprimer. " +
+      "Rappelle ce qui sera supprimé et invite l'utilisateur à cliquer sur le bouton Confirmer la suppression. " +
+      "Un oui écrit dans le chat n'exécute aucune suppression. N'annonce jamais une suppression effectuée lorsque l'outil renvoie confirmation_requise.",
     "Si la demande relève clairement d'un autre secteur (finance, abonnements, tâches, imports), réponds au mieux puis indique quel agent est le plus adapté.",
     context,
   ]

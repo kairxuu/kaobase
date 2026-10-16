@@ -7,4 +7,5 @@ export type ParsedTransaction = {
 export type ParseResult = {
   rows: ParsedTransaction[];
   invalid: { line: number; reason: string }[];
+  error?: string; // erreur globale : aucune ligne du fichier ne doit être importée
 };

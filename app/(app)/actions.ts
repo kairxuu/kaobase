@@ -132,6 +132,7 @@ export async function importFileAction(input: {
   if (input.text.length > MAX_FILE_BYTES) return { ok: false as const, error: "Fichier trop volumineux (5 Mo max)." };
   const parsed = input.format === "ofx" ? parseOfx(input.text) : input.mapping ? parseCsv(input.text, input.mapping) : null;
   if (!parsed) return { ok: false as const, error: "Mapping des colonnes manquant." };
+  if (parsed.error) return { ok: false as const, error: parsed.error };
   if (parsed.rows.length === 0) return { ok: false as const, error: "Aucune ligne exploitable dans ce fichier." };
   return run(
     () =>

@@ -6,7 +6,6 @@ import type { ModelMessage } from "ai";
 import { generateWithFallback } from "@/lib/ai/provider";
 import { toolsFor, type ToolContext } from "@/lib/agents/tools";
 import { systemPrompt } from "@/lib/agents/definitions";
-import { isExplicitConfirmation } from "@/lib/agents/confirmation";
 import type { AgentId } from "@/lib/learning/router";
 import type { SpaceFilter } from "@/lib/space-shared";
 import { localDate } from "@/lib/time";
@@ -46,14 +45,20 @@ function fakeDb(writes: string[]): any {
           make(table, [...ops, `${prop}(${args.map((a) => (typeof a === "string" ? a : prop === "insert" ? JSON.stringify(a) : "")).join(",")})`]);
       },
     });
-  return { from: (table: string) => make(table, []), rpc: () => make("rpc", []) };
+  return { from: (table: string) => make(table, []), rpc: (name: string) => {
+    if (name === "queue_agent_deletion") {
+      writes.push("agent_deletion_requests.insert");
+      return Promise.resolve({ data: [{ id: crypto.randomUUID(), kind: "transaction", description: "Netflix, 3 octobre, 13,49 €", expires_at: new Date(Date.now() + 600_000).toISOString() }], error: null });
+    }
+    return make("rpc", []);
+  } };
 }
 
 const CATEGORIES = ["Alimentation", "Restaurants", "Logement", "Transport", "Abonnements", "Santé", "Loisirs", "Divers", "Salaire", "Autres revenus"];
 
 type Opts = { space?: SpaceFilter; now?: Date; timezone?: string };
 
-function context(userConfirmed: boolean, opts: Opts): ToolContext {
+function context(opts: Opts): ToolContext {
   const space = opts.space ?? "all";
   const accounts = [
     { id: "a1", name: "Compte courant", space: "perso" as const },
@@ -62,7 +67,8 @@ function context(userConfirmed: boolean, opts: Opts): ToolContext {
   return {
     categories: CATEGORIES.map((name, i) => ({ id: `c${i}`, name, kind: i >= 8 ? "income" : "expense", color: "#000" })),
     accounts,
-    userConfirmed,
+    conversationId: crypto.randomUUID(),
+    deletions: [],
     space,
     today: localDate(opts.timezone ?? "Europe/Paris", opts.now),
     accountIds: space === "all" ? undefined : accounts.filter((a) => a.space === space).map((a) => a.id),
@@ -81,7 +87,7 @@ async function converse(agent: AgentId, turns: string[], opts: Opts = {}) {
     const { result } = await generateWithFallback({
       system: systemPrompt(agent, "", { currency: "EUR", timezone: opts.timezone ?? "Europe/Paris", space: opts.space, now: opts.now }),
       messages,
-      tools: toolsFor(agent, fakeDb(writes), context(isExplicitConfirmation(turn), opts)),
+      tools: toolsFor(agent, fakeDb(writes), context(opts)),
       maxSteps: 10,
     });
     for (const step of result.steps) for (const c of step.toolCalls) calls.push({ name: c.toolName, input: c.input });
@@ -121,9 +127,10 @@ describe.runIf(enabled)("agents", () => {
     expect(r.writes.filter((w) => w.endsWith(".delete")), JSON.stringify(r.calls)).toHaveLength(0);
   });
 
-  it("supprime après un oui explicite, en deux tours", async () => {
+  it("prépare une confirmation ciblée sans supprimer, même après un oui écrit", async () => {
     const r = await converse("finance", ["Je veux retirer l'opération Netflix du 3 octobre, montre-la moi d'abord", "Oui, supprime-la"]);
-    expect(r.writes.filter((w) => w === "transactions.delete").length, JSON.stringify(r.calls)).toBeGreaterThanOrEqual(1);
+    expect(r.writes.filter((w) => w.endsWith(".delete")), JSON.stringify(r.calls)).toHaveLength(0);
+    expect(r.writes).toContain("agent_deletion_requests.insert");
   });
 
   it("répond à une question d'économies sans rien modifier", async () => {

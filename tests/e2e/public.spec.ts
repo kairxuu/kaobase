@@ -33,4 +33,9 @@ test("l'API des agents refuse sans session", async ({ request }) => {
     data: { message: "test", conversationId: "00000000-0000-4000-8000-000000000000" },
   });
   expect(res.status()).toBe(401);
+  const deletion = await request.post("/api/agents/deletions", { data: {
+    requestId: "00000000-0000-4000-8000-000000000000",
+    conversationId: "00000000-0000-4000-8000-000000000000", decision: "confirm",
+  } });
+  expect(deletion.status()).toBe(401);
 });

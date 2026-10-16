@@ -7,7 +7,7 @@ export type ForecastInput = {
   today: string;
   balance: number;
   horizonDays: number;
-  subscriptions: { merchant: string; amount: number; period: Period; nextDue: string | null }[];
+  subscriptions: { merchant: string; amount: number; period: Period; nextDue: string | null; anchorDay?: number | null }[];
   recentTransactions: { bookedAt: string; amount: number; merchant: string }[];
   windowDays?: number;
 };
@@ -37,12 +37,13 @@ export function forecastBalance(input: ForecastInput): {
   let subscriptionsTotal = 0;
   for (const sub of input.subscriptions) {
     if (!sub.nextDue) continue;
+    let occurrence = 0;
     let due = sub.nextDue;
-    while (due < input.today) due = addPeriod(due, sub.period);
+    while (due < input.today) due = addPeriod(sub.nextDue, sub.period, ++occurrence, sub.anchorDay);
     while (due <= end) {
       charges.set(due, (charges.get(due) ?? 0) + sub.amount);
       subscriptionsTotal += sub.amount;
-      due = addPeriod(due, sub.period);
+      due = addPeriod(sub.nextDue, sub.period, ++occurrence, sub.anchorDay);
     }
   }
 

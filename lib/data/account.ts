@@ -54,8 +54,8 @@ export const getAiUsage = cache(async (supabase: Supabase): Promise<AiUsage> => 
   const dayAgo = new Date(now - 86_400_000).toISOString();
   const minuteAgo = new Date(now - 60_000).toISOString();
   const [day, minute, runs] = await Promise.all([
-    supabase.from("agent_messages").select("id", { count: "exact", head: true }).eq("role", "user").gte("created_at", dayAgo),
-    supabase.from("agent_messages").select("id", { count: "exact", head: true }).eq("role", "user").gte("created_at", minuteAgo),
+    supabase.from("agent_request_reservations").select("id", { count: "exact", head: true }).gt("created_at", dayAgo),
+    supabase.from("agent_request_reservations").select("id", { count: "exact", head: true }).gt("created_at", minuteAgo),
     supabase.from("agent_runs").select("input_tokens, output_tokens").gte("created_at", dayAgo).limit(2000),
   ]);
   const tokensToday = (runs.data ?? []).reduce(

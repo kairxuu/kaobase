@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { getUserForApi } from "@/lib/auth";
 import { applyFeedback } from "@/lib/learning/memory";
+import { friendlyError } from "@/lib/errors";
 
 const bodySchema = z.object({
   runId: z.string().uuid(),
@@ -19,6 +20,7 @@ export async function POST(request: Request) {
     await applyFeedback(session.supabase, parsed.data.runId, parsed.data.rating, parsed.data.correction || null);
     return Response.json({ ok: true });
   } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "Erreur" }, { status: 400 });
+    console.error("[kaobase] feedback :", error);
+    return Response.json({ error: friendlyError(error) }, { status: 400 });
   }
 }

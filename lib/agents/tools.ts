@@ -10,7 +10,6 @@ import {
   categorizeTransactions,
   createAccount,
   createCategory,
-  deleteTransaction,
   getAccounts,
   getTransaction,
   getCategories,
@@ -28,11 +27,13 @@ import {
   runSubscriptionDetection,
   updateSubscription,
 } from "@/lib/data/subscriptions";
-import { createTask, deleteTask, listTasks, planSubscriptionReminders, updateTask } from "@/lib/data/tasks";
-import { budgetStatus, BUDGETS_MISSING, deleteBudget, setBudget } from "@/lib/data/budgets";
+import { createTask, listTasks, planSubscriptionReminders, updateTask } from "@/lib/data/tasks";
+import { budgetStatus, BUDGETS_MISSING, setBudget } from "@/lib/data/budgets";
 import { annualCost, monthlyCost } from "@/lib/learning/subscriptions";
 import { forecastBalance } from "@/lib/learning/forecast";
 import { rememberFact } from "@/lib/learning/memory";
+import { queueDeletion } from "./deletions";
+import type { DeletionRequest } from "./confirmation";
 
 // Outils typés par secteur. Ils passent tous par le client Supabase de l'utilisateur :
 // la RLS garantit qu'un agent ne peut jamais lire ou modifier les données d'un autre compte.
@@ -40,8 +41,8 @@ import { rememberFact } from "@/lib/learning/memory";
 export type ToolContext = {
   categories: Category[];
   accounts: { id: string; name: string; space: Space }[];
-  // Garde serveur (revue D4) : vrai seulement si le message actuel de l'utilisateur confirme explicitement.
-  userConfirmed: boolean;
+  conversationId?: string;
+  deletions: DeletionRequest[];
   // Espace actif et date locale de l'utilisateur (ticket #1).
   space: SpaceFilter;
   today: string;
@@ -51,25 +52,25 @@ export type ToolContext = {
   written: Set<string>;
 };
 
-const DELETE_REFUSED = {
-  refus:
-    "Suppression non effectuée : l'utilisateur n'a pas confirmé dans son dernier message. " +
-    "Rappelle-lui précisément ce qui sera supprimé et demande « Je supprime ? ».",
-};
+async function prepareDeletion(supabase: Supabase, ctx: ToolContext, kind: DeletionRequest["kind"], targetId: string) {
+  const request = await queueDeletion(supabase, kind, targetId, ctx.conversationId, ctx.space);
+  if (!ctx.deletions.some((d) => d.id === request.id)) ctx.deletions.push(request);
+  return { confirmation_requise: true, description: request.description, instruction: "Rien n'est supprimé. Invite l'utilisateur à cliquer sur Confirmer la suppression sous la réponse." };
+}
 
 // Lu une fois par question : les noms de catégories et de comptes deviennent des listes
 // fermées dans les schémas, le modèle ne peut pas en inventer.
 export async function loadToolContext(
   supabase: Supabase,
-  userConfirmed: boolean,
-  opts: { space?: SpaceFilter; today?: string } = {},
+  opts: { space?: SpaceFilter; today?: string; conversationId?: string } = {},
 ): Promise<ToolContext> {
   const space = opts.space ?? "all";
   const [categories, accounts] = await Promise.all([getCategories(supabase), getAccounts(supabase)]);
   return {
     categories,
     accounts: accounts.map((a) => ({ id: a.id, name: a.name, space: a.space })),
-    userConfirmed,
+    conversationId: opts.conversationId,
+    deletions: [],
     space,
     today: opts.today ?? new Date().toISOString().slice(0, 10),
     accountIds: space === "all" ? undefined : accounts.filter((a) => a.space === space).map((a) => a.id),
@@ -80,9 +81,6 @@ export async function loadToolContext(
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "format AAAA-MM-JJ");
 const month = z.string().regex(/^\d{4}-\d{2}$/, "format AAAA-MM");
 const period = z.enum(["weekly", "monthly", "quarterly", "yearly"]);
-const confirmation = z
-  .literal(true)
-  .describe("Mets true UNIQUEMENT si l'utilisateur a explicitement confirmé cette suppression dans la conversation.");
 
 const spaceParam = z.enum(["perso", "pro"]).optional().describe("Par défaut : l'espace actif");
 
@@ -209,13 +207,9 @@ function sharedTools(supabase: Supabase, agent: AgentId, ctx: ToolContext): Tool
     }),
     supprimer_operation: tool({
       description:
-        "Supprime une opération. Demande TOUJOURS confirmation à l'utilisateur avant (en rappelant date, libellé, montant), puis appelle cet outil seulement après son accord.",
-      inputSchema: z.object({ id: z.string().uuid(), confirmation_utilisateur: confirmation }),
-      execute: async ({ id }) => {
-        if (!ctx.userConfirmed) return DELETE_REFUSED;
-        await deleteTransaction(supabase, id);
-        return { supprimee: id };
-      },
+        "Prépare la suppression d'une opération retrouvée avec rechercher_operations. Ne supprime rien : l'utilisateur doit confirmer l'élément exact avec le bouton du chat.",
+      inputSchema: z.object({ id: z.string().uuid() }),
+      execute: async ({ id }) => prepareDeletion(supabase, ctx, "transaction", id),
     }),
     creer_taches: tool({
       description: "Crée une ou plusieurs tâches (démarches, rappels). Convertis les dates relatives en AAAA-MM-JJ.",
@@ -360,7 +354,7 @@ function financeTools(supabase: Supabase, ctx: ToolContext): ToolSet {
           today: ctx.today,
           balance,
           horizonDays: jours,
-          subscriptions: subs.map((s) => ({ merchant: s.merchant, amount: s.amount, period: s.period, nextDue: s.next_due })),
+          subscriptions: subs.map((s) => ({ merchant: s.merchant, amount: s.amount, period: s.period, nextDue: s.next_due, anchorDay: s.anchor_day })),
           recentTransactions: recent.map((t) => ({ bookedAt: t.booked_at, amount: t.amount, merchant: t.merchant })),
         });
         const min = result.points.reduce((a, b) => (b.balance < a.balance ? b : a));
@@ -384,13 +378,12 @@ function financeTools(supabase: Supabase, ctx: ToolContext): ToolSet {
       },
     }),
     supprimer_budget: tool({
-      description: "Retire le budget d'une catégorie.",
+      description: "Prépare le retrait du budget d'une catégorie, à confirmer avec le bouton du chat.",
       inputSchema: z.object({ categorie: categoryName }),
       execute: async ({ categorie }) => {
         const id = r.idOf(categorie);
         if (!id) return { erreur: `Catégorie inconnue : ${categorie}` };
-        await deleteBudget(supabase, id);
-        return { supprime: categorie };
+        return prepareDeletion(supabase, ctx, "budget", id);
       },
     }),
     suivi_budgets: tool({
@@ -528,13 +521,9 @@ function taskTools(supabase: Supabase, ctx: ToolContext): ToolSet {
       execute: async (a) => updateTask(supabase, a.id, { status: a.statut, priority: a.priorite, due_date: a.echeance, title: a.titre }),
     }),
     supprimer_tache: tool({
-      description: "Supprime une tâche. Demande confirmation à l'utilisateur avant.",
-      inputSchema: z.object({ id: z.string().uuid(), confirmation_utilisateur: confirmation }),
-      execute: async ({ id }) => {
-        if (!ctx.userConfirmed) return DELETE_REFUSED;
-        await deleteTask(supabase, id);
-        return { supprimee: id };
-      },
+      description: "Prépare la suppression d'une tâche, à confirmer avec le bouton du chat.",
+      inputSchema: z.object({ id: z.string().uuid() }),
+      execute: async ({ id }) => prepareDeletion(supabase, ctx, "task", id),
     }),
     planifier_rappels_abonnements: tool({
       description: "Crée une tâche de vérification pour chaque abonnement prélevé dans les N prochains jours.",

@@ -17,7 +17,7 @@ Webapp multi-utilisateurs de gestion des finances, des abonnements récurrents e
 
 ## Architecture
 
-Tous les agents peuvent **agir** : enregistrer des opérations dictées (« 12 € de pain hier et 40 € d'essence »), chercher, corriger ou supprimer une opération (suppression uniquement après confirmation explicite), créer des tâches et mémoriser une préférence. Chacun ajoute ensuite ses compétences :
+Tous les agents peuvent **agir** : enregistrer des opérations dictées (« 12 € de pain hier et 40 € d'essence »), chercher, corriger ou préparer la suppression d'une opération, créer des tâches et mémoriser une préférence. Les suppressions d'opérations, de tâches et de budgets exigent un clic sur **Confirmer la suppression** dans le chat : l'élément précis est présenté, la demande expire après 10 minutes et une modification de l'élément invalide la confirmation. Un simple « oui » écrit au modèle n'exécute aucune suppression. Chacun ajoute ensuite ses compétences :
 
 | Secteur | Agent | Compétences propres |
 |---|---|---|
@@ -48,6 +48,10 @@ Tout est stocké dans la base KAOBASE et réinjecté dans les prompts :
 - `npm test` : tests unitaires (parsers CSV/OFX, normalisation, détection d'abonnements, règles, prévision, routage, relevé de démo)
 - `npm run typecheck`, `npm run lint`
 
+Les tests de sécurité SQL utilisent PostgreSQL local en WebAssembly (PGlite), avec les vraies migrations et une simulation locale de l'authentification Supabase. Ils ne contactent aucun projet distant. Les évaluations IA et les parcours E2E connectés utilisent, eux, les services configurés et restent des commandes distinctes.
+
 ## Déploiement
+
+Avant de déployer les correctifs du 17 octobre 2026, appliquer **dans l'ordre** les quatre migrations `20261017010000_ownership_integrity.sql`, `20261017020000_subscription_identity.sql`, `20261017030000_agent_deletion_requests.sql` et `20261017040000_agent_request_limits.sql` (ou `supabase db push` sur le projet lié). La première s'arrête sans modifier les données si elle trouve des références entre utilisateurs à examiner. Les nouvelles suppressions et les appels IA restent bloqués tant que leurs migrations manquent. Voir [le rapport d'audit](docs/audit-2026-10-17.md) pour la portée et les limites des vérifications.
 
 Compatible Vercel (free tier). Les embeddings locaux téléchargent un modèle d'environ 25 Mo au premier appel : en serverless, le premier appel est plus lent ; si le modèle ne peut pas être chargé, la mémoire retombe sur les souvenirs récents sans casser les agents.

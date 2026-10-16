@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Markdown } from "./markdown";
+import type { DeletionRequest } from "@/lib/agents/confirmation";
 
 type AgentOption = { id: string; name: string; tagline: string };
 type Message = {
@@ -90,10 +91,12 @@ export function Chat({
   agents,
   initialConversationId,
   initialMessages = [],
+  initialDeletions = [],
 }: {
   agents: AgentOption[];
   initialConversationId?: string;
   initialMessages?: Pick<Message, "role" | "content" | "agent" | "runId">[];
+  initialDeletions?: DeletionRequest[];
 }) {
   const router = useRouter();
   const [agent, setAgent] = useState("auto");
@@ -101,6 +104,7 @@ export function Chat({
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState("");
   const [pending, setPending] = useState(false);
+  const [deletions, setDeletions] = useState<DeletionRequest[]>(initialDeletions);
   const bottom = useRef<HTMLDivElement>(null);
   const names = Object.fromEntries(agents.map((a) => [a.id, a.name]));
 
@@ -145,10 +149,31 @@ export function Chat({
           },
         },
       ]);
+      setDeletions((current) => [...new Map([...current, ...(data.deletions ?? [])].map((d: DeletionRequest) => [d.id, d])).values()]);
       // Met à jour la liste des conversations à côté du chat.
       router.refresh();
     } catch (error) {
       setMessages((m) => [...m, { role: "assistant", content: `Erreur : ${error instanceof Error ? error.message : error}` }]);
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function decideDeletion(deletion: DeletionRequest, decision: "confirm" | "cancel") {
+    if (pending) return;
+    setPending(true);
+    try {
+      const res = await fetch("/api/agents/deletions", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requestId: deletion.id, conversationId, decision }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "La confirmation a échoué.");
+      setDeletions((current) => current.filter((d) => d.id !== deletion.id));
+      setMessages((current) => [...current, { role: "assistant", content: data.message }]);
+      router.refresh();
+    } catch (error) {
+      setMessages((current) => [...current, { role: "assistant", content: `Erreur : ${error instanceof Error ? error.message : error}` }]);
     } finally {
       setPending(false);
     }
@@ -182,8 +207,10 @@ export function Chat({
         ))}
         <button
           className="ml-auto text-xs text-ink-3 hover:text-ink"
+          disabled={pending}
           onClick={() => {
             setMessages([]);
+            setDeletions([]);
             setConversationId(crypto.randomUUID());
             router.push("/agents");
           }}
@@ -220,6 +247,22 @@ export function Chat({
             <span className="h-2 w-2 animate-pulse rounded-full bg-accent" aria-hidden />
             Recherche dans tes données…
           </p>
+        )}
+        {deletions.length > 0 && (
+          <section aria-label="Suppressions à confirmer" className="space-y-3 rounded-md border border-line p-3">
+            <p className="text-sm font-medium">Vérifie chaque élément avant de confirmer sa suppression.</p>
+            {deletions.map((deletion) => (
+              <div key={deletion.id} className="space-y-2 text-sm">
+                <p>{deletion.description}</p>
+                <div className="flex flex-wrap gap-2">
+                  <button className="btn-ghost btn-sm text-neg" disabled={pending} onClick={() => decideDeletion(deletion, "confirm")}>
+                    Confirmer la suppression
+                  </button>
+                  <button className="btn-ghost btn-sm" disabled={pending} onClick={() => decideDeletion(deletion, "cancel")}>Annuler</button>
+                </div>
+              </div>
+            ))}
+          </section>
         )}
         <div ref={bottom} />
       </div>

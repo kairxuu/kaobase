@@ -9,6 +9,7 @@ import { shortDate } from "@/lib/ui/format";
 import { deleteConversationAction } from "../actions";
 import { ActionButton } from "../_components/action-button";
 import { Chat } from "./chat";
+import { pendingDeletions } from "@/lib/agents/deletions";
 
 export const metadata: Metadata = { title: "Agents" };
 
@@ -18,9 +19,10 @@ export default async function AgentsPage({ searchParams }: PageProps<"/agents">)
   const { supabase } = await requireUser();
   const params = await searchParams;
   const current = typeof params.c === "string" && UUID.test(params.c) ? params.c : undefined;
-  const [conversations, stored] = await Promise.all([
+  const [conversations, stored, deletions] = await Promise.all([
     listConversations(supabase),
     current ? getConversation(supabase, current) : Promise.resolve([]),
+    current ? pendingDeletions(supabase, current) : Promise.resolve([]),
   ]);
   const agents = AGENT_IDS.map((id) => ({ id, name: AGENTS[id].name, tagline: AGENTS[id].tagline }));
   const agentName = (id: string) => AGENTS[id as AgentId]?.name ?? "Agent";
@@ -47,6 +49,7 @@ export default async function AgentsPage({ searchParams }: PageProps<"/agents">)
           agents={agents}
           initialConversationId={current}
           initialMessages={stored.map((m) => ({ role: m.role, content: m.content, agent: m.agent, runId: m.runId }))}
+          initialDeletions={deletions}
         />
         <aside aria-label="Conversations précédentes">
           <h2 className="section-title">Conversations précédentes</h2>

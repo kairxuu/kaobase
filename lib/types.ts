@@ -28,6 +28,7 @@ export type Subscription = {
   amount: number;
   period: Period;
   next_due: string | null;
+  anchor_day?: number | null;
   status: SubscriptionStatus;
   confidence: number;
   category_id: string | null;
