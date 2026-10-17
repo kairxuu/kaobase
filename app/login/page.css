@@ -1,0 +1,73 @@
+.login-page {
+  max-width: 1100px;
+  margin-inline: auto;
+  padding: 28px 32px 24px;
+}
+.login-masthead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding-bottom: 22px;
+  border-bottom: 2px solid var(--ink);
+}
+.login-descriptor {
+  max-width: 140px;
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: right;
+  color: var(--ink-2);
+}
+.login-introduction { padding-block: 38px 30px; }
+.login-index {
+  font-size: 10px;
+  letter-spacing: .12em;
+  color: var(--ink-2);
+}
+.login-title {
+  margin-top: 12px;
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4.5vw, 3.5rem);
+  line-height: 1.15;
+  font-variation-settings: "opsz" 48;
+}
+.login-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+  gap: clamp(48px, 8vw, 120px);
+  padding-bottom: 48px;
+}
+.login-access { padding-top: 8px; }
+.login-access input { border-radius: 2px; min-height: 44px; }
+.login-access button:not([type="button"]) { border-radius: 2px; min-height: 44px; }
+.login-access button[type="button"] { min-height: 36px; }
+.login-notebook { border-top: 1px solid var(--rule); padding-top: 20px; }
+.login-noteHeading { display: flex; align-items: baseline; gap: 16px; }
+.login-noteNumber { font-size: 11px; color: var(--signal); font-variant-numeric: tabular-nums; }
+.login-noteHeading h2 { font-size: 14px; font-weight: 600; }
+.login-noteHeading p { margin-top: 6px; font-size: 13px; line-height: 1.7; color: var(--ink-2); }
+.login-statement { margin-block: 22px 28px; border-left: 2px solid var(--signal); padding-left: 18px; }
+.login-statement figcaption { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px; margin-bottom: 12px; font-size: 10px; color: var(--ink-2); }
+.login-statement table { width: 100%; font-size: 12px; border-collapse: collapse; }
+.login-statement thead th { font-size: 10px; font-weight: 400; color: var(--ink-2); padding-block: 8px; }
+.login-statement th { text-align: left; font-weight: 400; }
+.login-statement td { text-align: right; font-variant-numeric: tabular-nums; }
+.login-statement thead th:last-child { text-align: right; }
+.login-statement tbody tr { border-top: 1px solid var(--rule); }
+.login-statement tbody th, .login-statement tbody td { padding-block: 10px; }
+.login-statement tbody th span { display: block; font-size: 10px; margin-top: 2px; color: var(--ink-2); }
+.login-statement tfoot { border-top: 1px solid var(--ink); }
+.login-statement tfoot th, .login-statement tfoot td { padding-top: 12px; font-weight: 600; }
+.login-footer { display: flex; align-items: baseline; justify-content: space-between; gap: 20px; border-top: 1px solid var(--rule); padding-top: 16px; font-size: 11px; color: var(--ink-2); }
+.login-footer > span { font-family: var(--font-display); font-size: 18px; color: var(--ink); }
+@media (max-width: 767px) {
+  .login-page { padding: 20px 24px; }
+  .login-masthead { gap: 12px; padding-bottom: 16px; }
+  .login-descriptor { font-size: 10px; max-width: 100px; }
+  .login-introduction { padding-block: 24px; }
+  .login-workspace { grid-template-columns: minmax(0, 1fr); gap: 40px; padding-bottom: 32px; }
+  .login-notebook { padding-top: 24px; }
+  .login-footer { align-items: start; }
+  .login-footer p { max-width: 220px; text-align: right; }
+}
