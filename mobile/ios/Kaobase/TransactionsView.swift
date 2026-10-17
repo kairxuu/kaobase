@@ -23,7 +23,7 @@ struct TransactionsView: View {
                 Section {
                     if let distributionError { InlineError(text: distributionError) }
                     else { DistributionView(items: distribution, currency: displayCurrency, title: "Dépenses de la sélection") }
-                    Text("Opérations en \(displayCurrency) correspondant à la recherche, au-delà des lignes affichées.").font(.caption).foregroundStyle(.secondary)
+                    Text("Opérations en \(displayCurrency) correspondant à la recherche, au-delà des lignes affichées.").font(.caption).foregroundStyle(Palette.muted)
                 }
                 ForEach(transactions) { transaction in
                     Button { selected = transaction } label: { TransactionRow(transaction: transaction) }.buttonStyle(.plain)
@@ -128,7 +128,7 @@ struct TransactionCategoryEditor: View {
                 Section { TransactionRow(transaction: transaction) }
                 Section("Catégorisation") {
                     Picker("Catégorie", selection: $category) { Text("Non catégorisé").tag(""); ForEach(model.overview?.categories ?? []) { Text($0.name).tag($0.id) } }
-                    Text("Kaobase retient tes choix pour les prochaines opérations du même commerçant.").font(.footnote).foregroundStyle(.secondary)
+                    Text("Kaobase retient tes choix pour les prochaines opérations du même commerçant.").font(.footnote).foregroundStyle(Palette.muted)
                 }
                 Section { InlineError(text: error); BusyButton(title: "Enregistrer", busy: busy) {
                     busy = true

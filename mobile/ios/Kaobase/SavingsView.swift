@@ -10,17 +10,17 @@ struct SavingsView: View {
                 ForEach(model.overview?.savingsBalances ?? [], id: \.currency) { item in
                     Text(Money.format(item.amount, currency: item.currency)).font(.largeTitle.weight(.semibold)).monospacedDigit()
                 }
-                Text("Ces montants sont déjà inclus dans le solde de l’accueil.").font(.footnote).foregroundStyle(.secondary)
+                Text("Ces montants sont déjà inclus dans le solde de l’accueil.").font(.footnote).foregroundStyle(Palette.muted)
             }
             Section("Mes livrets") {
                 ForEach(model.overview?.savings ?? []) { account in
                     VStack(alignment: .leading, spacing: 8) {
                         Text(account.name).font(.headline)
                         Text(Money.format(account.balance, currency: account.currency)).monospacedDigit()
-                        Text(account.space == "pro" ? "Professionnel" : "Personnel").font(.caption).foregroundStyle(.secondary)
+                        Text(account.space == "pro" ? "Professionnel" : "Personnel").font(.caption).foregroundStyle(Palette.muted)
                     }.padding(.vertical, 6)
                 }
-                if model.overview?.savings.isEmpty != false { Text("Ajoute un Livret A, un LEP ou un autre compte d’épargne.").foregroundStyle(.secondary) }
+                if model.overview?.savings.isEmpty != false { Text("Ajoute un Livret A, un LEP ou un autre compte d’épargne.").foregroundStyle(Palette.muted) }
             }
         }.scrollContentBackground(.hidden).background(Palette.paper).navigationTitle("Épargne")
             .toolbar { Button("Ajouter un livret", systemImage: "plus") { editor = true } }
@@ -46,7 +46,7 @@ struct SavingsEditor: View {
                     AmountField(title: "Solde de départ", text: $amount)
                     FormSpacePicker(space: $space)
                 }
-                Section { Text("Les opérations ajoutées à ce compte mettront son solde à jour.").font(.footnote).foregroundStyle(.secondary) }
+                Section { Text("Les opérations ajoutées à ce compte mettront son solde à jour.").font(.footnote).foregroundStyle(Palette.muted) }
                 Section { InlineError(text: error); BusyButton(title: "Enregistrer", busy: busy) { save() }.disabled(name.trimmingCharacters(in: .whitespaces).isEmpty || Money.parse(amount) == nil) }
             }.navigationTitle("Nouveau livret").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Annuler") { dismiss() }.disabled(busy) } }

@@ -28,7 +28,7 @@ struct LoginView: View {
                     HStack { BrandMark().frame(width: 64, height: 70); Text("kaobase").font(.system(size: 38, weight: .medium, design: .default)) }.padding(.top, 50)
                     VStack(alignment: .leading, spacing: 10) {
                         Text(mode == .signup ? "Tout commence ici." : mode == .signin ? "Tes finances,\nl’esprit tranquille." : title).font(.system(size: 39, weight: .medium, design: .default))
-                        Text(needsCode ? "Saisis le code reçu par e-mail. Vérifie aussi les courriers indésirables." : "Retrouve tes comptes, tes abonnements et tes apps dans un même espace.").foregroundStyle(.secondary)
+                        Text(needsCode ? "Saisis le code reçu par e-mail. Vérifie aussi les courriers indésirables." : "Retrouve tes comptes, tes abonnements et tes apps dans un même espace.").foregroundStyle(Palette.muted)
                     }
                     Panel {
                         TextField("Adresse e-mail", text: $email).textContentType(.emailAddress).keyboardType(.emailAddress).textInputAutocapitalization(.never).autocorrectionDisabled().accessibilityIdentifier("email")
@@ -55,7 +55,7 @@ struct LoginView: View {
                         }
                     }
                     if mode == .signin { Button("Mot de passe oublié ?") { mode = .reset; error = nil; notice = nil; password = "" } }
-                    Text("Ton compte existait avant la migration ? Utilise « Mot de passe oublié » pour définir ton nouveau mot de passe. Tes données sont conservées.").font(.footnote).foregroundStyle(.secondary)
+                    Text("Ton compte existait avant la migration ? Utilise « Mot de passe oublié » pour définir ton nouveau mot de passe. Tes données sont conservées.").font(.footnote).foregroundStyle(Palette.muted)
                 }.padding(24).frame(maxWidth: 540)
             }.frame(maxWidth: .infinity).background(Palette.paper).foregroundStyle(Palette.ink)
         }
@@ -115,7 +115,7 @@ struct SetupView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section { Text("Bienvenue dans Kaobase.").font(.title2).fontDesign(.default); Text("Quelques informations pour préparer ton espace.").foregroundStyle(.secondary) }
+                Section { Text("Bienvenue dans Kaobase.").font(.title2).fontDesign(.default); Text("Quelques informations pour préparer ton espace.").foregroundStyle(Palette.muted) }
                 Section("Ton profil") {
                     TextField("Prénom ou nom d’affichage", text: $name).textContentType(.givenName)
                     CurrencyPicker(currency: $currency)

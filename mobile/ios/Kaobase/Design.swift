@@ -6,6 +6,7 @@ enum Palette {
     static let paper = Color(light: 0xeceee8, dark: 0x17121f)
     static let sheet = Color(light: 0xf6f7f2, dark: 0x201a2c)
     static let ink = Color(light: 0x231a38, dark: 0xeeeaf6)
+    static let muted = Color(light: 0x716b7e, dark: 0xa49bb2)
     static let gain = Color(light: 0x1d7348, dark: 0x6fd39f)
     static let loss = Color(light: 0xb0284e, dark: 0xff7d9c)
 }

@@ -8,7 +8,7 @@ struct MoreView: View {
                 Section {
                     HStack(spacing: 15) {
                         Text(String((model.profile?.displayName ?? "K").prefix(1)).uppercased()).font(.title2).foregroundStyle(Palette.accent).frame(width: 50, height: 50).background(Palette.accent.opacity(0.12), in: Circle())
-                        VStack(alignment: .leading, spacing: 4) { Text(model.profile?.displayName ?? "Mon compte").font(.headline); Text(model.profile?.email ?? "").font(.caption).foregroundStyle(.secondary) }
+                        VStack(alignment: .leading, spacing: 4) { Text(model.profile?.displayName ?? "Mon compte").font(.headline); Text(model.profile?.email ?? "").font(.caption).foregroundStyle(Palette.muted) }
                     }.padding(.vertical, 8)
                 }
                 Section("Organiser") {
@@ -21,7 +21,7 @@ struct MoreView: View {
                 Section("Préférences") { NavigationLink { ProfileView() } label: { Label("Mon profil", systemImage: "person.crop.circle") } }
                 if let url = model.website { Section { Link(destination: url) { Label("Ouvrir Kaobase web", systemImage: "safari") } } }
                 Section { LogoutButton() }
-                Section { Text("Kaobase pour iPhone · " + (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")).font(.footnote).foregroundStyle(.secondary) }
+                Section { Text("Kaobase pour iPhone · " + (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")).font(.footnote).foregroundStyle(Palette.muted) }
             }.navigationTitle("Ton espace").scrollContentBackground(.hidden).background(Palette.paper)
         }
     }
@@ -53,7 +53,7 @@ struct SubscriptionsView: View {
             ForEach(model.overview?.subscriptions ?? []) { subscription in
                 VStack(alignment: .leading, spacing: 8) {
                     HStack { Text(subscription.name).font(.headline); Spacer(); Text(Money.format(subscription.amount, currency: model.currency)).monospacedDigit() }
-                    Text("Par \(subscription.periodLabel)\(subscription.nextDue.map { " · " + Dates.label($0) } ?? "")").font(.caption).foregroundStyle(.secondary)
+                    Text("Par \(subscription.periodLabel)\(subscription.nextDue.map { " · " + Dates.label($0) } ?? "")").font(.caption).foregroundStyle(Palette.muted)
                     Button("Catégorie : " + (model.overview?.categories.first { $0.id == subscription.categoryId }?.name ?? "Sans catégorie")) { selected = subscription }.font(.caption).buttonStyle(.borderless)
                     if subscription.status == "suggested" {
                         HStack {
@@ -91,7 +91,7 @@ struct TasksView: View {
                                 Button { toggle(row) } label: { Image(systemName: row.status == "done" ? "checkmark.circle.fill" : "circle").font(.title2) }.buttonStyle(.borderless).accessibilityLabel(row.status == "done" ? "Rouvrir \(row.title)" : "Terminer \(row.title)")
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(row.title).strikethrough(row.status == "done")
-                                    if let date = row.dueDate { Text(Dates.label(date)).font(.caption).foregroundStyle(.secondary) }
+                                    if let date = row.dueDate { Text(Dates.label(date)).font(.caption).foregroundStyle(Palette.muted) }
                                     if row.priority == "high" { Text("Priorité haute").font(.caption2).foregroundStyle(Palette.loss) }
                                 }
                             }.swipeActions { Button("Supprimer", role: .destructive) { deleting = row } }
@@ -120,7 +120,7 @@ struct AccountsView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(account.name).font(.headline)
                     Text(Money.format(account.balance, currency: account.currency)).font(.title2).fontDesign(.default)
-                    Text(account.space == "pro" ? "Professionnel" : "Personnel").font(.caption).foregroundStyle(.secondary)
+                    Text(account.space == "pro" ? "Professionnel" : "Personnel").font(.caption).foregroundStyle(Palette.muted)
                 }.padding(.vertical, 6)
             }
         }.navigationTitle("Comptes").toolbar { Button("Ajouter", systemImage: "plus") { editor = true } }.sheet(isPresented: $editor) { ItemEditor(kind: .account) }.refreshable { await model.refresh() }

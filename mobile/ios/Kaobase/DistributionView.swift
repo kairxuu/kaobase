@@ -17,14 +17,14 @@ struct DistributionView: View {
                         .foregroundStyle(Color(hex: item.color))
                         .accessibilityLabel(item.name).accessibilityValue(value(item.amount))
                 }.frame(height: 180).chartLegend(.hidden)
-                    .chartBackground { _ in VStack(spacing: 4) { Text(Money.format(total, currency: currency)).font(.headline).monospacedDigit().lineLimit(1).minimumScaleFactor(0.6).frame(maxWidth: 120); Text("au total").font(.caption).foregroundStyle(.secondary) } }
-            } else { Text("Aucune dépense pour cette sélection.").font(.callout).foregroundStyle(.secondary) }
+                    .chartBackground { _ in VStack(spacing: 4) { Text(Money.format(total, currency: currency)).font(.headline).monospacedDigit().lineLimit(1).minimumScaleFactor(0.6).frame(maxWidth: 120); Text("au total").font(.caption).foregroundStyle(Palette.muted) } }
+            } else { Text("Aucune dépense pour cette sélection.").font(.callout).foregroundStyle(Palette.muted) }
             ForEach(items) { item in
                 HStack(alignment: .firstTextBaseline, spacing: 10) {
                     Rectangle().fill(Color(hex: item.color)).frame(width: 8, height: 8)
                     Text(item.name).font(.subheadline)
                     Spacer(minLength: 8)
-                    Text(value(item.amount)).font(.subheadline.monospacedDigit()).foregroundStyle(.secondary)
+                    Text(value(item.amount)).font(.subheadline.monospacedDigit()).foregroundStyle(Palette.muted)
                 }.accessibilityElement(children: .combine)
             }
         }.padding(.vertical, 8)

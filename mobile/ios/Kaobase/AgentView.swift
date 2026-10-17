@@ -20,7 +20,7 @@ struct AgentView: View {
                                 VStack(alignment: .leading, spacing: 22) {
                                     BrandMark().frame(width: 44, height: 52).padding(.vertical, 12)
                                     Text("On regarde quoi aujourd’hui ?").font(.title.weight(.semibold))
-                                    Text("Tes dépenses, tes abonnements ou tes tâches.").foregroundStyle(.secondary)
+                                    Text("Tes dépenses, tes abonnements ou tes tâches.").foregroundStyle(Palette.muted)
                                     ForEach(suggestions, id: \.self) { suggestion in
                                         Button { chat.draft = suggestion } label: {
                                             HStack { Text(suggestion).multilineTextAlignment(.leading); Spacer(); Image(systemName: "arrow.up.left") }.padding(12).background(Palette.sheet, in: RoundedRectangle(cornerRadius: 4))
@@ -30,7 +30,7 @@ struct AgentView: View {
                             }
                             ForEach(chat.messages) { row in
                                 VStack(alignment: .leading, spacing: 12) {
-                                    Text(row.isUser ? "Toi" : "Kaobase").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                                    Text(row.isUser ? "Toi" : "Kaobase").font(.caption.weight(.semibold)).foregroundStyle(Palette.muted)
                                     Text(.init(row.text)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
                                     ForEach(row.deletions) { deletion in
                                         VStack(alignment: .leading, spacing: 10) {
@@ -96,7 +96,7 @@ struct ConversationHistoryView: View {
                         } label: {
                             VStack(alignment: .leading, spacing: 6) {
                                 Text(row.title).font(.body.weight(row.id == model.chat.activeId ? .semibold : .regular)).lineLimit(2)
-                                Text(String(row.lastAt.prefix(10))).font(.caption).foregroundStyle(.secondary)
+                                Text(String(row.lastAt.prefix(10))).font(.caption).foregroundStyle(Palette.muted)
                             }.frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 6)
                         }.buttonStyle(.plain)
                         Button("Supprimer", systemImage: "trash") { deleting = row }.labelStyle(.iconOnly).buttonStyle(.borderless).tint(Palette.loss)
@@ -128,7 +128,7 @@ struct RemovalSheet: View {
         VStack(alignment: .leading, spacing: 22) {
             Image(systemName: "trash").font(.title2).foregroundStyle(Palette.loss)
             Text(title).font(.title2.weight(.semibold))
-            Text(detail).font(.callout).foregroundStyle(.secondary)
+            Text(detail).font(.callout).foregroundStyle(Palette.muted)
             InlineError(text: error)
             Button { run(action) } label: {
                 HStack { Spacer(); if busy { ProgressView() }; Text("Confirmer la suppression"); Spacer() }.padding(14).foregroundStyle(.white).background(Palette.loss, in: RoundedRectangle(cornerRadius: 4))

@@ -34,7 +34,7 @@ struct AppsView: View {
                                         AppLogo(url: app.url, size: 42)
                                         VStack(alignment: .leading, spacing: 3) {
                                             Text(app.name).foregroundStyle(Palette.ink)
-                                            Text(app.accountLabel.isEmpty ? "Compte non précisé" : app.accountLabel).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                                            Text(app.accountLabel.isEmpty ? "Compte non précisé" : app.accountLabel).font(.caption).foregroundStyle(Palette.muted).lineLimit(1)
                                             if model.overview?.connections.contains(where: { $0.shortcutId == app.id }) == true { Label("Compte connecté", systemImage: "checkmark.shield").font(.caption2).foregroundStyle(Palette.gain) }
                                         }
                                         Spacer(minLength: 0)
@@ -80,12 +80,12 @@ struct CatalogView: View {
     var body: some View {
         NavigationStack {
             List {
-                if let warning = catalog?.warning { Section { Text(warning).font(.footnote).foregroundStyle(.secondary) } }
+                if let warning = catalog?.warning { Section { Text(warning).font(.footnote).foregroundStyle(Palette.muted) } }
                 if let error { Section { InlineError(text: error); Button("Réessayer") { Task { await load() } } } }
                 if catalog == nil && error == nil { ProgressView("Chargement des apps…") }
                 ForEach(entries) { entry in
                     Button { selected = entry } label: {
-                        HStack(spacing: 12) { AppLogo(url: entry.url ?? "", size: 38); VStack(alignment: .leading, spacing: 5) { Text(entry.name).foregroundStyle(Palette.ink); Text(entry.description).font(.caption).foregroundStyle(.secondary) } }.padding(.vertical, 3)
+                        HStack(spacing: 12) { AppLogo(url: entry.url ?? "", size: 38); VStack(alignment: .leading, spacing: 5) { Text(entry.name).foregroundStyle(Palette.ink); Text(entry.description).font(.caption).foregroundStyle(Palette.muted) } }.padding(.vertical, 3)
                     }
                 }
                 if catalog != nil && entries.isEmpty { ContentUnavailableView.search(text: search) }
@@ -125,7 +125,7 @@ struct AppEditor: View {
                     FormSpacePicker(space: $space)
                     Toggle("Épingler sur l’accueil", isOn: $pinned)
                 }
-                Section { Text("Ce lien ouvre le service. Les connexions OAuth se configurent pour le moment depuis Kaobase web.").font(.footnote).foregroundStyle(.secondary) }
+                Section { Text("Ce lien ouvre le service. Les connexions OAuth se configurent pour le moment depuis Kaobase web.").font(.footnote).foregroundStyle(Palette.muted) }
                 Section { InlineError(text: error); BusyButton(title: "Ajouter l’app", busy: busy) { save() }.disabled(name.trimmingCharacters(in: .whitespaces).isEmpty || url.isEmpty) }
             }.navigationTitle("Nouvelle app").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Annuler") { dismiss() }.disabled(busy) } }
