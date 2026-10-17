@@ -14,13 +14,14 @@ struct MoreView: View {
                 Section("Organiser") {
                     NavigationLink { SubscriptionsView() } label: { Label("Abonnements", systemImage: "repeat") }
                     NavigationLink { TasksView() } label: { Label("Tâches", systemImage: "checklist") }
+                    NavigationLink { SavingsView() } label: { Label("Épargne", systemImage: "leaf") }
                     NavigationLink { AccountsView() } label: { Label("Comptes", systemImage: "building.columns") }
                     NavigationLink { BudgetsView() } label: { Label("Budgets", systemImage: "chart.pie") }
                 }
                 Section("Préférences") { NavigationLink { ProfileView() } label: { Label("Mon profil", systemImage: "person.crop.circle") } }
                 if let url = model.website { Section { Link(destination: url) { Label("Ouvrir Kaobase web", systemImage: "safari") } } }
                 Section { LogoutButton() }
-                Section { Text("Kaobase pour iPhone · 0.1.0").font(.footnote).foregroundStyle(.secondary) }
+                Section { Text("Kaobase pour iPhone · " + (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")).font(.footnote).foregroundStyle(.secondary) }
             }.navigationTitle("Ton espace").scrollContentBackground(.hidden).background(Palette.paper)
         }
     }
@@ -41,18 +42,19 @@ struct SubscriptionsView: View {
     @Environment(AppModel.self) private var model
     @State private var editor = false
     @State private var deleting: Subscription?
+    @State private var selected: Subscription?
     private var active: [Subscription] { (model.overview?.subscriptions ?? []).filter { $0.status == "active" } }
     var body: some View {
         List {
             SpacePicker().listRowBackground(Color.clear)
             Section {
-                Text(Money.format(active.reduce(Decimal.zero) { $0 + $1.monthlyCost }, currency: model.currency)).font(.largeTitle).fontDesign(.serif)
-                Text("par mois pour \(active.count) abonnement(s) actif(s)").font(.footnote).foregroundStyle(.secondary)
+                DistributionView(items: DistributionItem.grouped(active.map { ($0.categoryId, $0.monthlyCost) }, categories: model.overview?.categories ?? []), currency: model.currency, title: "Répartition mensuelle")
             }
             ForEach(model.overview?.subscriptions ?? []) { subscription in
                 VStack(alignment: .leading, spacing: 8) {
                     HStack { Text(subscription.name).font(.headline); Spacer(); Text(Money.format(subscription.amount, currency: model.currency)).monospacedDigit() }
                     Text("Par \(subscription.periodLabel)\(subscription.nextDue.map { " · " + Dates.label($0) } ?? "")").font(.caption).foregroundStyle(.secondary)
+                    Button("Catégorie : " + (model.overview?.categories.first { $0.id == subscription.categoryId }?.name ?? "Sans catégorie")) { selected = subscription }.font(.caption).buttonStyle(.borderless)
                     if subscription.status == "suggested" {
                         HStack {
                             Button("Confirmer") { setStatus(subscription, "active") }.buttonStyle(.bordered)
@@ -64,6 +66,7 @@ struct SubscriptionsView: View {
             if model.overview?.subscriptions.isEmpty == true { ContentUnavailableView("Aucun abonnement", systemImage: "repeat", description: Text("Ajoute tes paiements réguliers pour suivre leurs échéances.")) }
         }.navigationTitle("Abonnements").toolbar { Button("Ajouter", systemImage: "plus") { editor = true } }
             .sheet(isPresented: $editor) { ItemEditor(kind: .subscription) }
+            .sheet(item: $selected) { SubscriptionCategoryEditor(subscription: $0) }
             .refreshable { await model.refresh() }
             .confirmationDialog("Supprimer cet abonnement ?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible) {
                 Button("Supprimer", role: .destructive) { guard let row = deleting else { return }; deleting = nil; Task { do { try await model.mutate("subscriptions/" + row.id, method: "DELETE") } catch { model.error = error.localizedDescription } } }
@@ -116,7 +119,7 @@ struct AccountsView: View {
             ForEach(model.overview?.accounts ?? []) { account in
                 VStack(alignment: .leading, spacing: 6) {
                     Text(account.name).font(.headline)
-                    Text(Money.format(account.balance, currency: account.currency)).font(.title2).fontDesign(.serif)
+                    Text(Money.format(account.balance, currency: account.currency)).font(.title2).fontDesign(.default)
                     Text(account.space == "pro" ? "Professionnel" : "Personnel").font(.caption).foregroundStyle(.secondary)
                 }.padding(.vertical, 6)
             }
@@ -199,6 +202,7 @@ struct ItemEditor: View {
                     else { TextField(kind == .task ? "Titre de la tâche" : "Nom", text: $name) }
                     if kind != .task { AmountField(title: kind == .account ? "Solde de départ" : "Montant", text: $amount) }
                     if kind == .subscription {
+                        Picker("Catégorie", selection: $categoryId) { Text("Sans catégorie").tag(""); ForEach((model.overview?.categories ?? []).filter { $0.kind == "expense" }) { Text($0.name).tag($0.id) } }
                         Picker("Fréquence", selection: $period) { Text("Chaque semaine").tag("weekly"); Text("Chaque mois").tag("monthly"); Text("Chaque trimestre").tag("quarterly"); Text("Chaque année").tag("yearly") }
                     }
                     if kind == .task || kind == .subscription {
@@ -222,10 +226,40 @@ struct ItemEditor: View {
         let payload: [String: JSONValue]
         switch kind {
         case .task: path = "tasks"; payload = ["title": .string(name), "priority": .string(priority), "dueDate": due, "space": .string(space)]
-        case .subscription: path = "subscriptions"; payload = ["name": .string(name), "amount": .number(Money.parse(amount) ?? 0), "period": .string(period), "nextDue": due, "space": .string(space)]
+        case .subscription: path = "subscriptions"; payload = ["name": .string(name), "amount": .number(Money.parse(amount) ?? 0), "period": .string(period), "nextDue": due, "space": .string(space), "categoryId": .optional(categoryId.isEmpty ? nil : categoryId)]
         case .account: path = "accounts"; payload = ["name": .string(name), "kind": .string(accountKind), "openingBalance": .number(Money.parse(amount) ?? 0), "space": .string(space)]
         case .budget: path = "budgets"; payload = ["categoryId": .string(categoryId), "monthlyLimit": .number(Money.parse(amount) ?? 0)]
         }
         Task { defer { busy = false }; do { try await model.mutate(path, payload: payload); dismiss() } catch { self.error = error.localizedDescription } }
+    }
+}
+
+struct SubscriptionCategoryEditor: View {
+    let subscription: Subscription
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+    @State private var category = ""
+    @State private var busy = false
+    @State private var error: String?
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section(subscription.name) {
+                    Picker("Catégorie", selection: $category) {
+                        Text("Sans catégorie").tag("")
+                        ForEach((model.overview?.categories ?? []).filter { $0.kind == "expense" }) { Text($0.name).tag($0.id) }
+                    }
+                }
+                Section { InlineError(text: error); BusyButton(title: "Enregistrer", busy: busy) { save() } }
+            }.navigationTitle("Catégorie").navigationBarTitleDisplayMode(.inline)
+                .onAppear { category = subscription.categoryId ?? "" }
+                .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Annuler") { dismiss() }.disabled(busy) } }
+        }.interactiveDismissDisabled(busy)
+    }
+    private func save() {
+        busy = true; error = nil
+        Task { defer { busy = false }; do {
+            try await model.mutate("subscriptions/" + subscription.id, method: "PATCH", payload: ["categoryId": .optional(category.isEmpty ? nil : category)]); dismiss()
+        } catch { self.error = error.localizedDescription } }
     }
 }

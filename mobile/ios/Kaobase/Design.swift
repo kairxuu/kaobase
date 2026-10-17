@@ -21,18 +21,13 @@ extension Color {
 }
 struct BrandMark: View {
     var body: some View {
-        ZStack {
-            ForEach(0..<12) { index in
-                Ellipse().stroke(Palette.accent.opacity(0.6), lineWidth: 1.2).frame(width: 30, height: 62).rotationEffect(.degrees(Double(index) * 15))
-            }
-            Circle().fill(Palette.accent).frame(width: 9, height: 9)
-        }
+        Image("BrandRose").resizable().scaledToFit().foregroundStyle(Palette.accent)
         .accessibilityHidden(true)
     }
 }
 struct Panel<Content: View>: View {
     @ViewBuilder let content: Content
-    var body: some View { VStack(alignment: .leading, spacing: 16) { content }.frame(maxWidth: .infinity, alignment: .leading).padding(20).background(Palette.sheet, in: RoundedRectangle(cornerRadius: 24)) }
+    var body: some View { VStack(alignment: .leading, spacing: 16) { content }.frame(maxWidth: .infinity, alignment: .leading).padding(20).background(Palette.sheet, in: RoundedRectangle(cornerRadius: 4)) }
 }
 struct SectionHeading: View {
     let title: String
@@ -57,7 +52,7 @@ struct SpacePicker: View {
     var body: some View {
         @Bindable var model = model
         Picker("Espace", selection: $model.space) {
-            Text("Tous").tag("all"); Text("Perso").tag("perso"); Text("Pro").tag("pro")
+            Text("Tous").tag("all"); Text("Personnel").tag("perso"); Text("Professionnel").tag("pro")
         }.pickerStyle(.segmented).onChange(of: model.space) { _, _ in Task { await model.refresh() } }
     }
 }

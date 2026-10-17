@@ -8,8 +8,8 @@ settings:
   base:
     SWIFT_VERSION: "6.0"
     DEVELOPMENT_TEAM: ""
-    MARKETING_VERSION: "0.1.0"
-    CURRENT_PROJECT_VERSION: 1
+    MARKETING_VERSION: "0.2.0"
+    CURRENT_PROJECT_VERSION: 2
     GENERATE_INFOPLIST_FILE: YES
     CODE_SIGN_STYLE: Automatic
     ENABLE_USER_SCRIPT_SANDBOXING: YES
@@ -23,6 +23,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.kaobase.ios
+        DEVELOPMENT_TEAM: JJQBJ3H9N3
         INFOPLIST_KEY_CFBundleDisplayName: Kaobase
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES

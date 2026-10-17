@@ -52,6 +52,7 @@ struct Subscription: Codable, Identifiable, Sendable {
     let nextDue: String?
     let status: String
     let space: String
+    var categoryId: String? = nil
     var monthlyCost: Decimal {
         switch period {
         case "weekly": amount * 52 / 12
@@ -122,6 +123,12 @@ struct Overview: Codable, Sendable {
     let tasks: [KaobaseTask]
     let apps: [AppShortcut]
     let connections: [AppConnection]
+    var savings: [Account] { accounts.filter { $0.kind == "savings" } }
+    var savingsBalances: [(currency: String, amount: Decimal)] {
+        Dictionary(grouping: savings, by: \.currency).map { currency, rows in
+            (currency, rows.reduce(Decimal.zero) { $0 + $1.balance })
+        }.sorted { $0.currency < $1.currency }
+    }
     // Amounts in different currencies are deliberately kept separate.
     var balances: [(currency: String, amount: Decimal)] {
         Dictionary(grouping: accounts, by: \.currency).map { currency, rows in
@@ -140,7 +147,7 @@ struct Catalog: Decodable, Sendable {
     let apps: [CatalogEntry]
     let warning: String?
 }
-struct AgentDeletion: Decodable, Identifiable, Sendable {
+struct AgentDeletion: Codable, Identifiable, Sendable {
     let id: String
     let description: String
 }
@@ -149,11 +156,42 @@ struct AgentReply: Decodable, Sendable {
     let agent: String
     let deletions: [AgentDeletion]
 }
-struct ChatMessage: Identifiable {
-    let id = UUID()
+struct ChatMessage: Codable, Identifiable, Sendable {
+    var id = UUID()
     let text: String
     let isUser: Bool
     var deletions: [AgentDeletion] = []
+}
+struct ConversationSummary: Decodable, Identifiable, Sendable {
+    let id: String
+    let title: String
+    let lastAt: String
+}
+struct ConversationDetail: Decodable, Sendable {
+    struct Message: Decodable, Sendable {
+        let role: String
+        let content: String
+    }
+    let messages: [Message]
+    let deletions: [AgentDeletion]
+}
+struct DistributionItem: Codable, Identifiable, Sendable {
+    let id: String
+    let name: String
+    let color: String
+    let amount: Decimal
+    static func grouped(_ rows: [(String?, Decimal)], categories: [Category]) -> [DistributionItem] {
+        let transfers = Set(categories.filter { $0.kind == "transfer" }.map(\.id))
+        var totals: [String: Decimal] = [:]
+        for (category, amount) in rows where amount > 0 && !transfers.contains(category ?? "") {
+            totals[category ?? "uncategorized", default: 0] += amount
+        }
+        var result = categories.filter { $0.kind == "expense" || totals[$0.id] != nil }.filter { $0.kind != "transfer" }.map {
+            DistributionItem(id: $0.id, name: $0.name, color: $0.color, amount: totals.removeValue(forKey: $0.id) ?? 0)
+        }
+        result += totals.map { DistributionItem(id: $0.key, name: "Sans catégorie", color: "#8e8a96", amount: $0.value) }
+        return result.sorted { $0.amount == $1.amount ? $0.name < $1.name : $0.amount > $1.amount }
+    }
 }
 struct Success: Decodable, Sendable { let ok: Bool }
 enum JSONValue: Encodable, Sendable {

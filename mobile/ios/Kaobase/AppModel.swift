@@ -4,6 +4,7 @@ import Observation
 @MainActor @Observable
 final class AppModel {
     enum Phase { case loading, login, setup, ready, unavailable }
+    let chat = ChatStore()
     var phase: Phase = .loading
     var profile: Profile?
     var setupAccount: SetupAccount?
@@ -23,7 +24,7 @@ final class AppModel {
     func start() async {
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--demo") {
-            isDemo = true; profile = Demo.profile; overview = Demo.overview; phase = .ready
+            isDemo = true; chat.configure(userId: "preview", client: nil, demo: true); profile = Demo.profile; overview = Demo.overview; phase = .ready
             return
         }
         #endif
@@ -39,6 +40,7 @@ final class AppModel {
             guard let client else { throw AppError.configuration }
             let result: Bootstrap = try await client.request("bootstrap")
             profile = result.profile; setupAccount = result.setupAccount
+            chat.configure(userId: result.profile.id, client: client)
             if result.profile.onboardingCompletedAt == nil { phase = .setup }
             else { try await reload(); phase = .ready }
         } catch AppError.sessionExpired { profile = nil; overview = nil; phase = .login; error = AppError.sessionExpired.localizedDescription }
@@ -81,6 +83,7 @@ final class AppModel {
     func signOut() async {
         do {
             if !isDemo { try await client?.signOut() }
+            chat.configure(userId: nil, client: nil)
             isDemo = false; overview = nil; profile = nil; setupAccount = nil; space = "all"
             phase = .login
             if client == nil { client = try APIClient(configuration: AppConfiguration.load()) }

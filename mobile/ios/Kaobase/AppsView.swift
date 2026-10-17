@@ -31,10 +31,10 @@ struct AppsView: View {
                             if let url = app.destination {
                                 Link(destination: url) {
                                     HStack(spacing: 12) {
-                                        Text(String(app.name.prefix(1)).uppercased()).font(.title3.weight(.semibold)).frame(width: 42, height: 42).background(Palette.accent.opacity(0.1), in: RoundedRectangle(cornerRadius: 13))
+                                        AppLogo(url: app.url, size: 42)
                                         VStack(alignment: .leading, spacing: 3) {
                                             Text(app.name).foregroundStyle(Palette.ink)
-                                            Text(app.accountLabel.isEmpty ? AppCategories.label(app.category) : app.accountLabel).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                                            Text(app.accountLabel.isEmpty ? "Compte non précisé" : app.accountLabel).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                                             if model.overview?.connections.contains(where: { $0.shortcutId == app.id }) == true { Label("Compte connecté", systemImage: "checkmark.shield").font(.caption2).foregroundStyle(Palette.gain) }
                                         }
                                         Spacer(minLength: 0)
@@ -85,7 +85,7 @@ struct CatalogView: View {
                 if catalog == nil && error == nil { ProgressView("Chargement des apps…") }
                 ForEach(entries) { entry in
                     Button { selected = entry } label: {
-                        VStack(alignment: .leading, spacing: 5) { Text(entry.name).foregroundStyle(Palette.ink); Text(entry.description).font(.caption).foregroundStyle(.secondary) }.padding(.vertical, 3)
+                        HStack(spacing: 12) { AppLogo(url: entry.url ?? "", size: 38); VStack(alignment: .leading, spacing: 5) { Text(entry.name).foregroundStyle(Palette.ink); Text(entry.description).font(.caption).foregroundStyle(.secondary) } }.padding(.vertical, 3)
                     }
                 }
                 if catalog != nil && entries.isEmpty { ContentUnavailableView.search(text: search) }
@@ -125,7 +125,7 @@ struct AppEditor: View {
                     FormSpacePicker(space: $space)
                     Toggle("Épingler sur l’accueil", isOn: $pinned)
                 }
-                Section { Text("Ce raccourci ouvre le service. Les connexions OAuth se configurent pour le moment depuis Kaobase web.").font(.footnote).foregroundStyle(.secondary) }
+                Section { Text("Ce lien ouvre le service. Les connexions OAuth se configurent pour le moment depuis Kaobase web.").font(.footnote).foregroundStyle(.secondary) }
                 Section { InlineError(text: error); BusyButton(title: "Ajouter l’app", busy: busy) { save() }.disabled(name.trimmingCharacters(in: .whitespaces).isEmpty || url.isEmpty) }
             }.navigationTitle("Nouvelle app").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Annuler") { dismiss() }.disabled(busy) } }

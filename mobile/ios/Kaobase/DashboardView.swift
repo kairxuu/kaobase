@@ -11,7 +11,7 @@ struct DashboardView: View {
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(model.isDemo ? "APERÇU · DONNÉES FICTIVES" : "TON ESPACE, EN CLAIR").font(.caption2.weight(.semibold)).tracking(2).foregroundStyle(.secondary)
-                            Text("Bonjour\(model.profile?.displayName.flatMap { $0.isEmpty ? nil : ", " + $0 } ?? "").").font(.system(size: 32, weight: .medium, design: .serif))
+                            Text("Bonjour\(model.profile?.displayName.flatMap { $0.isEmpty ? nil : ", " + $0 } ?? "").").font(.system(size: 32, weight: .medium, design: .default))
                         }
                         Spacer(); BrandMark().frame(width: 48, height: 60)
                     }
@@ -22,6 +22,17 @@ struct DashboardView: View {
                             metric("Entrées ce mois", amount: data.summary.income, icon: "arrow.down.left", color: Palette.gain)
                             metric("Sorties ce mois", amount: data.summary.expenses, icon: "arrow.up.right", color: Palette.loss)
                         }
+                        Panel {
+                            NavigationLink { SavingsView() } label: {
+                                VStack(alignment: .leading, spacing: 12) {
+                                    HStack { SectionHeading(title: "Dont épargne"); Spacer(); Image(systemName: "arrow.up.right") }
+                                    ForEach(data.savingsBalances, id: \.currency) { item in
+                                        Text(Money.format(item.amount, currency: item.currency)).font(.title2.weight(.semibold)).monospacedDigit()
+                                    }
+                                    Text(data.savings.isEmpty ? "Ajouter un Livret A, un LEP…" : "\(data.savings.count) compte(s) · déjà inclus dans le solde total").font(.caption).foregroundStyle(.secondary)
+                                }.frame(maxWidth: .infinity, alignment: .leading)
+                            }.buttonStyle(.plain)
+                        }
                         if !data.apps.filter(\.pinned).isEmpty {
                             Panel {
                                 SectionHeading(title: "À portée de main")
@@ -30,7 +41,7 @@ struct DashboardView: View {
                                         if let url = app.destination {
                                             Link(destination: url) {
                                                 VStack(spacing: 8) {
-                                                    Text(String(app.name.prefix(1)).uppercased()).font(.title2.weight(.semibold)).frame(width: 50, height: 50).background(Palette.accent.opacity(0.1), in: RoundedRectangle(cornerRadius: 15))
+                                                    AppLogo(url: app.url, size: 46)
                                                     Text(app.name).font(.caption).lineLimit(1)
                                                 }
                                             }.accessibilityLabel("Ouvrir \(app.name)")
@@ -39,29 +50,21 @@ struct DashboardView: View {
                                 }
                             }
                         }
-                        if !data.summary.byCategory.isEmpty {
-                            Panel {
-                                SectionHeading(title: "Où va ton argent ?")
-                                Chart(data.summary.byCategory.prefix(6)) { category in
-                                    BarMark(x: .value("Montant", NSDecimalNumber(decimal: category.total).doubleValue), y: .value("Catégorie", category.name))
-                                        .foregroundStyle(Color(hex: category.color)).cornerRadius(5)
-                                }.frame(height: CGFloat(min(data.summary.byCategory.count, 6) * 36)).chartXAxis(.hidden)
-                                ForEach(data.summary.byCategory.prefix(4)) { category in
-                                    HStack { Circle().fill(Color(hex: category.color)).frame(width: 7, height: 7); Text(category.name).font(.subheadline); Spacer(); Text(Money.format(category.total, currency: model.currency)).font(.subheadline.monospacedDigit()) }
-                                }
-                            }
+                        Panel {
+                            NavigationLink { SubscriptionsView() } label: {
+                                HStack { SectionHeading(title: "Abonnements"); Spacer(); Image(systemName: "arrow.up.right") }
+                            }.buttonStyle(.plain)
+                            let active = data.subscriptions.filter { $0.status == "active" }
+                            Text(Money.format(active.reduce(0) { $0 + $1.monthlyCost }, currency: model.currency) + " / mois").font(.title3.weight(.semibold)).monospacedDigit()
+                            if let next = active.first, let due = next.nextDue { Text("À venir : \(next.name) · \(Dates.label(due))").font(.caption).foregroundStyle(.secondary) }
                         }
-                        if !data.budgets.isEmpty {
-                            Panel {
-                                SectionHeading(title: "Tes budgets")
-                                ForEach(data.budgets) { budget in
-                                    VStack(alignment: .leading, spacing: 6) {
-                                        HStack { Text(budget.category); Spacer(); Text("\(budget.percent) %").foregroundStyle(budget.percent > 100 ? Palette.loss : Palette.accent) }.font(.subheadline)
-                                        ProgressView(value: min(max(Double(budget.percent), 0), 100), total: 100).tint(budget.percent > 100 ? Palette.loss : Palette.accent)
-                                        Text("\(Money.format(budget.spent, currency: model.currency)) sur \(Money.format(budget.limit, currency: model.currency))").font(.caption).foregroundStyle(.secondary)
-                                    }
-                                }
-                            }
+                        Panel {
+                            NavigationLink { TasksView() } label: {
+                                HStack { SectionHeading(title: "À faire"); Spacer(); Image(systemName: "arrow.up.right") }
+                            }.buttonStyle(.plain)
+                            let remaining = data.tasks.filter { $0.status != "done" }
+                            if remaining.isEmpty { Text("Aucune tâche en attente.").font(.subheadline).foregroundStyle(.secondary) }
+                            ForEach(remaining.prefix(3)) { task in Text(task.title).font(.subheadline) }
                         }
                         Panel {
                             SectionHeading(title: "Dernières opérations")
@@ -82,10 +85,7 @@ struct DashboardView: View {
             Text("SOLDE DE TES COMPTES").font(.caption.weight(.semibold)).tracking(1.6).foregroundStyle(.secondary)
             if data.balances.isEmpty { Text("Aucun compte").font(.title) }
             ForEach(data.balances, id: \.currency) { item in
-                Text(Money.format(item.amount, currency: item.currency)).font(.system(size: 38, weight: .medium, design: .serif)).minimumScaleFactor(0.6).lineLimit(1)
-            }
-            ForEach(data.accounts) { account in
-                HStack { Label(account.name, systemImage: account.kind == "savings" ? "leaf" : "building.columns").font(.subheadline); Spacer(); Text(Money.format(account.balance, currency: account.currency)).font(.subheadline.monospacedDigit()) }.foregroundStyle(.secondary)
+                Text(Money.format(item.amount, currency: item.currency)).font(.system(size: 38, weight: .medium, design: .default)).minimumScaleFactor(0.6).lineLimit(1)
             }
             Button { addTransaction = true } label: { Label("Ajouter une opération", systemImage: "plus").foregroundStyle(Palette.onAccent).frame(maxWidth: .infinity) }.buttonStyle(.borderedProminent).padding(.top, 4)
         }
@@ -101,7 +101,7 @@ struct TransactionRow: View {
     private var category: Category? { model.overview?.categories.first { $0.id == transaction.categoryId } }
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: transaction.amount > 0 ? "arrow.down.left" : "arrow.up.right").font(.callout.weight(.medium)).foregroundStyle(transaction.amount > 0 ? Palette.gain : Palette.ink).frame(width: 38, height: 38).background((category.map { Color(hex: $0.color) } ?? Palette.accent).opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
+            Image(systemName: transaction.amount > 0 ? "arrow.down.left" : "arrow.up.right").font(.callout.weight(.medium)).foregroundStyle(transaction.amount > 0 ? Palette.gain : Palette.ink).frame(width: 38, height: 38).background((category.map { Color(hex: $0.color) } ?? Palette.accent).opacity(0.1), in: RoundedRectangle(cornerRadius: 4))
             VStack(alignment: .leading, spacing: 4) { Text(transaction.labelRaw).font(.subheadline.weight(.medium)).lineLimit(1); Text("\(category?.name ?? "Non catégorisé") · \(Dates.label(transaction.bookedAt))").font(.caption).foregroundStyle(.secondary) }
             Spacer(minLength: 4)
             Text(Money.format(transaction.amount, currency: model.overview?.accounts.first { $0.id == transaction.accountId }?.currency ?? model.currency)).font(.subheadline.monospacedDigit()).foregroundStyle(transaction.amount > 0 ? Palette.gain : Palette.ink)

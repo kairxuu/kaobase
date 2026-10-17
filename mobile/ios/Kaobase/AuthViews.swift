@@ -25,9 +25,9 @@ struct LoginView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 26) {
-                    HStack { BrandMark().frame(width: 64, height: 70); Text("kaobase").font(.system(size: 38, weight: .medium, design: .serif)) }.padding(.top, 50)
+                    HStack { BrandMark().frame(width: 64, height: 70); Text("kaobase").font(.system(size: 38, weight: .medium, design: .default)) }.padding(.top, 50)
                     VStack(alignment: .leading, spacing: 10) {
-                        Text(mode == .signup ? "Tout commence ici." : mode == .signin ? "Tes finances,\nl’esprit tranquille." : title).font(.system(size: 39, weight: .medium, design: .serif))
+                        Text(mode == .signup ? "Tout commence ici." : mode == .signin ? "Tes finances,\nl’esprit tranquille." : title).font(.system(size: 39, weight: .medium, design: .default))
                         Text(needsCode ? "Saisis le code reçu par e-mail. Vérifie aussi les courriers indésirables." : "Retrouve tes comptes, tes abonnements et tes apps dans un même espace.").foregroundStyle(.secondary)
                     }
                     Panel {
@@ -115,7 +115,7 @@ struct SetupView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section { Text("Bienvenue dans Kaobase.").font(.title2).fontDesign(.serif); Text("Quelques informations pour préparer ton espace.").foregroundStyle(.secondary) }
+                Section { Text("Bienvenue dans Kaobase.").font(.title2).fontDesign(.default); Text("Quelques informations pour préparer ton espace.").foregroundStyle(.secondary) }
                 Section("Ton profil") {
                     TextField("Prénom ou nom d’affichage", text: $name).textContentType(.givenName)
                     CurrencyPicker(currency: $currency)

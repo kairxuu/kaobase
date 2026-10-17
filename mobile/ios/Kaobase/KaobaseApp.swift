@@ -9,6 +9,7 @@ struct KaobaseApp: App {
             RootView()
                 .environment(model)
                 .tint(Palette.accent)
+                .buttonBorderShape(.roundedRectangle(radius: 4))
                 .task { await model.start() }
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .active && model.phase == .ready { Task { await model.refresh() } }

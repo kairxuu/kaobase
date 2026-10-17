@@ -3,6 +3,11 @@ import SwiftUI
 struct TransactionsView: View {
     @Environment(AppModel.self) private var model
     @State private var transactions: [Transaction] = []
+    @State private var distribution: [DistributionItem] = []
+    @State private var distributionError: String?
+    @State private var currency = ""
+    private var currencies: [String] { Array(Set((model.overview?.accounts ?? []).map(\.currency))).sorted() }
+    private var displayCurrency: String { currencies.contains(currency) ? currency : currencies.contains(model.currency) ? model.currency : currencies.first ?? model.currency }
     @State private var search = ""
     @State private var busy = false
     @State private var hasMore = true
@@ -14,6 +19,12 @@ struct TransactionsView: View {
         NavigationStack {
             List {
                 SpacePicker().listRowBackground(Color.clear)
+                if currencies.count > 1 { Picker("Devise", selection: Binding(get: { displayCurrency }, set: { currency = $0 })) { ForEach(currencies, id: \.self) { Text($0).tag($0) } } }
+                Section {
+                    if let distributionError { InlineError(text: distributionError) }
+                    else { DistributionView(items: distribution, currency: displayCurrency, title: "Dépenses de la sélection") }
+                    Text("Opérations en \(displayCurrency) correspondant à la recherche, au-delà des lignes affichées.").font(.caption).foregroundStyle(.secondary)
+                }
                 ForEach(transactions) { transaction in
                     Button { selected = transaction } label: { TransactionRow(transaction: transaction) }.buttonStyle(.plain)
                         .swipeActions { Button("Supprimer", role: .destructive) { toDelete = transaction } }
@@ -25,7 +36,7 @@ struct TransactionsView: View {
                 .navigationTitle("Opérations")
                 .searchable(text: $search, prompt: "Libellé ou commerçant")
                 .toolbar { Button("Ajouter", systemImage: "plus") { editor = true } }
-                .task(id: search + "|" + model.space) {
+                .task(id: search + "|" + model.space + "|" + displayCurrency) {
                     if !search.isEmpty { try? await Task.sleep(for: .milliseconds(300)) }
                     guard !Task.isCancelled else { return }
                     await load(reset: true)
@@ -45,17 +56,22 @@ struct TransactionsView: View {
         if !reset && busy { return }
         loadVersion += 1; let version = loadVersion
         busy = true
+        if reset { transactions = []; distribution = []; distributionError = nil }
         defer { if version == loadVersion { busy = false } }
-        if model.isDemo { transactions = (model.overview?.transactions ?? []).filter { search.isEmpty || $0.labelRaw.localizedCaseInsensitiveContains(search) }; hasMore = false; return }
+        if model.isDemo { transactions = (model.overview?.transactions ?? []).filter { search.isEmpty || $0.labelRaw.localizedCaseInsensitiveContains(search) }; hasMore = false; distribution = DistributionItem.grouped(transactions.map { ($0.categoryId, -$0.amount) }, categories: model.overview?.categories ?? []); return }
         guard let client = model.client else { return }
         do {
             let offset = reset ? 0 : transactions.count
-            let rows: [Transaction] = try await client.request("transactions", query: model.query + [.init(name: "offset", value: String(offset)), .init(name: "search", value: search)])
+            let query = model.query + [.init(name: "search", value: search), .init(name: "currency", value: displayCurrency)]
+            async let chart: [DistributionItem]? = reset ? client.request("transaction-distribution", query: query) : nil
+            let rows: [Transaction] = try await client.request("transactions", query: query + [.init(name: "offset", value: String(offset))])
+            let chartRows = try await chart
             guard version == loadVersion, !Task.isCancelled else { return }
+            if let chartRows { distribution = chartRows }
             if reset { transactions = rows } else { let existing = Set(transactions.map(\.id)); transactions += rows.filter { !existing.contains($0.id) } }
             hasMore = rows.count == 100
         } catch is CancellationError { }
-        catch { if !Task.isCancelled { model.error = error.localizedDescription } }
+        catch { if !Task.isCancelled && version == loadVersion { distributionError = "La répartition n’a pas pu être chargée. Actualise pour réessayer."; model.error = error.localizedDescription } }
     }
 }
 
