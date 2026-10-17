@@ -28,11 +28,11 @@ export function AppShortcuts({ apps, showSpace = false }: { apps: AppShortcut[] 
                 aria-label={`Ouvrir ${app.name}${app.account_label ? ` — ${app.account_label}` : ""} (nouvel onglet)`}
                 className="flex min-w-0 items-center gap-3 rounded-[3px] border border-line px-3 py-3 transition-colors hover:border-accent hover:bg-accent-soft"
                 title={`${app.name} · ${app.account_label || appHost(app.url)}`}>
-                <AppAvatar name={app.name} category={app.category} size="sm" />
+                <AppAvatar url={app.url} name={app.name} category={app.category} size="sm" />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium">{app.name}</span>
                   <span className="block truncate text-xs text-ink-2">{app.account_label || appHost(app.url)}</span>
-                  {showSpace && <span className="text-[10px] text-ink-3">{app.space === "pro" ? "Pro" : "Perso"}</span>}
+                  {showSpace && <span className="text-[10px] text-ink-3">{app.space === "pro" ? "Professionnel" : "Personnel"}</span>}
                 </span>
                 <span className="shrink-0 text-sm text-ink-3" aria-hidden>↗</span>
               </a>

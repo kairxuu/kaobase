@@ -1,34 +1,30 @@
+"use client";
+
+import Image from "next/image";
+import { useState } from "react";
 import type { AppShortcut } from "@/lib/apps";
+import { appIconSource } from "@/lib/app-icons";
 
-const CATEGORY_COLORS: Record<AppShortcut["category"], string> = {
-  banking: "bg-pos/10 text-pos",
-  work: "bg-accent-soft text-accent",
-  communication: "bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-200",
-  shopping: "bg-warn-soft text-warn",
-  entertainment: "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-200",
-  other: "bg-surface-2 text-ink-2",
-};
-
-export function AppAvatar({
-  name,
-  category,
-  size = "md",
-}: {
+export function AppAvatar({ name, url, size = "md" }: {
   name: string;
+  url?: string | null;
   category: AppShortcut["category"];
   size?: "sm" | "md";
 }) {
-  const words = name.trim().split(/\s+/).filter(Boolean);
-  const initials = words.length > 1
-    ? words.slice(0, 2).map((word) => Array.from(word)[0]).join("")
-    : Array.from(words[0] ?? "?").slice(0, 2).join("");
-
+  const source = appIconSource(url);
+  const [failedSource, setFailedSource] = useState<string | null>(null);
+  const pixels = size === "sm" ? 24 : 32;
   return (
-    <span
-      aria-hidden="true"
-      className={`grid shrink-0 place-items-center rounded-[3px] font-semibold uppercase ${CATEGORY_COLORS[category] ?? CATEGORY_COLORS.other} ${size === "sm" ? "h-9 w-9 text-xs" : "h-12 w-12 text-sm"}`}
-    >
-      {initials}
+    <span aria-hidden="true" className={`grid shrink-0 place-items-center overflow-hidden rounded-[3px] border border-line bg-white ${size === "sm" ? "h-9 w-9" : "h-12 w-12"}`}>
+      {source && failedSource !== source ? (
+        <Image src={source} alt={`Logo ${name}`} width={pixels} height={pixels} unoptimized
+          referrerPolicy="no-referrer" className="object-contain" onError={() => setFailedSource(source)} />
+      ) : (
+        <svg width={pixels} height={pixels} viewBox="0 0 24 24" fill="none" stroke="#605a6e" strokeWidth="1.5">
+          <rect x="4" y="4" width="6" height="6" rx="1" /><rect x="14" y="4" width="6" height="6" rx="1" />
+          <rect x="4" y="14" width="6" height="6" rx="1" /><rect x="14" y="14" width="6" height="6" rx="1" />
+        </svg>
+      )}
     </span>
   );
 }

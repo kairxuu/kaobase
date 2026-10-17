@@ -4,12 +4,13 @@
    Papier vert-de-gris froid, encre aubergine, outremer pour ce qui agit, guilloché pour ce qui se souvient. */
 
 :root {
+  --font-display: var(--font-sans-ui);
   --paper: #eceee8;
   --sheet: #f6f7f2;
   --well: #e1e4dc;
   --ink: #231a38;
   --ink-2: #605a6e;
-  --ink-3: #8e8a96;
+  --ink-3: #716b7e;
   --rule: #cfd3c8;
   --signal: #4433e0;
   --signal-ink: #ffffff;
@@ -28,7 +29,7 @@
     --well: #2a2338;
     --ink: #eeeaf6;
     --ink-2: #b4adc4;
-    --ink-3: #807a8f;
+    --ink-3: #a49bb2;
     --rule: #352d45;
     --signal: #9a90ff;
     --signal-ink: #17121f;
@@ -61,6 +62,7 @@
 }
 
 body {
+  font-family: var(--font-sans-ui), Arial, sans-serif;
   background: var(--paper);
   color: var(--ink);
   font-feature-settings: "ss01";
@@ -78,19 +80,17 @@ body {
 
 /* --- Typographie ---------------------------------------------------------- */
 
-/* Titre de page : Bodoni, échelle de valeur faciale. */
+/* Une même famille lisible pour les titres et les données. */
 @utility page-title {
   font-family: var(--font-display);
-  font-variation-settings: "opsz" 72;
-  @apply text-[2.25rem] leading-[1.05] font-medium tracking-[-0.01em] md:text-[2.75rem];
+  @apply text-[2rem] leading-tight font-semibold tracking-[-0.025em] md:text-[2.25rem];
 }
 @utility page-lede {
   @apply mt-2 max-w-[62ch] text-[0.95rem] leading-relaxed text-ink-2;
 }
-/* Montant affiché comme une coupure : chiffres Bodoni, alignés. */
+/* Montants avec chiffres alignés. */
 @utility figure {
   font-family: var(--font-display);
-  font-variation-settings: "opsz" 48;
   font-variant-numeric: lining-nums tabular-nums;
   @apply font-medium tracking-[-0.01em];
 }
@@ -117,7 +117,7 @@ body {
 /* --- Contrôles ------------------------------------------------------------ */
 
 @utility btn {
-  @apply inline-flex items-center justify-center gap-1.5 rounded-[3px] px-4 py-2 text-sm font-medium transition-[background-color,color,transform] duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50;
+  @apply inline-flex max-w-full min-w-0 items-center justify-center gap-1.5 rounded-[3px] px-4 py-2 text-center text-sm leading-snug font-medium whitespace-normal break-words transition-[background-color,color,transform] duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50;
 }
 @utility btn-primary {
   @apply btn bg-accent text-accent-ink hover:brightness-110;
@@ -129,14 +129,18 @@ body {
   @apply px-3 py-1 text-xs;
 }
 @utility input {
-  @apply w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink transition-colors placeholder:text-ink-3 focus:border-accent focus:ring-2 focus:ring-accent-soft focus-visible:outline-none;
+  @apply box-border min-h-10 w-full min-w-0 max-w-full rounded-[3px] border border-line bg-surface px-3 py-2 text-sm leading-normal text-ink transition-colors placeholder:text-ink-3 focus:border-accent focus:ring-2 focus:ring-accent-soft focus-visible:outline-none;
 }
 @utility label {
   @apply mb-1 block text-xs font-medium text-ink-2;
 }
 @utility badge {
-  @apply inline-flex items-center rounded-full bg-surface-2 px-2 py-0.5 text-[11px] font-medium text-ink-2;
+  @apply inline-flex max-w-full items-center rounded-[2px] bg-surface-2 px-2 py-0.5 text-[11px] font-medium text-ink-2;
 }
+
+.input { text-overflow: ellipsis; }
+.input::placeholder { text-overflow: ellipsis; }
+select.input { padding-inline-end: 2rem; }
 
 @layer components {
   .table {

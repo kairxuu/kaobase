@@ -22,7 +22,7 @@ export function ActionButton({
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
   return (
-    <span className="inline-flex items-center gap-2">
+    <span className="inline-flex min-w-0 max-w-full flex-wrap items-center gap-2">
       <button
         type="button"
         className={className}

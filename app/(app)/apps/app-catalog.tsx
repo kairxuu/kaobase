@@ -93,14 +93,14 @@ export function AppCatalog({ catalog, space }: { catalog: CatalogResult; space: 
             return (
               <article className="card min-w-0 space-y-4" key={app.id}>
                 <div className="flex min-w-0 items-start gap-3">
-                  <AppAvatar name={app.name} category={app.category} />
+                  <AppAvatar url={app.url} name={app.name} category={app.category} />
                   <div className="min-w-0 flex-1">
                     <h3 className="break-words text-sm font-semibold">{app.name}</h3>
                     <p className="mt-0.5 text-xs text-ink-3">{categoryLabels[app.category]}</p>
                   </div>
                 </div>
                 {app.description && <p className="break-words text-sm text-ink-2">{app.description}</p>}
-                <p><span className={`badge ${connectable ? "bg-pos/10 text-pos" : ""}`}>{connectable ? "Connexion OAuth disponible" : oauth ? "Connexion à configurer" : "Raccourci disponible"}</span></p>
+                <p><span className={`badge ${connectable ? "bg-pos/10 text-pos" : ""}`}>{connectable ? "Connexion disponible" : oauth ? "Connexion à configurer" : "Accès par lien"}</span></p>
                 <div className="space-y-3">
                   {connectable && <ConnectAppButton app={app} defaultSpace={defaultSpace} />}
                   <AppEditor preset={{ name: app.name, url: app.url, category: app.category }} defaultSpace={defaultSpace} />

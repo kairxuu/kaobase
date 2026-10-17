@@ -28,7 +28,7 @@ export default async function AppsPage() {
     <div className="min-w-0 space-y-7">
       <header>
         <h1 className="page-title">Mes apps</h1>
-        <p className="page-lede">Tes services et leurs comptes, au même endroit. Classe-les et garde les plus utiles à portée de main sur l&apos;accueil.</p>
+        <p className="page-lede">Retrouve tes comptes et ouvre tes services.</p>
         <div className="mt-4 flex flex-wrap gap-2">
           <a href="#catalogue-apps" className="btn-primary btn-sm">Découvrir des apps</a>
           <a href="#ajouter-une-app" className="btn-ghost btn-sm">Ajouter un lien personnalisé</a>

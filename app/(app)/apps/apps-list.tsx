@@ -101,8 +101,8 @@ export function AppsList({ apps, space, connections = [], connectionsAvailable =
           <label className="label" htmlFor={`${id}-status`}>Type de compte</label>
           <select className="input" id={`${id}-status`} value={connectionsAvailable ? status : "all"} disabled={!connectionsAvailable} onChange={(event) => setStatus(event.target.value)}>
             <option value="all">Tous les comptes</option>
-            <option value="connected">Autorisation enregistrée</option>
-            <option value="link">Raccourcis simples</option>
+            <option value="connected">Comptes liés</option>
+            <option value="link">Liens enregistrés</option>
           </select>
         </div>
         <div className="min-w-0">
@@ -130,9 +130,9 @@ export function AppsList({ apps, space, connections = [], connectionsAvailable =
           const connection = connectionByShortcut.get(app.id);
           return (
             <article className="card min-w-0 space-y-4" key={app.id}>
-              <div className="flex min-w-0 items-start gap-3">
-                <AppAvatar name={app.name} category={app.category} />
-                <div className="min-w-0 flex-1">
+              <div className="flex min-w-0 flex-wrap items-start gap-3">
+                <AppAvatar url={app.url} name={app.name} category={app.category} />
+                <div className="min-w-20 flex-1">
                   <h3 className="break-words text-sm font-semibold">{app.name}</h3>
                   <p className="mt-0.5 break-all text-xs text-ink-3">{hostname(app.url)}</p>
                 </div>
@@ -142,14 +142,12 @@ export function AppsList({ apps, space, connections = [], connectionsAvailable =
               </div>
               <div className="min-w-0">
                 <p className="text-[11px] text-ink-3">Compte</p>
-                <p className={`mt-0.5 break-all text-sm ${app.account_label ? "text-ink-2" : "text-ink-3"}`}>{app.account_label || "Aucun nom de compte renseigné"}</p>
+                <p className={`mt-0.5 break-all text-sm ${app.account_label ? "text-ink-2" : "text-ink-3"}`}>{app.account_label || "Compte non précisé"}</p>
                 {connection && <p className="mt-1 break-words text-xs text-ink-3">Autorisation pour {connection.provider_name}. Le site peut demander une reconnexion.</p>}
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  <span className="badge">{APP_CATEGORIES.find((item) => item.id === app.category)?.label}</span>
-                  <span className={`badge ${connection && connectionsAvailable ? "bg-pos/10 text-pos" : ""}`}>{!connectionsAvailable ? "Statut indisponible" : connection ? "Autorisation enregistrée" : "Raccourci simple"}</span>
-                  {space === "all" && <span className="badge">{SPACE_LABEL[app.space]}</span>}
-                  {app.pinned && <span className="badge bg-accent-soft text-accent">Sur l’accueil</span>}
-                </div>
+                <p className="mt-2 text-xs text-ink-2">
+                  {space === "all" && (app.space === "pro" ? "Professionnel" : "Personnel")}
+                  {connection && connectionsAvailable && <span className={space === "all" ? "ml-3 text-pos" : "text-pos"}>Compte lié</span>}
+                </p>
               </div>
               <div className="flex min-w-0 flex-wrap items-start gap-2">
                 <AppEditor app={app} />

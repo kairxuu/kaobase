@@ -1,10 +1,8 @@
 import type { Metadata, Viewport } from "next";
-import { Bodoni_Moda, Schibsted_Grotesk } from "next/font/google";
+import { IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
 
-// Bodoni Moda : valeur faciale d'un billet (titres, grands montants). Schibsted Grotesk : tout le reste.
-const display = Bodoni_Moda({ variable: "--font-display", subsets: ["latin"], axes: ["opsz"], display: "swap" });
-const sans = Schibsted_Grotesk({ variable: "--font-sans-ui", subsets: ["latin"], display: "swap" });
+const sans = IBM_Plex_Sans({ variable: "--font-sans-ui", subsets: ["latin"], display: "swap" });
 
 export const metadata: Metadata = {
   title: { default: "Kaobase", template: "%s — Kaobase" },
@@ -20,7 +18,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="fr" className={`${display.variable} ${sans.variable} h-full antialiased`}>
+    <html lang="fr" className={`${sans.variable} h-full antialiased`}>
       <body className="min-h-full">{children}</body>
     </html>
   );
