@@ -20,10 +20,11 @@ describe('accès Neon et configuration initiale',()=>{
  it('retrouve l’accueil lorsque le profil est configuré',async()=>{mocks.onboarding.mockResolvedValue('complete');expect(await requireUser()).toMatchObject({userId:user.id});});
 });
 describe('inscription et confirmation Neon',()=>{
+ it.each([['connexion',signIn],['confirmation',verifyEmail]] as const)('réussit au premier envoi de %s sans relire les anciens cookies',async(_name,action)=>{mocks.session.mockResolvedValue({data:null,error:null});await expect(action({},form())).rejects.toThrow('redirect:/');expect(mocks.session).not.toHaveBeenCalled();expect(mocks.identity).not.toHaveBeenCalled();expect(mocks.onboarding).not.toHaveBeenCalled();});
  it('attend le code après inscription',async()=>{expect(await signUp({},form())).toMatchObject({step:'verify',email:user.email});expect(mocks.signUp).toHaveBeenCalledWith({email:user.email,password:'password123',name:'Camille'});expect(mocks.identity).not.toHaveBeenCalled();});
  it('affiche une erreur sans consulter les données',async()=>{mocks.signIn.mockResolvedValue({error:{code:'INVALID_EMAIL_OR_PASSWORD'}});expect(await signIn({},form())).toHaveProperty('error');expect(mocks.identity).not.toHaveBeenCalled();});
  it('ouvre la saisie du code si l’adresse reste non confirmée',async()=>{mocks.signIn.mockResolvedValue({error:{code:'EMAIL_NOT_VERIFIED'}});expect(await signIn({},form())).toMatchObject({step:'verify',email:user.email});});
- it('ouvre la configuration après vérification',async()=>{await expect(verifyEmail({},form())).rejects.toThrow('redirect:/setup');expect(mocks.verify).toHaveBeenCalledWith({email:user.email,otp:'123456'});});
+ it('laisse la page protégée résoudre la configuration après vérification',async()=>{await expect(verifyEmail({},form())).rejects.toThrow('redirect:/');expect(mocks.verify).toHaveBeenCalledWith({email:user.email,otp:'123456'});expect(mocks.session).not.toHaveBeenCalled();});
  it('refuse un mauvais code avant la lecture de données',async()=>{mocks.verify.mockResolvedValue({error:{code:'INVALID_OTP'}});expect(await verifyEmail({},form())).toHaveProperty('error');expect(mocks.identity).not.toHaveBeenCalled();});
  it('ouvre l’accueil à la connexion suivante',async()=>{mocks.onboarding.mockResolvedValue('complete');await expect(signIn({},form())).rejects.toThrow('redirect:/');});
 });

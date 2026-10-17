@@ -3,14 +3,9 @@ import { redirect } from 'next/navigation';
 import { getAuth } from '@/lib/auth/server';
 import { managedRequest, authMessage } from '@/lib/auth/managed';
 import { requireSession } from '@/lib/auth';
-import { getOnboardingStatus } from '@/lib/data/onboarding';
 
 export type AuthState = { error?: string; info?: string; email?: string; step?: 'verify' | 'reset-code' };
 const field = (form: FormData, name: string) => String(form.get(name) ?? '').trim();
-async function enter(): Promise<never> {
-  const { db, userId } = await requireSession();
-  redirect(await getOnboardingStatus(db,userId) === 'complete' ? '/' : '/setup');
-}
 export async function signIn(_: AuthState, form: FormData): Promise<AuthState> {
   const email=field(form,'email');
   const auth=await getAuth();
@@ -21,7 +16,9 @@ export async function signIn(_: AuthState, form: FormData): Promise<AuthState> {
     }
     return {error:authMessage(error.code)};
   }
-  return enter();
+  // The SDK reads incoming cookies, before this action's new session cookie.
+  // The protected page checks the session and onboarding on the next request.
+  redirect('/');
 }
 export async function signUp(_: AuthState, form: FormData): Promise<AuthState> {
   const email=field(form,'email'), password=String(form.get('password')??'');
@@ -34,7 +31,7 @@ export async function signUp(_: AuthState, form: FormData): Promise<AuthState> {
 export async function verifyEmail(_: AuthState, form: FormData): Promise<AuthState> {
   const {error}=await (await getAuth()).emailOtp.verifyEmail({email:field(form,'email'),otp:field(form,'otp')});
   if(error) return {error:authMessage(error.code)};
-  return enter();
+  redirect('/');
 }
 export async function resendVerification(_: AuthState, form: FormData): Promise<AuthState> {
   const {error}=await (await getAuth()).emailOtp.sendVerificationOtp({email:field(form,'email'),type:'email-verification'});
