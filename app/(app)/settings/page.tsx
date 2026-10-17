@@ -142,8 +142,7 @@ export default async function SettingsPage() {
         <h2 className="section-title">Budgets du mois</h2>
         {budgets === null ? (
           <p className="text-sm text-ink-2">
-            Les budgets ne sont pas encore activés : exécute la migration{" "}
-            <code>supabase/migrations/20261015120000_budgets.sql</code> sur Neon.
+            Les budgets sont indisponibles pour le moment. Une mise à jour de la base est nécessaire.
           </p>
         ) : (
           <>

@@ -1,86 +1,37 @@
-# Migration des données Supabase vers Neon
+# Neon : données et authentification
 
-La base métier utilise Neon ; Supabase Auth conserve la connexion des utilisateurs, la confirmation des e-mails et la réinitialisation des mots de passe. Il ne faut donc pas supprimer le projet Supabase. Cette intervention migre la base métier, pas le fournisseur d'identité.
+Kaobase utilise Neon Auth (Managed Better Auth) et Neon Data API. Aucun appel actif à Supabase n’est nécessaire. Le dossier `supabase/migrations` conserve les migrations SQL historiques ; ce nom de dossier ne désigne pas une connexion distante.
 
-## Corrections
+## Configuration
 
-- La tentative initiale ne déplaçait que la lecture de devise vers un accès SQL administrateur ; toutes les autres lectures et mutations restaient sur Supabase. Le client serveur route maintenant `from`, `schema` et `rpc` vers un seul fournisseur choisi par `DATABASE_PROVIDER`. La devise suit le même parcours que les autres données.
-- Neon Data API vérifie les JWT Supabase avec les clés publiques JWKS du projet et l'audience `authenticated`. Les requêtes métier portent le jeton de l'utilisateur ; elles n'utilisent pas `DATABASE_URL`, qui appartient aux outils d'administration.
-- Les rôles, privilèges et quatre politiques de raccourcis manquants après `pg_restore --no-acl` sont restaurés par `database/neon/20261017080000_supabase_compatibility.sql`. Les vues restent en `security_invoker`. Les tables de quotas n'acceptent pas de modifications directes, et le schéma d'authentification reste privé.
-- Les inscriptions futures initialisent leur profil Neon après vérification de la session. `ensure_app_user()` ne prend aucun identifiant en argument, reste idempotente et préserve les préférences existantes.
-- Les tables et fonctions OAuth manquantes sont ajoutées avec la migration `20261017070000_app_oauth_connections.sql`.
-- `TARGET_DB_URL` n'est plus utilisé ; les dépendances SQL directes inutilisées sont retirées. Les exports et diagnostics privés sont exclus de Git.
-- Une branche avec expiration n'accepte actuellement pas Neon Data API. `neon.ts` décrit le fournisseur externe et des branches de validation sans expiration automatique. Les branches de validation doivent être supprimées après usage.
+Variables serveur : `NEON_AUTH_BASE_URL`, `NEON_AUTH_COOKIE_SECRET` (32 caractères aléatoires minimum), `NEON_DATA_API_URL`, `APP_ORIGIN`. `NEON_AUTH_JWKS_URL` est facultatif et peut être dérivé de l’URL Auth. Les URL PostgreSQL restent réservées aux sauvegardes et migrations.
 
-## Configuration applicative
+`neon.ts` active Auth et sélectionne le fournisseur Neon pour Data API. Supprimer l’ancien fournisseur JWKS externe du projet après la bascule et les variables `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_DATABASE_URL` des environnements actifs. `DATABASE_PROVIDER` n’est plus utilisé.
 
-Les variables nécessaires à la bascule sont :
+## Comptes existants
 
-```dotenv
-DATABASE_PROVIDER=neon
-NEON_DATA_API_URL=https://ep-floral-hat-b5x1b4ls.apirest.c-7.us-east-2.aws.neon.tech/neondb/rest/v1
-NEXT_PUBLIC_SUPABASE_URL=<URL du projet Supabase existant>
-NEXT_PUBLIC_SUPABASE_ANON_KEY=<clé publique existante>
-```
+La migration `database/neon/20261017190000_neon_auth.sql` conserve les identifiants métier, les comptes et leurs opérations. Elle importe les identités sans mots de passe ni sessions. Un utilisateur historique choisit « Mot de passe oublié » pour créer son nouveau mot de passe avec un code reçu par email.
 
-La clé Nango et les clés IA restent inchangées. Les URL PostgreSQL avec mot de passe restent privées : `DATABASE_URL_UNPOOLED` pour les migrations et sauvegardes ; `SUPABASE_DATABASE_URL` pour la source pendant la migration. Le service applicatif n'a besoin d'aucune clé Neon administrateur. Sans `NEON_DATA_API_URL`, choisir explicitement `neon` provoque une erreur de configuration ; aucune requête ne retombe silencieusement sur Supabase.
+Si un compte a déjà été recréé dans Neon avec un autre identifiant, une association privée le relie à ses anciennes données. Aucun accès n’est accordé avant vérification de son adresse par Neon. `auth.uid()` vérifie l’identité Neon et résout cette association à chaque requête ; les identifiants envoyés par le navigateur ne font pas autorité.
 
-Le choix par défaut reste `supabase` pour les installations existantes qui n'ont pas encore effectué la bascule. La configuration locale de ce projet est passée à Neon après la vérification de la migration.
+`auth.users` est conservée localement dans Neon pour les anciennes clés étrangères et les déclencheurs de création du premier compte. Elle n’est plus un fournisseur de connexion. Les préférences de profil résident dans `public.profiles`.
 
-## Migration reproductible
+## Emails
 
-Le script exige les outils PostgreSQL (`psql`, `pg_dump`, `pg_restore`) et les deux connexions dans les fichiers d'environnement ignorés. Il accepte le chemin Homebrew de `libpq` sur macOS. Une connexion Neon directe est obligatoire ; une URL `-pooler` est refusée.
+Sur la branche utilisée, activer : email/mot de passe, vérification par code, vérification obligatoire, envoi à l’inscription et à la connexion d’une adresse non vérifiée, connexion automatique après confirmation. Ces paramètres appartiennent à Neon et sont communs au web et à iOS. Le code ne demande pas un second envoi après une inscription réussie.
 
-```bash
-# Contrôle de connexion, sans modification
-python3 scripts/database/migrate_to_neon.py
+Le fournisseur partagé Neon envoie les codes de vérification et de récupération. Pour un usage de production plus large, configurer son propre SMTP dans Neon : [recommandations Neon](https://neon.com/docs/auth/production-checklist).
 
-# Branche isolée déjà créée et configurée : sauvegarde, transfert et vérification
-python3 scripts/database/migrate_to_neon.py \
-  --target-env-file .local/database-migrations/branch.env --apply
+## Validation et sauvegarde
 
-# Base principale : même procédure
-python3 scripts/database/migrate_to_neon.py --apply
+Tester sur une branche isolée avant toute modification distante. Sauvegarder la base et les variables de déploiement. La migration est transactionnelle ; une réapplication préserve les préférences modifiées.
 
-# Comparaison actuelle entre les deux bases, sans modifier les données
-python3 scripts/database/migrate_to_neon.py --verify-only
-```
+Vérifications : inscription, code incorrect/expiré, renvoi de code, confirmation, connexion, restauration et renouvellement de session, déconnexion, réinitialisation du mot de passe, accès aux anciennes données et isolation entre comptes. Les tests SQL locaux couvrent notamment le compte recréé avec un autre identifiant et le refus d’accès avant vérification.
 
-Avant toute modification, le script crée un export Supabase cohérent et une sauvegarde Neon dans `.local/database-migrations/`. Les fichiers sont privés et ignorés par Git. Il répare les privilèges, transfère les identités nécessaires aux clés étrangères sans copier de nouvelles sessions ou mots de passe, puis fusionne les tables publiques dans une transaction suivant leurs dépendances. Il conserve les dates et les valeurs existantes du snapshot, y compris les champs générés et les vecteurs.
+Le contrôle manuel `node scripts/database/verify_neon.mjs` utilise un compte Neon dédié dans `.env.test.local`. Ne pas lui fournir d’anciens mots de passe Supabase. Les exports privés précédents restent dans `.local/database-migrations` ; restaurer un export sur une branche isolée avant toute intervention sur la production.
 
-La transaction vérifie chaque ligne transférée et le nombre de lignes. Des lignes supplémentaires inattendues dans Neon provoquent un arrêt pour examen ; le script ne les supprime pas silencieusement. La vérification finale compare également les empreintes de toutes les lignes des tables publiques avec un fuseau UTC commun. Les rapports contiennent les compteurs et chemins de sauvegarde, sans mots de passe ni données personnelles.
+## Vérifications du 17 octobre 2026
 
-Le script s'appuie sur le schéma déjà restauré pour ce projet. Ce n'est pas un installateur de base vide : les 87 contraintes de la source ont été contrôlées sur la cible avant la bascule. Les nouvelles migrations de schéma doivent ensuite être exécutées contre Neon.
+644 tests et 13 tests iOS réussis ; TypeScript, ESLint, installation propre des dépendances et build validés. Sur le site public : connexion web et native, renouvellement, neuf pages, association d’un identifiant Neon différent à son profil historique, isolation des lignes et révocation de la session de renouvellement vérifiés avec une identité synthétique supprimée après contrôle. Inscription, confirmation et réinitialisation d’un compte sans mot de passe importé vérifiées sur la branche isolée. Réception d’un code Neon confirmée par le propriétaire.
 
-## Bascule du site hébergé
-
-Le transfert de la base ne modifie pas automatiquement la configuration de Vercel ou d'un autre hébergeur. Pour basculer le site, ajouter les deux variables `DATABASE_PROVIDER=neon` et `NEON_DATA_API_URL` ci-dessus à l'environnement concerné, puis déployer les correctifs. Conserver les variables Supabase Auth.
-
-Avant ce déploiement, arrêter temporairement les écritures vers l'ancienne application et refaire le transfert si Supabase a reçu de nouvelles données depuis le snapshot. Après la bascule, traiter Neon comme la source métier principale. Ne pas relancer une fusion Supabase vers Neon après de nouvelles écritures métier sur Neon : il faut alors réconcilier explicitement les différences.
-
-La configuration des clés et du fournisseur Data API est déclarée dans `neon.ts`. Pour provisionner manuellement l'API sur une copie existante, utiliser une authentification externe Supabase, son URL `/auth/v1/.well-known/jwks.json`, l'audience `authenticated`, le schéma exposé `public`, et désactiver les droits automatiques. Les rôles et droits de ce projet sont définis par les migrations. Après une migration, rafraîchir le cache avec `neon data-api refresh-schema --branch production --database neondb`.
-
-## Vérifications
-
-- Comparaison du snapshot puis des données actuelles : 17 tables métier, 236 lignes, cinq identités au moment de la migration. Les tables OAuth supplémentaires sont ajoutées sur Neon.
-- Tests HTTP avec une vraie session : profil, onze tables, vues privées, RPC vectorielle, schéma d'authentification inaccessible, requêtes anonymes et JWT modifiés refusés.
-- Parcours navigateur sur la branche isolée : connexion et neuf pages principales, sans erreur d'application.
-- Tests PostgreSQL locaux : isolation, privilèges, quotas, initialisation idempotente des nouveaux utilisateurs et réparation d'un profil manquant sans doublon.
-
-Validation de cette intervention : 626 tests, TypeScript, ESLint et build Next.js réussis ; six tests publics sur le serveur de production local et le parcours connecté des neuf pages sur la branche isolée réussis. La branche temporaire a été supprimée après les contrôles. Les correctifs restent locaux : aucun push ni déploiement du site hébergé n'a été exécuté.
-
-Pour répéter le contrôle HTTP, utiliser le compte de test déjà configuré dans `.env.test.local` :
-
-```bash
-node scripts/database/verify_neon.mjs
-```
-
-Les tests de pages peuvent utiliser `KAOBASE_NEXT_DIST_DIR=.next-neon-validation` pour éviter le cache du serveur de développement déjà ouvert. Next ajoute automatiquement ses types générés dans la configuration TypeScript lors d'un changement de dossier de build ; retirer ces ajouts temporaires après le contrôle.
-
-## Retour arrière
-
-Supabase n'a pas été supprimé ni vidé. Avant toute nouvelle écriture sur Neon, un retour à `DATABASE_PROVIDER=supabase` restaure le parcours précédent. Après de nouvelles écritures sur Neon, sauvegarder et réconcilier les données avant un retour : changer seulement le fournisseur ferait perdre leur visibilité.
-
-Les exports `neon-before-*.dump` et `supabase-*.dump`, ainsi que les rapports horodatés, se trouvent dans le dossier privé `.local/database-migrations/`. Pour examiner ou restaurer un export, utiliser d'abord une branche Neon isolée, jamais un écrasement aveugle de la base principale.
-
-Références officielles : [migration Supabase](https://neon.com/docs/import/migrate-from-supabase), [Neon Data API](https://neon.com/docs/data-api/overview), [droits et RLS](https://neon.com/docs/data-api/access-control), [configuration du service](https://neon.com/docs/cli/data-api), [connexions Supabase](https://supabase.com/docs/guides/database/connecting-to-postgres).
+Les cinq profils historiques sont conservés. Le fournisseur JWKS Supabase et les variables Supabase des trois environnements Vercel ont été retirés. Le projet Supabase distant n’a pas été supprimé.

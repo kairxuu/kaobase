@@ -10,8 +10,8 @@ export const getUserForApi = async () => {
   const { data, error } = await (await getAuth()).getSession();
   if (error || !data?.user?.emailVerified) return null;
   const db = await createClient();
-  await ensureAppIdentity(db);
-  return { db, userId: data.user.id, email: data.user.email };
+  const userId = await ensureAppIdentity(db);
+  return { db, userId, email: data.user.email };
 };
 export const requireSession = cache(async () => {
   const session = await getUserForApi();

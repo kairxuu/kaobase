@@ -6,8 +6,8 @@ export const metadata: Metadata = { title: "Connexion" };
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const params = await searchParams;
-  const initialMode = params.mode === "reset" ? "reset" : "in";
-  const notice = params.lien === "expire" ? "Ce lien n'est plus valable. Demande-en un nouveau ou connecte-toi." : undefined;
+  const initialMode = params.mode === "reset" ? "reset" : params.mode === "verify" ? "verify" : params.mode === "up" ? "up" : "in";
+  const notice = params.lien === "expire" ? "Ce lien n'est plus valable. Demande un nouveau code ou connecte-toi." : undefined;
   return (
     <main className="grid min-h-screen lg:grid-cols-[1.1fr_1fr]">
       <section className="relative flex flex-col justify-between overflow-hidden px-6 pt-8 pb-10 md:px-12 lg:py-12">

@@ -253,11 +253,6 @@ export async function updateProfileAction(formData: FormData) {
   );
 }
 
-export async function updateEmailAction(_formData: FormData) {
-  await requireUser();
-  return { ok: false as const, error: "Le changement d'adresse email n'est pas disponible avec Neon Auth pour le moment." };
-}
-
 export async function createAccountAction(formData: FormData) {
   const { db } = await requireUser();
   return run(async () => {

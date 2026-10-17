@@ -4,20 +4,15 @@ Webapp multi-utilisateurs de gestion des finances, des abonnements récurrents e
 
 ## Démarrage
 
-1. **Supabase** : crée un projet (gratuit) sur supabase.com, puis exécute `supabase/migrations/20261015000000_init.sql` dans *SQL Editor* (ou `supabase db push` avec la CLI).
-2. **Clés IA gratuites** (au moins une) :
-   - Groq : https://console.groq.com/keys (principal)
-   - Gemini : https://aistudio.google.com/apikey (secours automatique)
-3. `cp .env.example .env.local` et remplis les valeurs (URL + clé *anon* Supabase, clés IA).
-4. `npm install && npm run dev` puis http://localhost:3000 : crée un compte et complète les trois étapes de configuration (préférences, premier compte, récapitulatif).
-5. Page **Import** : importe `demo/releve-demo.csv` pour tester avec 6 mois de données réalistes.
-
-> Confirmation d'email : dans Supabase > Authentication > Email Templates, fais pointer le lien vers
-> `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email`, ou désactive la confirmation en développement.
+1. Activer **Neon Auth** et **Data API** sur le projet Neon, avec `neon.ts`.
+2. Copier `.env.example` vers `.env.local` et renseigner les URL Neon, le secret des cookies et au moins une clé IA.
+3. Appliquer les migrations SQL historiques dans l’ordre, puis celles de `database/neon`. Voir [la configuration Neon](docs/neon-migration.md).
+4. Lancer `npm install && npm run dev`, puis ouvrir http://localhost:3000.
+5. Créer un compte, saisir le code reçu par email, puis compléter la configuration initiale.
 
 ## Architecture
 
-Les données métier peuvent être servies par **Neon Data API**, avec les sessions conservées dans **Supabase Auth**. `DATABASE_PROVIDER` choisit une base pour toutes les tables, vues et RPC ; aucune requête métier n'utilise la connexion administrateur. Voir [la migration vers Neon et la bascule de l'hébergement](docs/neon-migration.md).
+Les données et l’authentification utilisent **Neon**. Les sessions web sont gérées par le SDK Neon ; l’app iOS utilise les routes Kaobase et conserve sa session dans le trousseau. Les requêtes métier portent un JWT utilisateur vérifié et restent soumises à la RLS.
 
 La rubrique **Mes apps** propose un catalogue avec recherche, catégories et tri, puis les raccourcis des comptes enregistrés. Les apps épinglées apparaissent sur l'accueil. L'intégration facultative Nango fournit le catalogue en ligne et les connexions OAuth des services configurés ; sans clé serveur, un catalogue de démarrage reste disponible pour ajouter des liens. Voir [le fonctionnement et la configuration OAuth](docs/apps.md).
 
@@ -52,11 +47,11 @@ Tout est stocké dans la base KAOBASE et réinjecté dans les prompts :
 - `npm test` : tests unitaires (parsers CSV/OFX, normalisation, détection d'abonnements, règles, prévision, routage, relevé de démo)
 - `npm run typecheck`, `npm run lint`
 
-Les tests de sécurité SQL utilisent PostgreSQL local en WebAssembly (PGlite), avec les vraies migrations et une simulation locale de l'authentification Supabase. Ils ne contactent aucun projet distant. Les évaluations IA et les parcours E2E connectés utilisent, eux, les services configurés et restent des commandes distinctes.
+Les tests de sécurité SQL utilisent PostgreSQL local en WebAssembly (PGlite), avec les vraies migrations et des identités Neon simulées localement. Ils ne contactent aucun projet distant. Les évaluations IA et les parcours E2E connectés utilisent, eux, les services configurés et restent des commandes distinctes.
 
 ## Déploiement
 
-Pour la configuration Neon migrée, définir `DATABASE_PROVIDER=neon` et `NEON_DATA_API_URL` sur l'hébergement, garder les deux variables publiques Supabase pour l'authentification, puis déployer les correctifs. Le guide [Neon](docs/neon-migration.md) décrit les sauvegardes, la vérification et le retour arrière. Les migrations historiques ci-dessous restent nécessaires sur la base métier choisie ; ne pas les appliquer uniquement à l'ancienne base après la bascule.
+Configurer `NEON_AUTH_BASE_URL`, `NEON_AUTH_COOKIE_SECRET`, `NEON_DATA_API_URL` et `APP_ORIGIN` sur l’hébergement, puis déployer. Aucune variable Supabase n’est utilisée. Le guide [Neon](docs/neon-migration.md) décrit la migration des comptes et la vérification des emails.
 
 La rubrique Mes apps et les raccourcis de l'accueil demandent la migration `20261017060000_app_shortcuts.sql`, à appliquer après les migrations précédentes et avant le déploiement. L'accueil continue de fonctionner si cette fonctionnalité n'est pas encore activée.
 
@@ -64,7 +59,7 @@ Les connexions OAuth demandent ensuite `20261017070000_app_oauth_connections.sql
 
 La configuration après inscription/première connexion demande aussi la migration `20261017050000_onboarding.sql`, à appliquer avant de déployer ce parcours. Une fois les préférences et le premier compte validés, l'utilisateur accède directement au tableau de bord aux connexions suivantes. Les comptes existants passent une seule fois par cette configuration ; les opérations et les comptes existants sont conservés. Un compte contenant déjà des opérations garde son solde d'ouverture et son espace pendant ce parcours.
 
-Avant de déployer les correctifs du 17 octobre 2026, appliquer **dans l'ordre** les quatre migrations `20261017010000_ownership_integrity.sql`, `20261017020000_subscription_identity.sql`, `20261017030000_agent_deletion_requests.sql` et `20261017040000_agent_request_limits.sql` (ou `supabase db push` sur le projet lié). La première s'arrête sans modifier les données si elle trouve des références entre utilisateurs à examiner. Les nouvelles suppressions et les appels IA restent bloqués tant que leurs migrations manquent. Voir [le rapport d'audit](docs/audit-2026-10-17.md) pour la portée et les limites des vérifications.
+Avant de déployer les correctifs du 17 octobre 2026, appliquer **dans l'ordre** les quatre migrations `20261017010000_ownership_integrity.sql`, `20261017020000_subscription_identity.sql`, `20261017030000_agent_deletion_requests.sql` et `20261017040000_agent_request_limits.sql` sur Neon. La première s'arrête sans modifier les données si elle trouve des références entre utilisateurs à examiner. Les nouvelles suppressions et les appels IA restent bloqués tant que leurs migrations manquent. Voir [le rapport d'audit](docs/audit-2026-10-17.md) pour la portée et les limites des vérifications.
 
 Compatible Vercel (free tier). Les embeddings locaux téléchargent un modèle d'environ 25 Mo au premier appel : en serverless, le premier appel est plus lent ; si le modèle ne peut pas être chargé, la mémoire retombe sur les souvenirs récents sans casser les agents.
 

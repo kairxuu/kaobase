@@ -2,17 +2,9 @@
 
 ## Compte et données
 
-### Envoi d'emails réel (SMTP) pour la confirmation et le mot de passe oublié
+### SMTP de production Neon
 
-**What:** Brancher Resend ou Brevo dans Supabase > Authentication > Emails > SMTP Settings.
-
-**Why:** Le service d'email intégré de Supabase n'envoie qu'aux membres de l'équipe du projet, quelques fois par heure : les autres utilisateurs ne reçoivent ni la confirmation d'inscription ni le lien de réinitialisation du mot de passe.
-
-**Context:** Constaté le 2026-10-15 (email de confirmation jamais reçu). Le parcours « mot de passe oublié » (F6, revue d'ingénierie du 2026-10-15) en dépend. Créer un compte Resend ou Brevo, vérifier un domaine d'envoi, coller les identifiants SMTP dans Supabase, puis faire pointer les modèles d'email vers https://kaobase.vercel.app/auth/confirm. Aucun code à changer.
-
-**Effort:** S
-**Priority:** P1
-**Depends on:** F6 (mot de passe oublié)
+Le parcours par code utilise actuellement le fournisseur partagé Neon. Pour un usage public plus large, configurer un SMTP dédié dans Neon et vérifier la délivrabilité du domaine d’envoi.
 
 ### Export des données et suppression du compte (RGPD)
 

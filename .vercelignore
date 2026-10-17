@@ -1,0 +1,14 @@
+.git
+.env*
+.local
+.neon
+.next*
+node_modules
+/mobile/
+tests
+coverage
+test-results
+playwright-report
+*.dump
+kaobase-schema*.sql
+kaobase-restore.list

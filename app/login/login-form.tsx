@@ -3,7 +3,7 @@ import { useActionState, useState } from 'react';
 import { signIn, signUp, requestPasswordReset, verifyEmail, resendVerification, resetWithCode, type AuthState } from './actions';
 type Mode='in'|'up'|'reset'|'verify'|'reset-code';
 const ACTIONS={in:signIn,up:signUp,reset:requestPasswordReset,verify:verifyEmail,'reset-code':resetWithCode};
-export function LoginForm({initialMode='in',notice}:{initialMode?:'in'|'up'|'reset';notice?:string}) {
+export function LoginForm({initialMode='in',notice}:{initialMode?:'in'|'up'|'reset'|'verify';notice?:string}) {
   const [mode,setMode]=useState<Mode>(initialMode);
   const [email,setEmail]=useState('');
   return <div className="space-y-5">
@@ -25,7 +25,7 @@ function ModeForm({mode,setMode,email,setEmail}:{mode:Mode;setMode:(v:Mode)=>voi
     {mode==='reset'&&<p>Tu recevras un code pour définir ton mot de passe. Utilise aussi cette option pour retrouver ton compte après la migration.</p>}
     {code&&<p>{mode==='verify'?'Confirme ton adresse':'Définis ton mot de passe'} avec le code reçu par email. Vérifie aussi les courriers indésirables.</p>}
     {mode==='up'&&<div><label className="label" htmlFor="name">Prénom</label><input className="input" id="name" name="name" autoComplete="given-name"/></div>}
-    <div><label className="label" htmlFor="email">Email</label><input className="input" id="email" name="email" type="email" required defaultValue={email} autoComplete="email"/></div>
+    <div><label className="label" htmlFor="email">Email</label><input className="input" id="email" name="email" type="email" required value={email} onChange={event=>setEmail(event.target.value)} autoComplete="email"/></div>
     {code&&<div><label className="label" htmlFor="otp">Code reçu par email</label><input className="input" id="otp" name="otp" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required/></div>}
     {['in','up','reset-code'].includes(mode)&&<div><label className="label" htmlFor="password">{mode==='reset-code'?'Nouveau mot de passe':'Mot de passe'}</label><input className="input" id="password" name="password" type="password" required minLength={mode==='in'?1:8} maxLength={128} autoComplete={mode==='in'?'current-password':'new-password'}/></div>}
     {mode==='reset-code'&&<div><label className="label" htmlFor="confirm">Confirmer le mot de passe</label><input className="input" id="confirm" name="confirm" type="password" required autoComplete="new-password"/></div>}

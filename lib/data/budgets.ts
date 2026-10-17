@@ -19,7 +19,7 @@ function missingTable(error: { code?: string; message: string } | null) {
 }
 
 export const BUDGETS_MISSING =
-  "Les budgets ne sont pas encore activés : exécute la migration la migration des budgets sur Neon.";
+  "Les budgets sont indisponibles pour le moment. Une mise à jour de la base est nécessaire.";
 
 export async function listBudgets(db: DatabaseClient): Promise<{ category_id: string; monthly_limit: number }[] | null> {
   const { data, error } = await db.from("budgets").select("category_id, monthly_limit");

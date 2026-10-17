@@ -21,7 +21,14 @@ export async function POST(request:Request,context:{params:Promise<{action:strin
   const origin=request.headers.get('origin');
   if(origin&&origin!==new URL(request.url).origin) return json({error:'Origine refusée.'},403);
   let input:Record<string,string>;
-  try {input=schemas[action as keyof typeof schemas].parse(await request.json());}catch{return json({error:'Vérifie les informations saisies.'},400);}
+  try {
+    const reader=request.body?.getReader();
+    if(!reader) return json({error:'Demande vide.'},400);
+    const chunks:Uint8Array[]=[];let size=0;
+    for(;;){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>16384){await reader.cancel();return json({error:'Demande trop volumineuse.'},413);}chunks.push(value);}
+    const body=new Uint8Array(size);let offset=0;for(const chunk of chunks){body.set(chunk,offset);offset+=chunk.length;}
+    input=schemas[action as keyof typeof schemas].parse(JSON.parse(new TextDecoder().decode(body)));
+  }catch{return json({error:'Vérifie les informations saisies.'},400);}
   const paths:Record<string,string>={'sign-in':'sign-in/email','sign-up':'sign-up/email',verify:'email-otp/verify-email',resend:'email-otp/send-verification-otp','request-reset':'email-otp/request-password-reset',reset:'email-otp/reset-password','sign-out':'sign-out'};
   try {
     let sessionToken: string | undefined=input.refresh_token;
@@ -31,13 +38,9 @@ export async function POST(request:Request,context:{params:Promise<{action:strin
       if(action==='resend') body.type='email-verification';
       const {response,data}=await managedRequest(paths[action],body,sessionToken);
       if(!response.ok) {
-        if(data?.code==='EMAIL_NOT_VERIFIED') {
-          await managedRequest('email-otp/send-verification-otp',{email:input.email,type:'email-verification'}).catch(()=>{});
-        }
         return json({error:authMessage(data.code),code:data.code},response.status);
       }
       if(action==='sign-up') {
-        await managedRequest('email-otp/send-verification-otp',{email:input.email,type:'email-verification'}).catch(()=>{});
         return json({confirmation_required:true});
       }
       if(['resend','request-reset','reset','sign-out'].includes(action))return json({ok:true});

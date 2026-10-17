@@ -16,7 +16,7 @@ XcodeGen est nécessaire seulement pour régénérer le projet (`brew install xc
 
 **Déployer d’abord les nouveaux fichiers serveur sur Vercel** : l’app appelle les routes `/api/mobile/*`, ajoutées avec cette version. Le site public utilisé par défaut est `https://kaobase.vercel.app`. Le changer avec `--website` si le domaine de production change. Une URL de preview HTTPS fonctionne aussi ; elle doit être accessible sans la protection d’accès Vercel.
 
-Le script lit uniquement `NEXT_PUBLIC_SUPABASE_URL` et `NEXT_PUBLIC_SUPABASE_ANON_KEY` dans `.env.local`. Il génère `Kaobase/Config.local.plist`, ignoré par Git, avec ces valeurs publiques et l’adresse du site. Il refuse les clés secrètes ou `service_role`. Il ne copie ni mot de passe PostgreSQL, ni clé Nango, ni clé d’IA. Le fichier d’exemple décrit les trois valeurs nécessaires pour une configuration manuelle.
+Le script écrit uniquement l’adresse publique du site dans `Config.local.plist`, ignoré par Git. Aucune clé de fournisseur ni aucun secret serveur n’est embarqué.
 
 ## Sur son propre iPhone
 
@@ -24,7 +24,7 @@ Brancher l’iPhone au Mac, activer le mode développeur si Xcode le demande et 
 
 ## Fonctions de cette première version
 
-- Connexion et inscription avec les mêmes comptes Supabase Auth que sur le web ; confirmation par e-mail si activée dans le projet. Le lien de récupération du mot de passe ouvre le parcours web existant.
+- Connexion et inscription via Neon Auth, confirmation par code, renvoi du code et récupération du mot de passe directement dans l’app. Les comptes historiques définissent leur nouveau mot de passe avec « Mot de passe oublié ».
 - Configuration obligatoire au premier accès : profil, devise, fuseau, premier compte, solde initial et espace.
 - Accueil avec soldes par devise, entrées/sorties du mois, répartition des dépenses, budgets et raccourcis épinglés.
 - Opérations : recherche serveur, pagination, ajout, catégorisation avec les règles existantes et suppression confirmée.
@@ -39,13 +39,13 @@ Les imports CSV/OFX, l’édition détaillée des abonnements/comptes/catégorie
 
 ## Architecture et sécurité
 
-`APIClient` effectue les appels HTTPS avec `URLSession`. L’authentification se fait auprès de Supabase ; le serveur Kaobase valide ensuite chaque JWT avec `getUser(token)` et applique la même RLS sur Neon que le site. Aucune connexion PostgreSQL propriétaire n’est embarquée. Les écritures réutilisent les fonctions métier web et sont validées côté serveur. Les routes mobiles ignorent les cookies et exigent un jeton Bearer vérifié. Les réponses privées sont `no-store` et varient par autorisation.
+`APIClient` effectue les appels HTTPS avec `URLSession` vers Kaobase. Le serveur communique avec Neon Auth et vérifie chaque JWT avec ses clés JWKS. Les données restent protégées par la RLS Neon. Aucune connexion PostgreSQL propriétaire n’est embarquée.
 
-Le trousseau iOS conserve uniquement la session (jetons et expiration), avec l’accessibilité `WhenUnlockedThisDeviceOnly`. Les mots de passe ne sont pas persistés. Les requêtes utilisent une session réseau éphémère sans cache/cookies et refusent les redirections. Les renouvellements concurrents partagent une seule rotation du refresh token ; une panne temporaire ne supprime pas la session. La déconnexion efface le trousseau et demande la révocation de cette session à Supabase.
+Le trousseau iOS conserve uniquement la session (jetons et expiration), avec l’accessibilité `WhenUnlockedThisDeviceOnly`. Les mots de passe ne sont pas persistés. Les requêtes utilisent une session réseau éphémère sans cache/cookies et refusent les redirections. Les renouvellements concurrents partagent un seul renouvellement de session ; une panne temporaire ne supprime pas la session. La déconnexion efface le trousseau et demande la révocation de cette session à Neon.
 
 `PrivacyInfo.xcprivacy` décrit les données utilisées pour le fonctionnement. Avant une soumission App Store, compléter les informations légales et de confidentialité réelles dans App Store Connect, prévoir le parcours de suppression du compte, puis vérifier les parcours et l’accessibilité sur un iPhone physique. Cette version n’est ni signée pour la distribution ni publiée.
 
-Références : [SwiftUI et navigation](https://developer.apple.com/documentation/swiftui/understanding-the-navigation-stack), [sessions Supabase](https://supabase.com/docs/guides/auth/sessions), [autorisation Neon Data API](https://neon.com/docs/data-api/overview).
+Références : [SwiftUI et navigation](https://developer.apple.com/documentation/swiftui/understanding-the-navigation-stack), [authentification Neon](https://neon.com/docs/auth/overview), [autorisation Neon Data API](https://neon.com/docs/data-api/overview).
 
 ## Tests
 

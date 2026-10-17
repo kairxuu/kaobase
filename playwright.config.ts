@@ -1,7 +1,7 @@
 import { defineConfig } from "@playwright/test";
 import { loadEnv } from "vite";
 
-// Suite de bout en bout (revue D9) : vrais parcours sur ton Supabase, avec un compte de test dédié.
+// Suite de bout en bout (revue D9) : vrais parcours sur Neon, avec un compte de test dédié.
 // Identifiants dans .env.test.local (jamais commité) : E2E_EMAIL, E2E_PASSWORD. Base : E2E_BASE_URL ou serveur local.
 Object.assign(process.env, loadEnv("test", process.cwd(), ""));
 

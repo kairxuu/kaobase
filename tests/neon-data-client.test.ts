@@ -64,8 +64,9 @@ describe("routage des données Neon avec les sessions Neon", () => {
 describe("initialisation des identités", () => {
   it("utilise la session vérifiée, sans identifiant fourni au RPC", async () => {
     const rpc = vi.fn().mockResolvedValue({ data: true, error: null });
+    rpc.mockImplementation((name:string)=>name==='current_identity'?{single:async()=>({data:{app_user_id:'legacy-id'},error:null})}:Promise.resolve({data:true,error:null}));
     await ensureAppIdentity({ rpc } as unknown as DatabaseClient);
-    expect(rpc.mock.calls).toEqual([["ensure_app_user"]]);
+    expect(rpc.mock.calls).toEqual([["ensure_app_user"],["current_identity"]]);
   });
   it("bloque l'accès si l'initialisation de l'identité échoue", async () => {
     const error = { code: "42501", message: "denied" };

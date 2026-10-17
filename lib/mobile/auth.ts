@@ -22,6 +22,6 @@ export async function mobileSession(request: Request) {
   const claims = await verifyMobileToken(match[1]);
   if (!claims) return null;
   const db = createNeonDataClient(async () => match[1]);
-  await ensureAppIdentity(db);
-  return { db, userId: claims.sub!, email: typeof claims.email === 'string' ? claims.email : '' };
+  const userId = await ensureAppIdentity(db);
+  return { db, userId, email: typeof claims.email === 'string' ? claims.email : '' };
 }

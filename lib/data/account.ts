@@ -18,8 +18,7 @@ export type Profile = {
   memberSince: string | null;
 };
 
-// Profil complet : table profiles (prénom, devise) + métadonnées DatabaseClient Auth (nom, couleur, email).
-// getUser() plutôt que le jeton : les métadonnées du jeton ne changent qu'au renouvellement de session.
+// Préférences dans profiles ; identité et email vérifiés par Neon Auth.
 export const getProfile = cache(async (db: DatabaseClient, userId: string): Promise<Profile> => {
   const [{ data: row }, { data: auth }] = await Promise.all([
     db.from("profiles").select("display_name, last_name, avatar_color, timezone_manual, currency, timezone, onboarding_completed_at, created_at").eq("id", userId).single(),

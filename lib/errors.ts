@@ -1,4 +1,4 @@
-// Traduit les erreurs techniques (Postgres, PostgREST, DatabaseClient Auth) en phrases que l'utilisateur
+// Traduit les erreurs techniques (Postgres, PostgREST, Neon Auth) en phrases que l'utilisateur
 // peut comprendre et corriger. Le détail brut reste dans les journaux serveur.
 
 type ErrorLike = { code?: string; message?: string; status?: number } | Error | unknown;
@@ -20,8 +20,8 @@ const BY_CODE: Record<string, string> = {
   "22007": "La date n'est pas valide.",
   "22003": "Le montant est trop grand.",
   PGRST116: "Élément introuvable : il a peut-être déjà été supprimé.",
-  PGRST205: "Cette fonctionnalité n'est pas encore activée : une migration DatabaseClient manque.",
-  "42P01": "Cette fonctionnalité n'est pas encore activée : une migration DatabaseClient manque.",
+  PGRST205: "Cette fonctionnalité n'est pas encore activée : une mise à jour de la base manque.",
+  "42P01": "Cette fonctionnalité n'est pas encore activée : une mise à jour de la base manque.",
   invalid_credentials: "Email ou mot de passe incorrect.",
   email_not_confirmed: "Adresse pas encore confirmée : ouvre le lien reçu par email.",
   weak_password: "Mot de passe trop faible : 8 caractères minimum.",

@@ -8,7 +8,7 @@ import{mobileSession}from'@/lib/mobile/auth';
 const origin='https://auth.example.test';const id='d83de24e-fcc0-48c6-aeea-f32d7199cf0e';
 let pair:Awaited<ReturnType<typeof generateKeyPair>>;
 beforeAll(async()=>{pair=await generateKeyPair('EdDSA');mocks.keys=createLocalJWKSet({keys:[{...await exportJWK(pair.publicKey),kid:'test'}]});});
-beforeEach(()=>{vi.clearAllMocks();vi.stubEnv('NEON_AUTH_BASE_URL',origin+'/neondb/auth');vi.stubEnv('NEON_DATA_API_URL','https://data.example.test/rest/v1');mocks.fetch.mockResolvedValue(Response.json([]));vi.stubGlobal('fetch',mocks.fetch);});
+beforeEach(()=>{vi.clearAllMocks();mocks.identity.mockResolvedValue(id);vi.stubEnv('NEON_AUTH_BASE_URL',origin+'/neondb/auth');vi.stubEnv('NEON_DATA_API_URL','https://data.example.test/rest/v1');mocks.fetch.mockResolvedValue(Response.json([]));vi.stubGlobal('fetch',mocks.fetch);});
 afterEach(()=>{vi.unstubAllEnvs();vi.unstubAllGlobals();});
 async function token(overrides:Record<string,unknown>={}){return new SignJWT({sub:id,email:'me@example.test',emailVerified:true,iss:origin,aud:origin,exp:Math.floor(Date.now()/1000)+300,...overrides}).setProtectedHeader({alg:'EdDSA',kid:'test'}).sign(pair.privateKey);}
 const request=(jwt:string)=>new Request('https://app.test',{headers:{Authorization:'Bearer '+jwt}});

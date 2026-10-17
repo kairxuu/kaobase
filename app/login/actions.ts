@@ -17,7 +17,6 @@ export async function signIn(_: AuthState, form: FormData): Promise<AuthState> {
   const { error }=await auth.signIn.email({email,password:String(form.get('password')??'')});
   if (error) {
     if (error.code==='EMAIL_NOT_VERIFIED') {
-      await auth.emailOtp.sendVerificationOtp({email,type:'email-verification'}).catch(()=>{});
       return {error:authMessage(error.code),step:'verify',email};
     }
     return {error:authMessage(error.code)};
@@ -30,7 +29,6 @@ export async function signUp(_: AuthState, form: FormData): Promise<AuthState> {
   const auth=await getAuth();
   const {error}=await auth.signUp.email({email,password,name:field(form,'name')||email.split('@')[0]});
   if(error) return {error:authMessage(error.code)};
-  await auth.emailOtp.sendVerificationOtp({email,type:'email-verification'}).catch(()=>{});
   return {step:'verify',email,info:'Compte créé. Saisis le code de confirmation reçu par email.'};
 }
 export async function verifyEmail(_: AuthState, form: FormData): Promise<AuthState> {
