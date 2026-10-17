@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+    <key>WebsiteURL</key><string>https://kaobase.vercel.app</string>
+    <key>SupabaseURL</key><string>https://YOUR_PROJECT.supabase.co</string>
+    <key>SupabasePublicKey</key><string>YOUR_PUBLIC_ANON_OR_PUBLISHABLE_KEY</string>
+</dict></plist>

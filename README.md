@@ -69,3 +69,7 @@ Avant de déployer les correctifs du 17 octobre 2026, appliquer **dans l'ordre**
 Compatible Vercel (free tier). Les embeddings locaux téléchargent un modèle d'environ 25 Mo au premier appel : en serverless, le premier appel est plus lent ; si le modèle ne peut pas être chargé, la mémoire retombe sur les souvenirs récents sans casser les agents.
 
 Le fichier `vercel.json` utilise `ONNXRUNTIME_NODE_INSTALL=skip npm ci` : le moteur ONNX CPU est inclus dans le paquet npm ; les bibliothèques CUDA/TensorRT supplémentaires ne sont pas téléchargées sur Vercel. Les embeddings utilisent explicitement le CPU. Cela évite qu'une indisponibilité du serveur de téléchargement GPU bloque l'installation des dépendances. Pour publier cette configuration locale, exécuter `npx vercel --prod` depuis le dossier du projet.
+
+## Application iOS native
+
+Le projet SwiftUI se trouve dans [`mobile/ios`](mobile/ios/README.md). Il utilise les mêmes comptes et données que le web, via les nouvelles routes serveur `/api/mobile/*`. Déployer ces routes sur Vercel, générer la configuration publique avec `python3 mobile/ios/configure.py`, puis ouvrir `mobile/ios/Kaobase.xcodeproj` dans Xcode. Le guide détaille les fonctions disponibles, les tests et l’installation sur un iPhone.

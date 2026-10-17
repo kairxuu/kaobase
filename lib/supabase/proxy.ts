@@ -6,6 +6,9 @@ const PUBLIC_PATHS = ["/login", "/auth"];
 // Rafraîchit le jeton Supabase à chaque requête et redirige les visiteurs non connectés.
 // Vérification « optimiste » : l'autorisation réelle reste la RLS côté base.
 export async function updateSession(request: NextRequest) {
+  // Native clients authenticate in the mobile route with a verified bearer token.
+  // They do not share the browser's cookie jar.
+  if (request.nextUrl.pathname.startsWith("/api/mobile/")) return NextResponse.next({ request });
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(

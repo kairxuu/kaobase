@@ -1,0 +1,54 @@
+name: Kaobase
+options:
+  bundleIdPrefix: com.kaobase
+  deploymentTarget:
+    iOS: "18.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    DEVELOPMENT_TEAM: ""
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: 1
+    GENERATE_INFOPLIST_FILE: YES
+    CODE_SIGN_STYLE: Automatic
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+targets:
+  Kaobase:
+    type: application
+    platform: iOS
+    sources:
+      - path: Kaobase
+        excludes: ["Config.example.plist"]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.kaobase.ios
+        INFOPLIST_KEY_CFBundleDisplayName: Kaobase
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_ENTITLEMENTS: Kaobase/Kaobase.entitlements
+        "CODE_SIGN_IDENTITY[sdk=iphonesimulator*]": "-"
+  KaobaseTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [KaobaseTests]
+    dependencies:
+      - target: Kaobase
+  KaobaseUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [KaobaseUITests]
+    dependencies:
+      - target: Kaobase
+schemes:
+  Kaobase:
+    build:
+      targets:
+        Kaobase: all
+    test:
+      targets: [KaobaseTests, KaobaseUITests]

@@ -22,6 +22,7 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/api/agents": EMBEDDING_FILES,
     "/api/feedback": EMBEDDING_FILES,
+    "/api/mobile/**": EMBEDDING_FILES,
   },
   turbopack: {
     root: path.join(__dirname),

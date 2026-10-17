@@ -54,3 +54,9 @@ next-env.d.ts
 /.local/
 /.next-*/
 __pycache__/
+
+# Native iOS: local public-service configuration and Xcode output.
+/mobile/ios/Kaobase/Config.local.plist
+/mobile/ios/build/
+**/xcuserdata/
+*.xcuserstate
