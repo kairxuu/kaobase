@@ -30,7 +30,16 @@ export async function POST(request:Request,context:{params:Promise<{action:strin
       if(action==='sign-up') body.name=input.email.split('@')[0];
       if(action==='resend') body.type='email-verification';
       const {response,data}=await managedRequest(paths[action],body,sessionToken);
-      if(!response.ok) return json({error:authMessage(data.code),code:data.code},response.status);
+      if(!response.ok) {
+        if(data?.code==='EMAIL_NOT_VERIFIED') {
+          await managedRequest('email-otp/send-verification-otp',{email:input.email,type:'email-verification'}).catch(()=>{});
+        }
+        return json({error:authMessage(data.code),code:data.code},response.status);
+      }
+      if(action==='sign-up') {
+        await managedRequest('email-otp/send-verification-otp',{email:input.email,type:'email-verification'}).catch(()=>{});
+        return json({confirmation_required:true});
+      }
       if(['resend','request-reset','reset','sign-out'].includes(action))return json({ok:true});
       sessionToken=response.headers.getSetCookie().map(c=>c.split(';')[0]).find(c=>c.startsWith('__Secure-neon-auth.session_token='))?.slice('__Secure-neon-auth.session_token='.length);
       if(!sessionToken) return json({confirmation_required:true});
