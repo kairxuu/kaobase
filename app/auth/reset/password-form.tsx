@@ -8,6 +8,7 @@ export function PasswordForm({ redirectHome = false }: { redirectHome?: boolean 
   return (
     <form action={action} className="space-y-4">
       {redirectHome && <input type="hidden" name="then" value="home" />}
+      <div><label className="label" htmlFor="current-password">Mot de passe actuel</label><input className="input" id="current-password" name="currentPassword" type="password" required autoComplete="current-password" /></div>
       <div>
         <label className="label" htmlFor="new-password">Nouveau mot de passe</label>
         <input className="input" id="new-password" name="password" type="password" minLength={8} required autoComplete="new-password" />

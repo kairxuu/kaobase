@@ -1,5 +1,5 @@
 import "server-only";
-import type { Supabase } from "@/lib/supabase/server";
+import type { DatabaseClient } from "@/lib/database/server";
 import { getCategories, listTransactions, monthRange, summarizeMonth } from "./finance";
 import { UserError } from "@/lib/errors";
 
@@ -19,17 +19,17 @@ function missingTable(error: { code?: string; message: string } | null) {
 }
 
 export const BUDGETS_MISSING =
-  "Les budgets ne sont pas encore activés : exécute la migration supabase/migrations/20261015120000_budgets.sql dans Supabase.";
+  "Les budgets ne sont pas encore activés : exécute la migration la migration des budgets sur Neon.";
 
-export async function listBudgets(supabase: Supabase): Promise<{ category_id: string; monthly_limit: number }[] | null> {
-  const { data, error } = await supabase.from("budgets").select("category_id, monthly_limit");
+export async function listBudgets(db: DatabaseClient): Promise<{ category_id: string; monthly_limit: number }[] | null> {
+  const { data, error } = await db.from("budgets").select("category_id, monthly_limit");
   if (missingTable(error)) return null;
   if (error) throw error;
   return (data ?? []).map((b) => ({ category_id: b.category_id as string, monthly_limit: Number(b.monthly_limit) }));
 }
 
-export async function setBudget(supabase: Supabase, categoryId: string, monthlyLimit: number) {
-  const { error } = await supabase
+export async function setBudget(db: DatabaseClient, categoryId: string, monthlyLimit: number) {
+  const { error } = await db
     .from("budgets")
     .upsert(
       { category_id: categoryId, monthly_limit: monthlyLimit, updated_at: new Date().toISOString() },
@@ -39,18 +39,18 @@ export async function setBudget(supabase: Supabase, categoryId: string, monthlyL
   if (error) throw error;
 }
 
-export async function deleteBudget(supabase: Supabase, categoryId: string) {
-  const { error } = await supabase.from("budgets").delete().eq("category_id", categoryId);
+export async function deleteBudget(db: DatabaseClient, categoryId: string) {
+  const { error } = await db.from("budgets").delete().eq("category_id", categoryId);
   if (missingTable(error)) throw new UserError(BUDGETS_MISSING);
   if (error) throw error;
 }
 
-export async function budgetStatus(supabase: Supabase, month: string, accountIds?: string[]): Promise<BudgetStatus[] | null> {
-  const budgets = await listBudgets(supabase);
+export async function budgetStatus(db: DatabaseClient, month: string, accountIds?: string[]): Promise<BudgetStatus[] | null> {
+  const budgets = await listBudgets(db);
   if (!budgets) return null;
   if (budgets.length === 0) return [];
   const { from, to } = monthRange(month);
-  const [txs, categories] = await Promise.all([listTransactions(supabase, { from, to, limit: 5000, accountIds }), getCategories(supabase)]);
+  const [txs, categories] = await Promise.all([listTransactions(db, { from, to, limit: 5000, accountIds }), getCategories(db)]);
   const summary = summarizeMonth(txs, categories, month);
   const spentBy = new Map(summary.byCategory.map((c) => [c.categoryId, c.total]));
   const nameOf = new Map(categories.map((c) => [c.id, c.name]));

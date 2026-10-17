@@ -17,7 +17,7 @@ function form() {
 }
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.requireUser.mockResolvedValue({ supabase: client, userId: "owner" });
+  mocks.requireUser.mockResolvedValue({ db: client, userId: "owner" });
   mocks.space.mockResolvedValue("pro");
   mocks.create.mockResolvedValue({ id: ID });
   mocks.update.mockResolvedValue({ id: ID });

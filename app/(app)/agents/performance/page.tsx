@@ -26,16 +26,16 @@ type PerfRow = {
 };
 
 export default async function PerformancePage() {
-  const { supabase } = await requireUser();
+  const { db } = await requireUser();
   const count = (table: string, filter?: [string, string]) => {
-    let q = supabase.from(table).select("id", { count: "exact", head: true });
+    let q = db.from(table).select("id", { count: "exact", head: true });
     if (filter) q = q.eq(filter[0], filter[1]);
     return q.then((r) => r.count ?? 0);
   };
 
-  const [items, exchanges] = await Promise.all([listMemories(supabase), countExchanges(supabase)]);
+  const [items, exchanges] = await Promise.all([listMemories(db), countExchanges(db)]);
   const [{ data: perf }, rules, userRules, memories, corrections, facts, examples, byRule, byLlm, byUser, none] = await Promise.all([
-    supabase.from("agent_performance").select("*"),
+    db.from("agent_performance").select("*"),
     count("categorization_rules"),
     count("categorization_rules", ["source", "user"]),
     count("agent_memories"),
@@ -45,7 +45,7 @@ export default async function PerformancePage() {
     count("transactions", ["categorized_by", "rule"]),
     count("transactions", ["categorized_by", "llm"]),
     count("transactions", ["categorized_by", "user"]),
-    supabase.from("transactions").select("id", { count: "exact", head: true }).is("categorized_by", null).then((r) => r.count ?? 0),
+    db.from("transactions").select("id", { count: "exact", head: true }).is("categorized_by", null).then((r) => r.count ?? 0),
   ]);
 
   const rows = (perf ?? []) as PerfRow[];

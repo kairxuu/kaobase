@@ -9,10 +9,10 @@ import { undoImportAction } from "../actions";
 import { ActionButton } from "../_components/action-button";
 
 export default async function ImportPage() {
-  const { supabase } = await requireUser();
+  const { db } = await requireUser();
   const [accounts, { data: imports }] = await Promise.all([
-    getAccounts(supabase, await getSpaceFilter()),
-    supabase
+    getAccounts(db, await getSpaceFilter()),
+    db
       .from("imports")
       .select("id, filename, format, rows_total, rows_imported, rows_duplicate, rows_invalid, created_at")
       .order("created_at", { ascending: false })

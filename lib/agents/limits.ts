@@ -1,4 +1,4 @@
-import type { Supabase } from "@/lib/supabase/server";
+import type { DatabaseClient } from "@/lib/database/server";
 import { z } from "zod";
 
 // Limite d'usage de l'IA par utilisateur : la clé Groq gratuite est partagée par tous les comptes.
@@ -51,9 +51,9 @@ export function decideLimit(input: { minute: number; day: number; oldestInMinute
 
 // Réservation atomique et non modifiable depuis le client, avant toute exécution.
 // Une panne ou une réponse RPC inattendue interrompt l'appel IA.
-export async function checkUserLimit(supabase: Supabase): Promise<LimitDecision> {
+export async function checkUserLimit(db: DatabaseClient): Promise<LimitDecision> {
   try {
-    const { data, error } = await supabase.rpc("reserve_agent_request");
+    const { data, error } = await db.rpc("reserve_agent_request");
     if (error) throw error;
     const [reservation] = z.array(reservationSchema).length(1).parse(data);
     if (reservation.allowed) return { allowed: true };

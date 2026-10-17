@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
-import { createNeonDataClient, databaseProvider } from "@/lib/neon";
+import { createNeonDataClient } from "@/lib/neon";
 import { ensureAppIdentity } from "@/lib/data/identity";
-import type { Supabase } from "@/lib/supabase/server";
+import type { DatabaseClient } from "@/lib/database/server";
 
 const fetchMock = vi.fn();
 beforeEach(() => {
@@ -13,11 +13,7 @@ beforeEach(() => {
 });
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
-describe("routage des données Neon avec les sessions Supabase", () => {
-  it("ne bascule pas silencieusement quand le fournisseur est invalide", () => {
-    vi.stubEnv("DATABASE_PROVIDER", "neom");
-    expect(databaseProvider).toThrow("DATABASE_PROVIDER");
-  });
+describe("routage des données Neon avec les sessions Neon", () => {
   it("exige l'adresse Data API, sans utiliser l'URL administrateur", () => {
     vi.stubEnv("NEON_DATA_API_URL", "");
     expect(() => createNeonDataClient(async () => "jwt")).toThrow("NEON_DATA_API_URL");
@@ -68,18 +64,12 @@ describe("routage des données Neon avec les sessions Supabase", () => {
 describe("initialisation des identités", () => {
   it("utilise la session vérifiée, sans identifiant fourni au RPC", async () => {
     const rpc = vi.fn().mockResolvedValue({ data: true, error: null });
-    await ensureAppIdentity({ rpc } as unknown as Supabase);
+    await ensureAppIdentity({ rpc } as unknown as DatabaseClient);
     expect(rpc.mock.calls).toEqual([["ensure_app_user"]]);
-  });
-  it("préserve le fonctionnement Supabase lorsque la bascule est désactivée", async () => {
-    vi.stubEnv("DATABASE_PROVIDER", "supabase");
-    const rpc = vi.fn();
-    await ensureAppIdentity({ rpc } as unknown as Supabase);
-    expect(rpc).not.toHaveBeenCalled();
   });
   it("bloque l'accès si l'initialisation de l'identité échoue", async () => {
     const error = { code: "42501", message: "denied" };
     const rpc = vi.fn().mockResolvedValue({ data: null, error });
-    await expect(ensureAppIdentity({ rpc } as unknown as Supabase)).rejects.toEqual(error);
+    await expect(ensureAppIdentity({ rpc } as unknown as DatabaseClient)).rejects.toEqual(error);
   });
 });

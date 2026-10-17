@@ -1,6 +1,6 @@
 import type { PGlite } from "@electric-sql/pglite";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Supabase } from "@/lib/supabase/server";
+import type { DatabaseClient } from "@/lib/database/server";
 import { checkUserLimit, LimitUnavailableError } from "@/lib/agents/limits";
 import { applyMigration, createDatabase } from "./helpers/database";
 import { POST } from "@/app/api/agents/route";
@@ -45,7 +45,7 @@ describe("atomic PostgreSQL AI request reservations", () => {
   beforeAll(async () => {
     db = await createDatabase();
     await seedUsers(db);
-    // Reproduce Supabase's permissive default grants on newly created tables.
+    // Reproduce DatabaseClient's permissive default grants on newly created tables.
     await db.exec("alter default privileges in schema public grant all on tables to anon, authenticated");
     await applyMigration(db, migration);
   }, 30_000);
@@ -206,37 +206,37 @@ describe("quota client and API failure handling", () => {
   const blocked: Reservation = { allowed: false, retry_after_seconds: 42, limit_reason: "minute", minute_count: 6, day_count: 6 };
   function client(response: unknown, error: unknown = null) {
     const rpc = vi.fn().mockResolvedValue({ data: response, error });
-    return { rpc, supabase: { rpc } as unknown as Supabase };
+    return { rpc, db: { rpc } as unknown as DatabaseClient };
   }
 
   it("reserves exactly once before accepting an AI request", async () => {
-    const { rpc, supabase } = client([allowed]);
-    expect(await checkUserLimit(supabase)).toEqual({ allowed: true });
+    const { rpc, db } = client([allowed]);
+    expect(await checkUserLimit(db)).toEqual({ allowed: true });
     expect(rpc).toHaveBeenCalledExactlyOnceWith("reserve_agent_request");
   });
 
   it("uses the database's Retry-After on a denied reservation", async () => {
-    expect(await checkUserLimit(client([blocked]).supabase)).toMatchObject({ allowed: false, retryAfterSeconds: 42 });
+    expect(await checkUserLimit(client([blocked]).db)).toMatchObject({ allowed: false, retryAfterSeconds: 42 });
   });
 
   it.each([null, [], [{}], [{ ...allowed, minute_count: 0, day_count: 0 }], [{ ...allowed, day_count: 151 }], [{ ...blocked, retry_after_seconds: 0 }]])(
     "fails closed on malformed quota data %#", async (data) => {
-      await expect(checkUserLimit(client(data).supabase)).rejects.toBeInstanceOf(LimitUnavailableError);
+      await expect(checkUserLimit(client(data).db)).rejects.toBeInstanceOf(LimitUnavailableError);
     },
   );
 
   it("fails closed on database and transport errors", async () => {
-    await expect(checkUserLimit(client(null, { code: "42P01" }).supabase)).rejects.toBeInstanceOf(LimitUnavailableError);
-    const { supabase, rpc } = client(null);
+    await expect(checkUserLimit(client(null, { code: "42P01" }).db)).rejects.toBeInstanceOf(LimitUnavailableError);
+    const { db, rpc } = client(null);
     rpc.mockRejectedValueOnce(new Error("Network unavailable"));
-    await expect(checkUserLimit(supabase)).rejects.toBeInstanceOf(LimitUnavailableError);
+    await expect(checkUserLimit(db)).rejects.toBeInstanceOf(LimitUnavailableError);
   });
 
   it.each([
     { data: null, error: { code: "42P01" }, status: 503, retry: "10" },
     { data: [blocked], error: null, status: 429, retry: "42" },
   ])("returns HTTP $status without running AI when reservation fails", async ({ data, error, status, retry }) => {
-    routeMocks.session.mockResolvedValue({ supabase: client(data, error).supabase, userId: USER_A });
+    routeMocks.session.mockResolvedValue({ db: client(data, error).db, userId: USER_A });
     const response = await POST(new Request("http://localhost/api/agents", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message: "Mon solde", conversationId: USER_A }),

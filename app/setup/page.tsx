@@ -11,12 +11,12 @@ export const metadata: Metadata = { title: "Bienvenue" };
 
 export default async function SetupPage() {
   // Cette page reste accessible avant configuration, sans le layout du tableau de bord.
-  const { supabase, userId, email } = await requireSession();
-  const status = await getOnboardingStatus(supabase, userId);
+  const { db, userId, email } = await requireSession();
+  const status = await getOnboardingStatus(db, userId);
   if (status === "complete") redirect("/");
   let initial: SetupInitial | null = null;
   if (status === "pending") {
-    try { initial = await getSetupInitial(supabase, userId); }
+    try { initial = await getSetupInitial(db, userId); }
     catch (error) { console.error("[kaobase] chargement configuration :", error); }
   }
 

@@ -18,10 +18,9 @@ final class ModelTests: XCTestCase {
     }
     func testConfigurationAcceptsOnlyHTTPSOrigins() throws {
         for value in ["http://example.com", "https://example.com/path", "https://user:secret@example.com", "https://example.com/?token=secret"] {
-            XCTAssertThrowsError(try AppConfiguration(website: value, auth: "https://auth.example.com", publicKey: "public"))
+            XCTAssertThrowsError(try AppConfiguration(website: value))
         }
-        XCTAssertThrowsError(try AppConfiguration(website: "https://example.com", auth: "https://auth.example.com", publicKey: "sb_secret_private"))
-        XCTAssertNoThrow(try AppConfiguration(website: "https://example.com", auth: "https://auth.example.com", publicKey: "sb_publishable_public"))
+        XCTAssertNoThrow(try AppConfiguration(website: "https://example.com"))
     }
     func testDecodePostgRESTAndCamelCaseServerFields() throws {
         let raw = #"{"accounts":[{"id":"a","name":"Compte","kind":"checking","currency":"EUR","space":"perso","balance":12.34},{"id":"b","name":"USD","kind":"checking","currency":"USD","space":"pro","balance":100}],"categories":[],"summary":{"month":"2026-10","income":0,"expenses":0,"net":0,"count":0,"byCategory":[]},"budgets":[{"categoryId":"food","category":"Food","limit":100,"spent":25.50,"remaining":74.50,"percent":26}],"transactions":[],"subscriptions":[],"tasks":[],"apps":[{"id":"app","name":"Notion","url":"https://notion.so","account_label":"Perso","category":"work","space":"perso","pinned":true}],"connections":[]}"#

@@ -22,15 +22,15 @@ export async function POST(request: Request) {
   if (!parsed.success) return Response.json({ error: "Requête invalide" }, { status: 400 });
 
   try {
-    const limit = await checkUserLimit(session.supabase);
+    const limit = await checkUserLimit(session.db);
     if (!limit.allowed) {
       return Response.json(
         { error: limit.message, retryAfter: limit.retryAfterSeconds },
         { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } },
       );
     }
-    const { data: profile } = await session.supabase.from("profiles").select("currency, timezone").eq("id", session.userId).single();
-    const reply = await askAgent(session.supabase, {
+    const { data: profile } = await session.db.from("profiles").select("currency, timezone").eq("id", session.userId).single();
+    const reply = await askAgent(session.db, {
       ...parsed.data,
       currency: profile?.currency ?? "EUR",
       timezone: profile?.timezone ?? "Europe/Paris",

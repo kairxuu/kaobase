@@ -30,28 +30,28 @@ function checkedId(id: string) {
 }
 
 export async function createAppAction(formData: FormData) {
-  const { supabase } = await requireUser();
-  return run(async () => createAppShortcut(supabase, parseAppForm(formData, defaultSpace(await getSpaceFilter()))), "App ajoutée.");
+  const { db } = await requireUser();
+  return run(async () => createAppShortcut(db, parseAppForm(formData, defaultSpace(await getSpaceFilter()))), "App ajoutée.");
 }
 
 export async function updateAppAction(id: string, formData: FormData) {
-  const { supabase } = await requireUser();
-  return run(async () => updateAppShortcut(supabase, checkedId(id), parseAppForm(formData, defaultSpace(await getSpaceFilter()))), "App mise à jour.");
+  const { db } = await requireUser();
+  return run(async () => updateAppShortcut(db, checkedId(id), parseAppForm(formData, defaultSpace(await getSpaceFilter()))), "App mise à jour.");
 }
 
 export async function deleteAppAction(id: string) {
-  const { supabase } = await requireUser();
+  const { db } = await requireUser();
   return run(async () => {
     const appId = checkedId(id);
-    if (await getShortcutConnection(supabase, appId)) throw new UserError("Déconnecte cette app avant de supprimer son raccourci.");
-    return deleteAppShortcut(supabase, appId);
+    if (await getShortcutConnection(db, appId)) throw new UserError("Déconnecte cette app avant de supprimer son raccourci.");
+    return deleteAppShortcut(db, appId);
   }, "Raccourci supprimé.");
 }
 
 export async function pinAppAction(id: string, pinned: boolean) {
-  const { supabase } = await requireUser();
+  const { db } = await requireUser();
   return run(async () => {
     if (typeof pinned !== "boolean") throw new UserError("Choix d'affichage invalide.");
-    return pinAppShortcut(supabase, checkedId(id), pinned);
+    return pinAppShortcut(db, checkedId(id), pinned);
   }, pinned ? "App affichée sur l'accueil." : "App retirée de l'accueil.");
 }

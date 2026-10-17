@@ -1,6 +1,6 @@
 import "server-only";
 import { z } from "zod";
-import type { Supabase } from "@/lib/supabase/server";
+import type { DatabaseClient } from "@/lib/database/server";
 import type { Category } from "@/lib/types";
 import { generateWithFallback } from "@/lib/ai/provider";
 import { recordRun } from "./runs";
@@ -21,7 +21,7 @@ function extractJson(text: string): unknown {
 // Catégorise par lots les marchands qu'aucune règle ne connaît encore.
 // Les réponses deviennent des règles « llm » (confiance 0.5) que l'utilisateur confirme ou corrige.
 export async function categorizeMerchantsWithLlm(
-  supabase: Supabase,
+  db: DatabaseClient,
   merchants: { merchant: string; label: string; amount: number }[],
   categories: Category[],
 ): Promise<Map<string, string>> {
@@ -49,7 +49,7 @@ export async function categorizeMerchantsWithLlm(
         const id = byName.get(item.category.toLowerCase().trim());
         if (id && batch.some((m) => m.merchant === item.merchant)) result.set(item.merchant, id);
       }
-      await recordRun(supabase, {
+      await recordRun(db, {
         agent: "finance",
         provider,
         model,
@@ -60,7 +60,7 @@ export async function categorizeMerchantsWithLlm(
         outputTokens: res.usage.outputTokens,
       });
     } catch (error) {
-      await recordRun(supabase, {
+      await recordRun(db, {
         agent: "finance",
         input: `[auto] Catégorisation de ${batch.length} marchands`,
         latencyMs: Date.now() - started,

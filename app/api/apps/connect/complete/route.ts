@@ -5,12 +5,12 @@ import { getOwnedNangoConnection } from "@/lib/integrations/nango";
 import { completeAppConnection } from "@/lib/data/app-connections";
 
 export async function POST(request: Request) {
-  return appApi(request, async ({ userId, supabase }) => {
+  return appApi(request, async ({ userId, db }) => {
     const input = parseConnectionInput(await readAppJson(request), true);
     const provider = await requireOAuthIntegration(input.providerId, input.integrationId);
     const connection = await getOwnedNangoConnection(userId, input.integrationId, input.connectionId!);
     if (connection.providerId && connection.providerId !== input.providerId) throw new AppApiError("Le service autorisé ne correspond pas à cette app.", 403);
-    const shortcutId = await completeAppConnection(supabase, {
+    const shortcutId = await completeAppConnection(db, {
       ...input, providerName: provider.display_name, connectionId: connection.connectionId,
     });
     revalidatePath("/apps");

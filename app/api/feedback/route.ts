@@ -17,7 +17,7 @@ export async function POST(request: Request) {
   if (!parsed.success) return Response.json({ error: "Requête invalide" }, { status: 400 });
 
   try {
-    await applyFeedback(session.supabase, parsed.data.runId, parsed.data.rating, parsed.data.correction || null);
+    await applyFeedback(session.db, parsed.data.runId, parsed.data.rating, parsed.data.correction || null);
     return Response.json({ ok: true });
   } catch (error) {
     console.error("[kaobase] feedback :", error);

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import { toolsFor, type ToolContext } from "@/lib/agents/tools";
-import type { Supabase } from "@/lib/supabase/server";
+import type { DatabaseClient } from "@/lib/database/server";
 
 describe("les outils IA ne peuvent jamais exécuter une suppression", () => {
   it.each([
@@ -11,7 +11,7 @@ describe("les outils IA ne peuvent jamais exécuter une suppression", () => {
   ] as const)("%s / %s prépare uniquement une confirmation ciblée", async (agent, name, kind, input) => {
     const rpc = vi.fn().mockResolvedValue({ data: [{ id: "request", kind, description: "Élément exact", expires_at: "2026-10-17T12:00:00Z" }], error: null });
     const from = vi.fn(() => { throw new Error("Aucun accès de suppression directe autorisé"); });
-    const db = { rpc, from } as unknown as Supabase;
+    const db = { rpc, from } as unknown as DatabaseClient;
     const ctx: ToolContext = {
       categories: [{ id: "category", name: "Alimentation", kind: "expense", color: "#000" }],
       accounts: [], space: "perso", today: "2026-10-17", written: new Set(),

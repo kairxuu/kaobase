@@ -19,17 +19,17 @@ export const metadata: Metadata = { title: "Réglages" };
 const KIND_LABEL = { expense: "dépense", income: "revenu", transfer: "virement interne" } as const;
 
 export default async function SettingsPage() {
-  const { supabase, userId, email } = await requireUser();
+  const { db, userId, email } = await requireUser();
   const currency = await getCurrency();
   const money = moneyIn(currency);
   const month = new Date().toISOString().slice(0, 7);
   const [profile, balances, { data: accountRows }, categories, budgets, statuses] = await Promise.all([
-    getProfile(supabase, userId),
-    getAccounts(supabase),
-    supabase.from("accounts").select("id, name, opening_balance, space").order("name"),
-    getCategories(supabase),
-    listBudgets(supabase).catch(() => null),
-    budgetStatus(supabase, month).catch(() => null),
+    getProfile(db, userId),
+    getAccounts(db),
+    db.from("accounts").select("id, name, opening_balance, space").order("name"),
+    getCategories(db),
+    listBudgets(db).catch(() => null),
+    budgetStatus(db, month).catch(() => null),
   ]);
   const balanceOf = new Map(balances.map((a) => [a.id, Number(a.balance)]));
   const limitOf = new Map((budgets ?? []).map((b) => [b.category_id, b.monthly_limit]));
@@ -143,7 +143,7 @@ export default async function SettingsPage() {
         {budgets === null ? (
           <p className="text-sm text-ink-2">
             Les budgets ne sont pas encore activés : exécute la migration{" "}
-            <code>supabase/migrations/20261015120000_budgets.sql</code> dans Supabase.
+            <code>supabase/migrations/20261015120000_budgets.sql</code> sur Neon.
           </p>
         ) : (
           <>

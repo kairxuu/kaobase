@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { updateEmailAction, updateProfileAction } from "../actions";
+import { updateProfileAction } from "../actions";
 import { FormAction } from "../_components/form-action";
 
 type ProfileView = {
@@ -99,17 +99,9 @@ export function ProfileForm({
       </FormAction>
 
       <div className="border-t border-line pt-5">
-        <FormAction action={updateEmailAction} submitLabel="Changer d'adresse" reset={false} className="space-y-3">
-          <div>
-            <label className="label" htmlFor="email">Adresse email</label>
-            <input className="input" id="email" name="email" type="email" defaultValue={profile.email} required autoComplete="email" />
-            {profile.pendingEmail && (
-              <p className="mt-1 text-xs text-warn">
-                En attente de confirmation : {profile.pendingEmail}. Ouvre le lien reçu à cette adresse.
-              </p>
-            )}
-          </div>
-        </FormAction>
+        <p className="label">Adresse email</p>
+        <p>{profile.email}</p>
+        <p className="mt-1 text-xs text-ink-3">Le changement d’adresse n’est pas disponible pour le moment.</p>
       </div>
     </div>
   );

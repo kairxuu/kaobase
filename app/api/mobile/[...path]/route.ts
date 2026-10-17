@@ -45,21 +45,21 @@ async function handle(request: Request, context: Context) {
   try {
     const session = await mobileSession(request);
     if (!session) return json({ error: "Connecte-toi à Kaobase." }, 401);
-    const { supabase, userId, email } = session;
+    const { db, userId, email } = session;
     const { path } = await context.params;
     const route = path.join("/");
     const method = request.method;
     if (route === "setup" && method === "POST") {
-      await completeSetup(supabase, v.setupInput.parse(await body(request)));
+      await completeSetup(db, v.setupInput.parse(await body(request)));
       revalidatePath("/", "layout");
       return json({ ok: true });
     }
-    const status = await getOnboardingStatus(supabase, userId);
+    const status = await getOnboardingStatus(db, userId);
     if (status === "unavailable") return json({ error: "Le profil est momentanément inaccessible." }, 503);
     if (route === "bootstrap" && method === "GET") {
-      const { data: profile, error } = await supabase.from("profiles").select("id, display_name, currency, timezone, onboarding_completed_at").eq("id", userId).single();
+      const { data: profile, error } = await db.from("profiles").select("id, display_name, currency, timezone, onboarding_completed_at").eq("id", userId).single();
       if (error) throw error;
-      const accounts = await supabase.from("accounts").select("id, name, kind, space, opening_balance").order("created_at").order("id").limit(1);
+      const accounts = await db.from("accounts").select("id, name, kind, space, opening_balance").order("created_at").order("id").limit(1);
       if (accounts.error) throw accounts.error;
       return json({ profile: { ...profile, email }, setupAccount: accounts.data?.[0] ?? null });
     }
@@ -68,52 +68,52 @@ async function handle(request: Request, context: Context) {
     const space = v.spaceFilter.parse(url.searchParams.get("space") ?? "all");
     const month = v.month.parse(url.searchParams.get("month") ?? new Date().toISOString().slice(0, 7));
     if (method === "GET" && route === "overview") {
-      const accounts = await getAccounts(supabase, space);
+      const accounts = await getAccounts(db, space);
       const accountIds = space === "all" ? undefined : accounts.map((a) => a.id);
       const [categories, summary, budgets, transactions, subscriptions, tasks, apps, connections] = await Promise.all([
-        getCategories(supabase), monthSummary(supabase, month, accountIds), budgetStatus(supabase, month, accountIds),
-        listTransactions(supabase, { limit: 20, accountIds }), listSubscriptions(supabase, ["active", "suggested"], space),
-        listTasks(supabase, undefined, space), listAppShortcuts(supabase, space), listAppConnections(supabase),
+        getCategories(db), monthSummary(db, month, accountIds), budgetStatus(db, month, accountIds),
+        listTransactions(db, { limit: 20, accountIds }), listSubscriptions(db, ["active", "suggested"], space),
+        listTasks(db, undefined, space), listAppShortcuts(db, space), listAppConnections(db),
       ]);
       return json({ accounts, categories, summary, budgets: budgets ?? [], transactions, subscriptions, tasks, apps, connections });
     }
     if (method === "GET" && route === "transactions") {
       const offset = z.coerce.number().int().min(0).max(1e7).parse(url.searchParams.get("offset") ?? 0);
-      const accounts = await getAccounts(supabase, space);
-      return json(await listTransactions(supabase, { offset, limit: 100, accountIds: space === "all" ? undefined : accounts.map((a) => a.id), search: (url.searchParams.get("search") ?? "").slice(0, 200) }));
+      const accounts = await getAccounts(db, space);
+      return json(await listTransactions(db, { offset, limit: 100, accountIds: space === "all" ? undefined : accounts.map((a) => a.id), search: (url.searchParams.get("search") ?? "").slice(0, 200) }));
     }
     if (method === "GET" && route === "catalog") return json(await getAppCatalog());
     if (method === "POST") {
       const input = await body(request);
-      if (route === "transactions") await addManualTransaction(supabase, v.transactionInput.parse(input));
-      else if (route === "tasks") await createTask(supabase, v.taskInput.parse(input));
-      else if (route === "subscriptions") await createSubscription(supabase, v.subscriptionInput.parse(input));
-      else if (route === "accounts") await createAccount(supabase, v.accountInput.parse(input));
-      else if (route === "budgets") { const p = v.budgetInput.parse(input); await setBudget(supabase, p.categoryId, p.monthlyLimit); }
+      if (route === "transactions") await addManualTransaction(db, v.transactionInput.parse(input));
+      else if (route === "tasks") await createTask(db, v.taskInput.parse(input));
+      else if (route === "subscriptions") await createSubscription(db, v.subscriptionInput.parse(input));
+      else if (route === "accounts") await createAccount(db, v.accountInput.parse(input));
+      else if (route === "budgets") { const p = v.budgetInput.parse(input); await setBudget(db, p.categoryId, p.monthlyLimit); }
       else if (route === "profile") {
         const p = v.profileInput.parse(input);
-        const { error } = await supabase.from("profiles").update({ display_name: p.displayName, currency: p.currency, timezone: p.timezone }).eq("id", userId);
+        const { error } = await db.from("profiles").update({ display_name: p.displayName, currency: p.currency, timezone: p.timezone }).eq("id", userId);
         if (error) throw error;
       } else if (route === "apps") {
         const values = z.record(z.string(), z.union([z.string(), z.boolean()])).parse(input);
         const form = new FormData();
         for (const [key, value] of Object.entries(values)) form.set(key, String(value));
-        await createAppShortcut(supabase, parseAppForm(form));
+        await createAppShortcut(db, parseAppForm(form));
       } else if (route === "agents") {
         const p = v.agentInput.parse(input);
-        const limit = await checkUserLimit(supabase);
+        const limit = await checkUserLimit(db);
         if (!limit.allowed) return json({ error: limit.message }, 429);
-        const { data: profile, error } = await supabase.from("profiles").select("currency, timezone").eq("id", userId).single();
+        const { data: profile, error } = await db.from("profiles").select("currency, timezone").eq("id", userId).single();
         if (error) throw error;
-        return json(await askAgent(supabase, { ...p, currency: profile.currency, timezone: profile.timezone }));
+        return json(await askAgent(db, { ...p, currency: profile.currency, timezone: profile.timezone }));
       } else if (route === "agents/decision") {
         const p = z.object({ requestId: v.uuid, conversationId: v.uuid, decision: z.enum(["confirm", "cancel"]) }).strict().parse(input);
         if (p.decision === "confirm") {
-          const { data, error } = await supabase.rpc("confirm_agent_deletion", { p_request_id: p.requestId, p_conversation_id: p.conversationId });
+          const { data, error } = await db.rpc("confirm_agent_deletion", { p_request_id: p.requestId, p_conversation_id: p.conversationId });
           if (error) throw error;
           if (!data?.[0]) throw new UserError("Confirmation introuvable ou expirée.");
         } else {
-          const { data, error } = await supabase.from("agent_deletion_requests").delete().eq("id", p.requestId).eq("conversation_id", p.conversationId).select("id").maybeSingle();
+          const { data, error } = await db.from("agent_deletion_requests").delete().eq("id", p.requestId).eq("conversation_id", p.conversationId).select("id").maybeSingle();
           if (error) throw error;
           if (!data) throw new UserError("Confirmation introuvable ou expirée.");
         }
@@ -122,19 +122,19 @@ async function handle(request: Request, context: Context) {
       const id = v.uuid.parse(path[1]);
       if (method === "PATCH") {
         const input = await body(request);
-        if (path[0] === "tasks") await updateTask(supabase, id, v.taskPatch.parse(input));
-        else if (path[0] === "subscriptions") await updateSubscription(supabase, id, v.subscriptionPatch.parse(input));
-        else if (path[0] === "apps") await pinAppShortcut(supabase, id, v.pinInput.parse(input).pinned);
-        else if (path[0] === "transactions") await setTransactionCategory(supabase, id, z.object({ categoryId: v.uuid.nullable() }).strict().parse(input).categoryId);
+        if (path[0] === "tasks") await updateTask(db, id, v.taskPatch.parse(input));
+        else if (path[0] === "subscriptions") await updateSubscription(db, id, v.subscriptionPatch.parse(input));
+        else if (path[0] === "apps") await pinAppShortcut(db, id, v.pinInput.parse(input).pinned);
+        else if (path[0] === "transactions") await setTransactionCategory(db, id, z.object({ categoryId: v.uuid.nullable() }).strict().parse(input).categoryId);
         else return json({ error: "Route introuvable." }, 404);
       } else {
-        if (path[0] === "transactions") await deleteTransaction(supabase, id);
-        else if (path[0] === "tasks") await deleteTask(supabase, id);
-        else if (path[0] === "subscriptions") await deleteSubscription(supabase, id);
-        else if (path[0] === "budgets") await deleteBudget(supabase, id);
+        if (path[0] === "transactions") await deleteTransaction(db, id);
+        else if (path[0] === "tasks") await deleteTask(db, id);
+        else if (path[0] === "subscriptions") await deleteSubscription(db, id);
+        else if (path[0] === "budgets") await deleteBudget(db, id);
         else if (path[0] === "apps") {
-          if (await getShortcutConnection(supabase, id)) throw new UserError("Déconnecte d'abord ce service depuis Kaobase sur le web.");
-          await deleteAppShortcut(supabase, id);
+          if (await getShortcutConnection(db, id)) throw new UserError("Déconnecte d'abord ce service depuis Kaobase sur le web.");
+          await deleteAppShortcut(db, id);
         } else return json({ error: "Route introuvable." }, 404);
       }
     } else return json({ error: "Route introuvable." }, 404);

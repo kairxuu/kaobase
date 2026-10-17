@@ -56,7 +56,7 @@ function disconnect(req = request(`connections/${ID}/disconnect`, {}), id = ID) 
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.auth.mockResolvedValue({ userId: USER, supabase: database });
+  mocks.auth.mockResolvedValue({ userId: USER, db: database });
   mocks.onboarding.mockResolvedValue("complete");
   mocks.catalog.mockResolvedValue({ configured: false, source: "local", apps: [] });
   mocks.providers.mockResolvedValue([provider]);

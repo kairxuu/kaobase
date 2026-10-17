@@ -23,8 +23,8 @@ struct KeychainStorage: SessionStorage {
 enum SessionKeychain {
     private static var query: [String: Any] {
         [kSecClass as String: kSecClassGenericPassword,
-         kSecAttrService as String: (Bundle.main.bundleIdentifier ?? "com.kaobase.ios") + ".session",
-         kSecAttrAccount as String: "supabase"]
+         kSecAttrService as String: (Bundle.main.bundleIdentifier ?? "com.kaobase.ios") + ".neon.session",
+         kSecAttrAccount as String: "neon"]
     }
     static func read() throws -> AuthSession? {
         var attributes = query

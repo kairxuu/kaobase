@@ -1,6 +1,6 @@
 import "server-only";
 import { z } from "zod";
-import type { Supabase } from "@/lib/supabase/server";
+import type { DatabaseClient } from "@/lib/database/server";
 import { CURRENCIES, ACCOUNT_KINDS } from "@/lib/profile-options";
 import { isValidTimezone } from "@/lib/time";
 import { parseAmount } from "@/lib/importers/csv";
@@ -8,9 +8,9 @@ import { UserError } from "@/lib/errors";
 
 export type OnboardingStatus = "pending" | "complete" | "unavailable";
 
-export async function getOnboardingStatus(supabase: Supabase, userId: string): Promise<OnboardingStatus> {
+export async function getOnboardingStatus(db: DatabaseClient, userId: string): Promise<OnboardingStatus> {
   try {
-    const { data, error } = await supabase.from("profiles").select("onboarding_completed_at").eq("id", userId).maybeSingle();
+    const { data, error } = await db.from("profiles").select("onboarding_completed_at").eq("id", userId).maybeSingle();
     if (error || !data) throw error ?? new Error("Profil manquant");
     return data.onboarding_completed_at ? "complete" : "pending";
   } catch (error) {
@@ -32,19 +32,18 @@ export type SetupInitial = {
   hasTransactions: boolean;
 };
 
-export async function getSetupInitial(supabase: Supabase, userId: string): Promise<SetupInitial> {
-  const [profileResult, authResult, accounts] = await Promise.all([
-    supabase.from("profiles").select("display_name, currency, timezone").eq("id", userId).maybeSingle(),
-    supabase.auth.getUser(),
-    supabase.from("accounts").select("id, name, kind, opening_balance, space").order("created_at").order("id").limit(1),
+export async function getSetupInitial(db: DatabaseClient, userId: string): Promise<SetupInitial> {
+  const [profileResult, accounts] = await Promise.all([
+    db.from("profiles").select("display_name, currency, timezone, timezone_manual").eq("id", userId).maybeSingle(),
+    db.from("accounts").select("id, name, kind, opening_balance, space").order("created_at").order("id").limit(1),
   ]);
-  for (const result of [profileResult, authResult, accounts]) if (result.error) throw result.error;
-  if (!profileResult.data || !authResult.data.user) throw new UserError("Tes informations ne sont pas accessibles pour le moment.");
+  for (const result of [profileResult, accounts]) if (result.error) throw result.error;
+  if (!profileResult.data) throw new UserError("Tes informations ne sont pas accessibles pour le moment.");
   const profile = profileResult.data;
   const account = accounts.data?.[0];
   let hasTransactions = false;
   if (account) {
-    const transactions = await supabase.from("transactions").select("id").eq("account_id", account.id).limit(1);
+    const transactions = await db.from("transactions").select("id").eq("account_id", account.id).limit(1);
     if (transactions.error) throw transactions.error;
     hasTransactions = Boolean(transactions.data?.length);
   }
@@ -52,7 +51,7 @@ export async function getSetupInitial(supabase: Supabase, userId: string): Promi
     displayName: profile.display_name ?? "",
     currency: CURRENCIES.some(([code]) => code === profile.currency) ? profile.currency : "EUR",
     timezone: profile.timezone,
-    timezoneManual: authResult.data.user.user_metadata?.timezone_manual === true,
+    timezoneManual: profile.timezone_manual === true,
     accountId: account?.id ?? null,
     accountName: account?.name ?? "Compte courant",
     accountKind: account && ACCOUNT_KINDS.includes(account.kind) ? account.kind : "checking",
@@ -86,8 +85,8 @@ export function parseSetupForm(formData: FormData) {
   return result.data;
 }
 
-export async function completeSetup(supabase: Supabase, input: ReturnType<typeof parseSetupForm>) {
-  const { data, error } = await supabase.rpc("complete_onboarding", {
+export async function completeSetup(db: DatabaseClient, input: ReturnType<typeof parseSetupForm>) {
+  const { data, error } = await db.rpc("complete_onboarding", {
     p_display_name: input.displayName, p_currency: input.currency, p_timezone: input.timezone,
     p_account_id: input.accountId, p_account_name: input.accountName, p_account_kind: input.accountKind,
     p_opening_balance: input.openingBalance, p_space: input.space,

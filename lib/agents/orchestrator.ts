@@ -1,6 +1,6 @@
 import "server-only";
 import type { ModelMessage } from "ai";
-import type { Supabase } from "@/lib/supabase/server";
+import type { DatabaseClient } from "@/lib/database/server";
 import { AGENT_IDS, routeByKeywords, type AgentId } from "@/lib/learning/router";
 import { contextBlock, recall, storeExchange } from "@/lib/learning/memory";
 import { generateWithFallback } from "@/lib/ai/provider";
@@ -25,7 +25,7 @@ export type AgentReply = {
 };
 
 // 1) mots-clés (gratuit), 2) petit modèle rapide si ambigu, 3) Finance par défaut.
-async function route(supabase: Supabase, message: string): Promise<{ agent: AgentId; routedBy: "keywords" | "llm" }> {
+async function route(db: DatabaseClient, message: string): Promise<{ agent: AgentId; routedBy: "keywords" | "llm" }> {
   const byKeywords = routeByKeywords(message);
   if (byKeywords.agent) return { agent: byKeywords.agent, routedBy: "keywords" };
 
@@ -40,7 +40,7 @@ async function route(supabase: Supabase, message: string): Promise<{ agent: Agen
     });
     const word = result.text.toLowerCase();
     const agent = AGENT_IDS.find((id) => word.includes(id)) ?? "finance";
-    await recordRun(supabase, {
+    await recordRun(db, {
       agent: "orchestrator",
       routedBy: "llm",
       provider,
@@ -58,7 +58,7 @@ async function route(supabase: Supabase, message: string): Promise<{ agent: Agen
 }
 
 export async function askAgent(
-  supabase: Supabase,
+  db: DatabaseClient,
   input: {
     message: string;
     agent: AgentId | "auto";
@@ -69,16 +69,16 @@ export async function askAgent(
   },
 ): Promise<AgentReply> {
   const { agent, routedBy } =
-    input.agent === "auto" ? await route(supabase, input.message) : { agent: input.agent, routedBy: "user" as const };
+    input.agent === "auto" ? await route(db, input.message) : { agent: input.agent, routedBy: "user" as const };
 
   const [context, toolContext, history] = await Promise.all([
-    recall(supabase, agent, input.message),
-    loadToolContext(supabase, {
+    recall(db, agent, input.message),
+    loadToolContext(db, {
       space: input.space ?? "all",
       today: localDate(input.timezone),
       conversationId: input.conversationId,
     }),
-    supabase
+    db
       .from("agent_messages")
       .select("role, content")
       .eq("conversation_id", input.conversationId)
@@ -107,14 +107,14 @@ export async function askAgent(
         space: input.space,
       }),
       messages,
-      tools: toolsFor(agent, supabase, toolContext),
+      tools: toolsFor(agent, db, toolContext),
       maxSteps: 10,
     });
     const { result } = generated;
     provider = generated.provider;
     toolsUsed.push(...successfulToolNames(result.steps));
     text = result.text.trim() || (toolContext.deletions.length ? "Confirme la suppression de l'élément indiqué ci-dessous." : "Je n'ai pas de réponse à afficher. Vérifie les résultats des actions dans les pages concernées.");
-    runId = await recordRun(supabase, {
+    runId = await recordRun(db, {
       agent,
       routedBy,
       provider: generated.provider,
@@ -129,11 +129,11 @@ export async function askAgent(
       examplesUsed: context.examples.length,
       error: generated.fallbackErrors.length ? `fallback: ${generated.fallbackErrors.join(" | ")}` : null,
     });
-    await storeExchange(supabase, agent, input.message, text, context.embedding);
+    await storeExchange(db, agent, input.message, text, context.embedding);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error(`[kaobase] agent ${agent} en échec :`, message);
-    runId = await recordRun(supabase, {
+    runId = await recordRun(db, {
       agent,
       routedBy,
       input: input.message,
@@ -143,7 +143,7 @@ export async function askAgent(
     text = `Je n'ai pas pu répondre : ${friendlyError(error)}`;
   }
 
-  await supabase.from("agent_messages").insert([
+  await db.from("agent_messages").insert([
     // Horodatages explicites : l'ordre de l'historique ne dépend pas de l'insertion groupée.
     { conversation_id: input.conversationId, agent, role: "user", content: input.message, created_at: new Date(started).toISOString() },
     { conversation_id: input.conversationId, agent, role: "assistant", content: text, run_id: runId, created_at: new Date().toISOString() },

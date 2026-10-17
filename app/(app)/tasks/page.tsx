@@ -14,9 +14,9 @@ const MOVE_LABEL = { todo: "Remettre à faire", doing: "Commencer", done: "Termi
 const PRIORITY_TONE = { high: "bg-warn-soft text-warn", medium: "", low: "text-ink-3" } as const;
 
 export default async function TasksPage() {
-  const { supabase } = await requireUser();
+  const { db } = await requireUser();
   const space = await getSpaceFilter();
-  const tasks = await listTasks(supabase, undefined, space);
+  const tasks = await listTasks(db, undefined, space);
   const today = new Date().toISOString().slice(0, 10);
 
   return (

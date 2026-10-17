@@ -16,13 +16,13 @@ export const metadata: Metadata = { title: "Agents" };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export default async function AgentsPage({ searchParams }: PageProps<"/agents">) {
-  const { supabase } = await requireUser();
+  const { db } = await requireUser();
   const params = await searchParams;
   const current = typeof params.c === "string" && UUID.test(params.c) ? params.c : undefined;
   const [conversations, stored, deletions] = await Promise.all([
-    listConversations(supabase),
-    current ? getConversation(supabase, current) : Promise.resolve([]),
-    current ? pendingDeletions(supabase, current) : Promise.resolve([]),
+    listConversations(db),
+    current ? getConversation(db, current) : Promise.resolve([]),
+    current ? pendingDeletions(db, current) : Promise.resolve([]),
   ]);
   const agents = AGENT_IDS.map((id) => ({ id, name: AGENTS[id].name, tagline: AGENTS[id].tagline }));
   const agentName = (id: string) => AGENTS[id as AgentId]?.name ?? "Agent";

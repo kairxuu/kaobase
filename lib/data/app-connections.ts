@@ -1,5 +1,5 @@
 import "server-only";
-import type { Supabase } from "@/lib/supabase/server";
+import type { DatabaseClient } from "@/lib/database/server";
 import type { parseAppForm } from "@/lib/apps";
 import { UserError } from "@/lib/errors";
 
@@ -23,11 +23,11 @@ export type CompleteAppConnectionInput = ReturnType<typeof parseAppForm> & {
 
 const COLUMNS = "id, shortcut_id, provider_id, provider_name, integration_id, connection_id, connected_at";
 
-export async function listAppConnections(supabase: Supabase): Promise<AppConnection[]> {
+export async function listAppConnections(db: DatabaseClient): Promise<AppConnection[]> {
   const connections: AppConnection[] = [];
   const batch = 200;
   for (let start = 0; ; start += batch) {
-    const { data, error } = await supabase.from("app_oauth_connections").select(COLUMNS)
+    const { data, error } = await db.from("app_oauth_connections").select(COLUMNS)
       .order("connected_at", { ascending: false }).order("id").range(start, start + batch - 1);
     if (error) throw error;
     const rows = (data ?? []) as AppConnection[];
@@ -36,21 +36,21 @@ export async function listAppConnections(supabase: Supabase): Promise<AppConnect
   }
 }
 
-export async function getAppConnection(supabase: Supabase, id: string): Promise<AppConnection | null> {
-  const { data, error } = await supabase.from("app_oauth_connections").select(COLUMNS).eq("id", id).maybeSingle();
+export async function getAppConnection(db: DatabaseClient, id: string): Promise<AppConnection | null> {
+  const { data, error } = await db.from("app_oauth_connections").select(COLUMNS).eq("id", id).maybeSingle();
   if (error) throw error;
   return data as AppConnection | null;
 }
 
-export async function getShortcutConnection(supabase: Supabase, shortcutId: string): Promise<AppConnection | null> {
-  const { data, error } = await supabase.from("app_oauth_connections").select(COLUMNS).eq("shortcut_id", shortcutId).maybeSingle();
+export async function getShortcutConnection(db: DatabaseClient, shortcutId: string): Promise<AppConnection | null> {
+  const { data, error } = await db.from("app_oauth_connections").select(COLUMNS).eq("shortcut_id", shortcutId).maybeSingle();
   if (error) throw error;
   return data as AppConnection | null;
 }
 
 /** The caller must verify this user's connection with Nango before persisting it. */
-export async function completeAppConnection(supabase: Supabase, input: CompleteAppConnectionInput): Promise<string> {
-  const { data, error } = await supabase.rpc("complete_app_oauth_connection", {
+export async function completeAppConnection(db: DatabaseClient, input: CompleteAppConnectionInput): Promise<string> {
+  const { data, error } = await db.rpc("complete_app_oauth_connection", {
     p_provider_id: input.providerId,
     p_provider_name: input.providerName,
     p_integration_id: input.integrationId,
@@ -69,14 +69,14 @@ export async function completeAppConnection(supabase: Supabase, input: CompleteA
 }
 
 /** Call after Nango has confirmed deletion (or that the connection is absent). */
-export async function deleteAppConnection(supabase: Supabase, id: string): Promise<void> {
-  const { data, error } = await supabase.from("app_oauth_connections").delete().eq("id", id).select("id").maybeSingle();
+export async function deleteAppConnection(db: DatabaseClient, id: string): Promise<void> {
+  const { data, error } = await db.from("app_oauth_connections").delete().eq("id", id).select("id").maybeSingle();
   if (error) throw error;
   if (!data) throw new UserError("Connexion introuvable : elle a peut-être été supprimée.");
 }
 
-export async function reserveAppConnectSession(supabase: Supabase): Promise<{ allowed: boolean; retryAfterSeconds: number }> {
-  const { data, error } = await supabase.rpc("reserve_app_connect_session");
+export async function reserveAppConnectSession(db: DatabaseClient): Promise<{ allowed: boolean; retryAfterSeconds: number }> {
+  const { data, error } = await db.rpc("reserve_app_connect_session");
   if (error) throw error;
   const result = Array.isArray(data) ? data[0] : undefined;
   if (!result || typeof result.allowed !== "boolean" || !Number.isInteger(result.retry_after_seconds)

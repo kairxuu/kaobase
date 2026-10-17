@@ -5,8 +5,8 @@ import { Nav } from "./nav";
 import { TimezoneSync } from "./timezone-sync";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
-  const { supabase, userId } = await requireUser();
-  const [profile, usage, space] = await Promise.all([getProfile(supabase, userId), getAiUsage(supabase), getSpaceFilter()]);
+  const { db, userId } = await requireUser();
+  const [profile, usage, space] = await Promise.all([getProfile(db, userId), getAiUsage(db), getSpaceFilter()]);
   const name = [profile.firstName, profile.lastName].filter(Boolean).join(" ");
 
   return (

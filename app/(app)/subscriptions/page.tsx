@@ -22,10 +22,10 @@ const PERIODS = [
 ] as const;
 
 export default async function SubscriptionsPage() {
-  const { supabase } = await requireUser();
+  const { db } = await requireUser();
   const money = moneyIn(await getCurrency());
   const space = await getSpaceFilter();
-  const subs = await listSubscriptions(supabase, ["active", "suggested", "cancelled"], space);
+  const subs = await listSubscriptions(db, ["active", "suggested", "cancelled"], space);
   const active = subs.filter((s) => s.status === "active");
   const suggested = subs.filter((s) => s.status === "suggested");
   const cancelled = subs.filter((s) => s.status === "cancelled");

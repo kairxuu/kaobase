@@ -21,7 +21,7 @@ describe("API de confirmation réservée au clic utilisateur", () => {
   const getSession = vi.mocked(getUserForApi);
   beforeEach(() => {
     vi.clearAllMocks();
-    getSession.mockResolvedValue({ userId: "user", supabase: { rpc } } as unknown as NonNullable<Awaited<ReturnType<typeof getUserForApi>>>);
+    getSession.mockResolvedValue({ userId: "user", db: { rpc } } as unknown as NonNullable<Awaited<ReturnType<typeof getUserForApi>>>);
   });
   it("refuse sans session", async () => {
     getSession.mockResolvedValue(null);

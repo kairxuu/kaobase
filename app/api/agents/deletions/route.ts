@@ -21,7 +21,7 @@ export async function POST(request: Request) {
   try {
     let message: string;
     if (decision === "confirm") {
-      const { data, error } = await session.supabase.rpc("confirm_agent_deletion", {
+      const { data, error } = await session.db.rpc("confirm_agent_deletion", {
         p_request_id: requestId, p_conversation_id: conversationId,
       });
       if (error?.code === "P0002") throw new UserError(error.message);
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
       if (!data?.[0]) throw new UserError("Confirmation introuvable.");
       message = `Suppression confirmée : ${data[0].description}`;
     } else {
-      const { data, error } = await session.supabase.from("agent_deletion_requests").delete()
+      const { data, error } = await session.db.from("agent_deletion_requests").delete()
         .eq("id", requestId).eq("conversation_id", conversationId).select("id").maybeSingle();
       if (error) throw error;
       if (!data) throw new UserError("Confirmation introuvable.");

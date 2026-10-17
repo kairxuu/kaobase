@@ -1,5 +1,5 @@
 import "server-only";
-import type { Supabase } from "@/lib/supabase/server";
+import type { DatabaseClient } from "@/lib/database/server";
 
 export type RunRecord = {
   agent: "orchestrator" | "finance" | "subscriptions" | "tasks" | "imports";
@@ -18,8 +18,8 @@ export type RunRecord = {
 };
 
 // Chaque appel IA est journalisé : c'est la matière première des métriques et de l'apprentissage.
-export async function recordRun(supabase: Supabase, run: RunRecord): Promise<string | null> {
-  const { data } = await supabase
+export async function recordRun(db: DatabaseClient, run: RunRecord): Promise<string | null> {
+  const { data } = await db
     .from("agent_runs")
     .insert({
       agent: run.agent,

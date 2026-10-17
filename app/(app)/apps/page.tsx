@@ -13,14 +13,14 @@ import { listAppConnections, type AppConnection } from "@/lib/data/app-connectio
 export const metadata: Metadata = { title: "Mes apps" };
 
 export default async function AppsPage() {
-  const { supabase } = await requireUser();
+  const { db } = await requireUser();
   const space = await getSpaceFilter();
   const catalogPromise = getAppCatalog();
   let apps: AppShortcut[] | null = null;
   let connections: AppConnection[] | null = null;
-  try { apps = await listAppShortcuts(supabase, space); }
+  try { apps = await listAppShortcuts(db, space); }
   catch (error) { console.error("[kaobase] chargement apps :", error); }
-  try { connections = await listAppConnections(supabase); }
+  try { connections = await listAppConnections(db); }
   catch { /* The shortcuts remain useful while an OAuth migration is pending. */ }
   const catalog = await catalogPromise;
 

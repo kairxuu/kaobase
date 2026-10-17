@@ -1,12 +1,12 @@
 import "server-only";
-import type { Supabase } from "@/lib/supabase/server";
+import type { DatabaseClient } from "@/lib/database/server";
 import { UserError } from "@/lib/errors";
 
 export type ConversationSummary = { id: string; title: string; agent: string; lastAt: string; messages: number };
 
 // Conversations passées, reconstituées depuis agent_messages (la plus récente d'abord).
-export async function listConversations(supabase: Supabase, limit = 20): Promise<ConversationSummary[]> {
-  const { data, error } = await supabase
+export async function listConversations(db: DatabaseClient, limit = 20): Promise<ConversationSummary[]> {
+  const { data, error } = await db
     .from("agent_messages")
     .select("conversation_id, agent, role, content, created_at")
     .order("created_at", { ascending: false })
@@ -35,8 +35,8 @@ export async function listConversations(supabase: Supabase, limit = 20): Promise
 
 export type StoredMessage = { role: "user" | "assistant"; content: string; agent: string; runId: string | null };
 
-export async function getConversation(supabase: Supabase, conversationId: string): Promise<StoredMessage[]> {
-  const { data, error } = await supabase
+export async function getConversation(db: DatabaseClient, conversationId: string): Promise<StoredMessage[]> {
+  const { data, error } = await db
     .from("agent_messages")
     .select("role, content, agent, run_id")
     .eq("conversation_id", conversationId)
@@ -51,17 +51,17 @@ export async function getConversation(supabase: Supabase, conversationId: string
   }));
 }
 
-export async function deleteConversation(supabase: Supabase, conversationId: string) {
-  const { error } = await supabase.from("agent_messages").delete().eq("conversation_id", conversationId);
+export async function deleteConversation(db: DatabaseClient, conversationId: string) {
+  const { error } = await db.from("agent_messages").delete().eq("conversation_id", conversationId);
   if (error) throw error;
 }
 
 export type MemoryItem = { id: string; agent: string; kind: string; content: string; createdAt: string; type: "memory" | "example" };
 
-export async function listMemories(supabase: Supabase): Promise<MemoryItem[]> {
+export async function listMemories(db: DatabaseClient): Promise<MemoryItem[]> {
   const [memories, examples] = await Promise.all([
-    supabase.from("agent_memories").select("id, agent, kind, content, created_at").neq("kind", "exchange").order("created_at", { ascending: false }).limit(100),
-    supabase.from("agent_examples").select("id, agent, input, output, created_at").order("created_at", { ascending: false }).limit(50),
+    db.from("agent_memories").select("id, agent, kind, content, created_at").neq("kind", "exchange").order("created_at", { ascending: false }).limit(100),
+    db.from("agent_examples").select("id, agent, input, output, created_at").order("created_at", { ascending: false }).limit(50),
   ]);
   if (memories.error) throw new Error(memories.error.message);
   if (examples.error) throw new Error(examples.error.message);
@@ -75,20 +75,20 @@ export async function listMemories(supabase: Supabase): Promise<MemoryItem[]> {
   ].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
-export async function countExchanges(supabase: Supabase) {
-  const { count } = await supabase.from("agent_memories").select("id", { count: "exact", head: true }).eq("kind", "exchange");
+export async function countExchanges(db: DatabaseClient) {
+  const { count } = await db.from("agent_memories").select("id", { count: "exact", head: true }).eq("kind", "exchange");
   return count ?? 0;
 }
 
-export async function deleteMemory(supabase: Supabase, id: string, type: "memory" | "example") {
+export async function deleteMemory(db: DatabaseClient, id: string, type: "memory" | "example") {
   const table = type === "memory" ? "agent_memories" : "agent_examples";
-  const { data, error } = await supabase.from(table).delete().eq("id", id).select("id");
+  const { data, error } = await db.from(table).delete().eq("id", id).select("id");
   if (error) throw error;
   if (!data?.length) throw new UserError("Souvenir introuvable");
 }
 
 // Efface aussi les échanges bruts mémorisés (souvenirs de type « exchange »).
-export async function clearExchanges(supabase: Supabase) {
-  const { error } = await supabase.from("agent_memories").delete().eq("kind", "exchange");
+export async function clearExchanges(db: DatabaseClient) {
+  const { error } = await db.from("agent_memories").delete().eq("kind", "exchange");
   if (error) throw error;
 }

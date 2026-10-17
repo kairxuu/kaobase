@@ -41,7 +41,7 @@ final class APIClientTests: XCTestCase {
     private func api(storage: MemoryStorage) throws -> APIClient {
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [StubProtocol.self]
-        return APIClient(configuration: try AppConfiguration(website: "https://app.example.test", auth: "https://auth.example.test", publicKey: "sb_publishable_test"), transport: URLSession(configuration: config), storage: storage)
+        return APIClient(configuration: try AppConfiguration(website: "https://app.example.test"), transport: URLSession(configuration: config), storage: storage)
     }
     func testBackendReceivesOnlyBearerAndEncodedQuery() async throws {
         let storage = MemoryStorage(expired: false)
@@ -62,7 +62,7 @@ final class APIClientTests: XCTestCase {
         let api = try api(storage: storage)
         _ = try await api.restore()
         StubProtocol.state.set { request in
-            if request.url!.path.contains("/token") {
+            if request.url!.path.contains("/auth/refresh") {
                 Thread.sleep(forTimeInterval: 0.1)
                 return (200, #"{"access_token":"rotated-access","refresh_token":"rotated-refresh","expires_in":3600,"user":{"id":"test"}}"#)
             }
@@ -73,7 +73,7 @@ final class APIClientTests: XCTestCase {
         async let second: Success = api.request("two")
         let results = try await [first, second]
         XCTAssertTrue(results.allSatisfy(\.ok))
-        XCTAssertEqual(StubProtocol.state.requests.filter { $0.url!.path.contains("/token") }.count, 1)
+        XCTAssertEqual(StubProtocol.state.requests.filter { $0.url!.path.contains("/auth/refresh") }.count, 1)
         XCTAssertEqual(storage.read()?.refreshToken, "rotated-refresh")
     }
     func testTransientAuthOutageKeepsSessionForRetry() async throws {
@@ -88,7 +88,7 @@ final class APIClientTests: XCTestCase {
         let storage = MemoryStorage(expired: true)
         let api = try api(storage: storage)
         _ = try await api.restore()
-        StubProtocol.state.set { _ in (400, #"{"error_code":"refresh_token_not_found"}"#) }
+        StubProtocol.state.set { _ in (400, #"{"code":"SESSION_EXPIRED"}"#) }
         do { let _: Success = try await api.request("overview"); XCTFail("Expected failure") } catch {}
         XCTAssertNil(storage.read())
     }

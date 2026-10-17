@@ -1,5 +1,5 @@
 import "server-only";
-import type { Supabase } from "@/lib/supabase/server";
+import type { DatabaseClient } from "@/lib/database/server";
 import type { Category, Transaction } from "@/lib/types";
 import type { Space, SpaceFilter } from "@/lib/space-shared";
 import { dedupeHash, normalizeMerchant } from "@/lib/finance/normalize";
@@ -16,21 +16,21 @@ function check<T>(res: { data: T | null; error: { message: string } | null }): T
   return res.data as T;
 }
 
-export async function getCategories(supabase: Supabase): Promise<Category[]> {
-  return check(await supabase.from("categories").select("id, name, kind, color").order("kind").order("name"));
+export async function getCategories(db: DatabaseClient): Promise<Category[]> {
+  return check(await db.from("categories").select("id, name, kind, color").order("kind").order("name"));
 }
 
 export type AccountBalance = { id: string; name: string; kind: string; currency: string; space: Space; balance: number };
 
 // space : filtre perso/pro (ticket #1) ; « all » ou absent = tous les comptes.
-export async function getAccounts(supabase: Supabase, space: SpaceFilter = "all"): Promise<AccountBalance[]> {
-  let q = supabase.from("account_balances").select("id, name, kind, currency, space, balance");
+export async function getAccounts(db: DatabaseClient, space: SpaceFilter = "all"): Promise<AccountBalance[]> {
+  let q = db.from("account_balances").select("id, name, kind, currency, space, balance");
   if (space !== "all") q = q.eq("space", space);
   return check(await q.order("name")) as AccountBalance[];
 }
 
-export async function getTotalBalance(supabase: Supabase, space: SpaceFilter = "all"): Promise<number> {
-  const accounts = await getAccounts(supabase, space);
+export async function getTotalBalance(db: DatabaseClient, space: SpaceFilter = "all"): Promise<number> {
+  const accounts = await getAccounts(db, space);
   return Math.round(accounts.reduce((s, a) => s + Number(a.balance), 0) * 100) / 100;
 }
 
@@ -47,8 +47,8 @@ export type TransactionFilters = {
   accountIds?: string[];
 };
 
-export async function listTransactions(supabase: Supabase, f: TransactionFilters = {}): Promise<Transaction[]> {
-  let q = supabase.from("transactions").select(TX_COLUMNS).order("booked_at", { ascending: false });
+export async function listTransactions(db: DatabaseClient, f: TransactionFilters = {}): Promise<Transaction[]> {
+  let q = db.from("transactions").select(TX_COLUMNS).order("booked_at", { ascending: false });
   if (f.from) q = q.gte("booked_at", f.from);
   if (f.to) q = q.lte("booked_at", f.to);
   if (f.categoryId) q = q.eq("category_id", f.categoryId);
@@ -65,8 +65,8 @@ export async function listTransactions(supabase: Supabase, f: TransactionFilters
   return rows.map((r) => ({ ...r, amount: Number(r.amount) }));
 }
 
-export async function getTransaction(supabase: Supabase, id: string): Promise<Transaction | null> {
-  const { data, error } = await supabase.from("transactions").select(TX_COLUMNS).eq("id", id).maybeSingle();
+export async function getTransaction(db: DatabaseClient, id: string): Promise<Transaction | null> {
+  const { data, error } = await db.from("transactions").select(TX_COLUMNS).eq("id", id).maybeSingle();
   if (error) throw error;
   return data ? { ...(data as Transaction), amount: Number((data as Transaction).amount) } : null;
 }
@@ -77,11 +77,11 @@ export function monthRange(month: string): { from: string; to: string } {
   return { from: `${month}-01`, to: `${month}-${String(last).padStart(2, "0")}` };
 }
 
-export async function monthSummary(supabase: Supabase, month: string, accountIds?: string[]) {
+export async function monthSummary(db: DatabaseClient, month: string, accountIds?: string[]) {
   const { from, to } = monthRange(month);
   const [txs, categories] = await Promise.all([
-    listTransactions(supabase, { from, to, limit: 5000, accountIds }),
-    getCategories(supabase),
+    listTransactions(db, { from, to, limit: 5000, accountIds }),
+    getCategories(db),
   ]);
   return summarizeMonth(txs, categories, month);
 }
@@ -133,10 +133,10 @@ function toRule(r: RuleRow): Rule {
   return { merchant: r.merchant, categoryId: r.category_id, source: r.source, hits: r.hits, misses: r.misses };
 }
 
-async function loadRules(supabase: Supabase, merchants: string[]): Promise<Map<string, Rule>> {
+async function loadRules(db: DatabaseClient, merchants: string[]): Promise<Map<string, Rule>> {
   if (merchants.length === 0) return new Map();
   const rows = check(
-    await supabase
+    await db
       .from("categorization_rules")
       .select("merchant, category_id, source, hits, misses")
       .in("merchant", merchants),
@@ -144,9 +144,9 @@ async function loadRules(supabase: Supabase, merchants: string[]): Promise<Map<s
   return new Map(rows.map((r) => [r.merchant, toRule(r)]));
 }
 
-async function saveRule(supabase: Supabase, rule: Rule) {
+async function saveRule(db: DatabaseClient, rule: Rule) {
   check(
-    await supabase.from("categorization_rules").upsert(
+    await db.from("categorization_rules").upsert(
       {
         merchant: rule.merchant,
         category_id: rule.categoryId,
@@ -162,9 +162,9 @@ async function saveRule(supabase: Supabase, rule: Rule) {
 
 // L'utilisateur choisit une catégorie : on apprend, puis on propage aux transactions
 // du même marchand qu'il n'a pas catégorisées lui-même.
-export async function setTransactionCategory(supabase: Supabase, transactionId: string, categoryId: string | null) {
+export async function setTransactionCategory(db: DatabaseClient, transactionId: string, categoryId: string | null) {
   const tx = check(
-    await supabase
+    await db
       .from("transactions")
       .update({ category_id: categoryId, categorized_by: categoryId ? "user" : null })
       .eq("id", transactionId)
@@ -173,13 +173,13 @@ export async function setTransactionCategory(supabase: Supabase, transactionId: 
   ) as { merchant: string };
   if (!categoryId) return { propagated: 0 };
 
-  const existing = (await loadRules(supabase, [tx.merchant])).get(tx.merchant);
+  const existing = (await loadRules(db, [tx.merchant])).get(tx.merchant);
   const rule = learnFromUser(existing, tx.merchant, categoryId);
-  await saveRule(supabase, rule);
+  await saveRule(db, rule);
 
   if (rule.categoryId !== categoryId) return { propagated: 0 };
   const updated = check(
-    await supabase
+    await db
       .from("transactions")
       .update({ category_id: categoryId, categorized_by: "rule" })
       .eq("merchant", tx.merchant)
@@ -191,11 +191,11 @@ export async function setTransactionCategory(supabase: Supabase, transactionId: 
 }
 
 export async function categorizeTransactions(
-  supabase: Supabase,
+  db: DatabaseClient,
   transactions: Pick<Transaction, "id" | "merchant" | "label_raw" | "amount">[],
 ) {
   const merchants = [...new Set(transactions.map((t) => t.merchant))];
-  const rules = await loadRules(supabase, merchants);
+  const rules = await loadRules(db, merchants);
   let byRule = 0;
   let byLlm = 0;
 
@@ -216,12 +216,12 @@ export async function categorizeTransactions(
 
   let llmError: string | null = null;
   if (unknown.size > 0) {
-    const categories = await getCategories(supabase);
+    const categories = await getCategories(db);
     try {
-      const suggestions = await categorizeMerchantsWithLlm(supabase, [...unknown.values()], categories);
+      const suggestions = await categorizeMerchantsWithLlm(db, [...unknown.values()], categories);
       for (const [merchant, categoryId] of suggestions) {
         const rule = learnFromLlm(rules.get(merchant), merchant, categoryId);
-        if (rule) await saveRule(supabase, rule);
+        if (rule) await saveRule(db, rule);
         const ids = transactions.filter((t) => t.merchant === merchant).map((t) => t.id);
         assignments.set(merchant, { categoryId, by: "llm", ids });
         byLlm += ids.length;
@@ -235,7 +235,7 @@ export async function categorizeTransactions(
   for (const group of groupAssignments([...assignments.values()])) {
     for (let i = 0; i < group.ids.length; i += 500) {
       check(
-        await supabase
+        await db
           .from("transactions")
           .update({ category_id: group.categoryId, categorized_by: group.by })
           .in("id", group.ids.slice(i, i + 500)),
@@ -251,7 +251,7 @@ export async function categorizeTransactions(
 // ---------------------------------------------------------------------------
 
 export async function importTransactions(
-  supabase: Supabase,
+  db: DatabaseClient,
   input: {
     accountId: string | null;
     filename: string;
@@ -262,7 +262,7 @@ export async function importTransactions(
   },
 ) {
   const importRecord = check(
-    await supabase
+    await db
       .from("imports")
       .insert({
         account_id: input.accountId,
@@ -298,7 +298,7 @@ export async function importTransactions(
   const inserted: Pick<Transaction, "id" | "merchant" | "label_raw" | "amount">[] = [];
   for (let i = 0; i < records.length; i += 500) {
     const chunk = check(
-      await supabase
+      await db
         .from("transactions")
         .upsert(records.slice(i, i + 500), { onConflict: "user_id,dedupe_hash", ignoreDuplicates: true })
         .select("id, merchant, label_raw, amount"),
@@ -308,14 +308,14 @@ export async function importTransactions(
 
   const duplicates = records.length - inserted.length;
   check(
-    await supabase
+    await db
       .from("imports")
       .update({ rows_imported: inserted.length, rows_duplicate: duplicates })
       .eq("id", importRecord.id),
   );
 
-  const categorization = await categorizeTransactions(supabase, inserted);
-  const detection = await runSubscriptionDetection(supabase);
+  const categorization = await categorizeTransactions(db, inserted);
+  const detection = await runSubscriptionDetection(db);
 
   return {
     importId: importRecord.id,
@@ -330,7 +330,7 @@ export async function importTransactions(
 // Ajout à la main ou par un agent. Catégorie choisie par l'utilisateur -> règle apprise ;
 // proposée par l'IA -> règle faible ; absente -> on applique une règle connue s'il y en a une.
 export async function addManualTransaction(
-  supabase: Supabase,
+  db: DatabaseClient,
   input: {
     accountId: string | null;
     bookedAt: string;
@@ -342,7 +342,7 @@ export async function addManualTransaction(
 ) {
   const merchant = normalizeMerchant(input.label);
   const tx = check(
-    await supabase
+    await db
       .from("transactions")
       .insert({
         account_id: input.accountId,
@@ -365,29 +365,29 @@ export async function addManualTransaction(
 
   const by = input.categorizedBy ?? "user";
   if (input.categoryId && by === "user") {
-    await setTransactionCategory(supabase, tx.id, input.categoryId);
+    await setTransactionCategory(db, tx.id, input.categoryId);
     return { id: tx.id, merchant, categoryId: input.categoryId };
   }
-  const existing = (await loadRules(supabase, [merchant])).get(merchant);
+  const existing = (await loadRules(db, [merchant])).get(merchant);
   const rule = applicableRule(existing);
   const categoryId = rule?.categoryId ?? input.categoryId;
   if (categoryId) {
     check(
-      await supabase
+      await db
         .from("transactions")
         .update({ category_id: categoryId, categorized_by: rule ? "rule" : "llm" })
         .eq("id", tx.id),
     );
     if (!rule && input.categoryId) {
       const learned = learnFromLlm(existing, merchant, input.categoryId);
-      if (learned) await saveRule(supabase, learned);
+      if (learned) await saveRule(db, learned);
     }
   }
   return { id: tx.id, merchant, categoryId: categoryId ?? null };
 }
 
 export async function updateTransaction(
-  supabase: Supabase,
+  db: DatabaseClient,
   id: string,
   patch: { bookedAt?: string; amount?: number; label?: string },
 ) {
@@ -399,19 +399,19 @@ export async function updateTransaction(
     update.merchant = normalizeMerchant(patch.label);
   }
   if (Object.keys(update).length === 0) throw new UserError("Rien à modifier");
-  return check(await supabase.from("transactions").update(update).eq("id", id).select(TX_COLUMNS).single()) as Transaction;
+  return check(await db.from("transactions").update(update).eq("id", id).select(TX_COLUMNS).single()) as Transaction;
 }
 
-export async function deleteTransaction(supabase: Supabase, id: string) {
-  const deleted = check(await supabase.from("transactions").delete().eq("id", id).select("id")) as { id: string }[];
+export async function deleteTransaction(db: DatabaseClient, id: string) {
+  const deleted = check(await db.from("transactions").delete().eq("id", id).select("id")) as { id: string }[];
   if (deleted.length === 0) throw new UserError("Opération introuvable");
 }
 
 export async function createCategory(
-  supabase: Supabase,
+  db: DatabaseClient,
   input: { name: string; kind: "expense" | "income" | "transfer"; color?: string },
 ) {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("categories")
     .insert({ name: input.name.trim(), kind: input.kind, color: input.color ?? "#64748b" })
     .select("id, name, kind, color")
@@ -422,10 +422,10 @@ export async function createCategory(
 }
 
 export async function createAccount(
-  supabase: Supabase,
+  db: DatabaseClient,
   input: { name: string; kind: string; openingBalance: number; space?: Space },
 ) {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("accounts")
     .insert({ name: input.name.trim(), kind: input.kind, opening_balance: input.openingBalance, space: input.space ?? "perso" })
     .select("id, name")
@@ -454,25 +454,25 @@ export function rankMerchants(txs: Transaction[], limit = 10) {
 // Gestion : catégories, comptes, imports
 // ---------------------------------------------------------------------------
 
-export async function renameCategory(supabase: Supabase, id: string, input: { name: string; color?: string }) {
+export async function renameCategory(db: DatabaseClient, id: string, input: { name: string; color?: string }) {
   const update: Record<string, string> = { name: input.name.trim() };
   if (input.color) update.color = input.color;
-  check(await supabase.from("categories").update(update).eq("id", id).select("id").single());
+  check(await db.from("categories").update(update).eq("id", id).select("id").single());
 }
 
 // Les opérations gardent leur montant et deviennent « sans catégorie » ; règles et budgets liés disparaissent.
-export async function deleteCategory(supabase: Supabase, id: string) {
-  const deleted = check(await supabase.from("categories").delete().eq("id", id).select("id")) as { id: string }[];
+export async function deleteCategory(db: DatabaseClient, id: string) {
+  const deleted = check(await db.from("categories").delete().eq("id", id).select("id")) as { id: string }[];
   if (deleted.length === 0) throw new UserError("Catégorie introuvable");
 }
 
 export async function updateAccount(
-  supabase: Supabase,
+  db: DatabaseClient,
   id: string,
   input: { name: string; openingBalance: number; space?: Space },
 ) {
   check(
-    await supabase
+    await db
       .from("accounts")
       .update({ name: input.name.trim(), opening_balance: input.openingBalance, ...(input.space ? { space: input.space } : {}) })
       .eq("id", id)
@@ -482,19 +482,19 @@ export async function updateAccount(
 }
 
 // Supprimer un compte supprime aussi ses opérations : sinon elles fausseraient le solde total.
-export async function deleteAccount(supabase: Supabase, id: string) {
-  const accounts = check(await supabase.from("accounts").select("id")) as { id: string }[];
+export async function deleteAccount(db: DatabaseClient, id: string) {
+  const accounts = check(await db.from("accounts").select("id")) as { id: string }[];
   if (accounts.length <= 1) throw new UserError("Garde au moins un compte : c'est là que vont les opérations.");
-  check(await supabase.from("transactions").delete().eq("account_id", id));
-  const deleted = check(await supabase.from("accounts").delete().eq("id", id).select("id")) as { id: string }[];
+  check(await db.from("transactions").delete().eq("account_id", id));
+  const deleted = check(await db.from("accounts").delete().eq("id", id).select("id")) as { id: string }[];
   if (deleted.length === 0) throw new UserError("Compte introuvable");
 }
 
 // Annule un import : retire uniquement les opérations ajoutées par ce fichier, puis l'entrée d'historique.
-export async function undoImport(supabase: Supabase, importId: string) {
+export async function undoImport(db: DatabaseClient, importId: string) {
   const removed = check(
-    await supabase.from("transactions").delete().eq("import_id", importId).select("id"),
+    await db.from("transactions").delete().eq("import_id", importId).select("id"),
   ) as { id: string }[];
-  check(await supabase.from("imports").delete().eq("id", importId));
+  check(await db.from("imports").delete().eq("id", importId));
   return { removed: removed.length };
 }

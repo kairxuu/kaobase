@@ -64,7 +64,7 @@ export async function appApi(request: Request | null, action: (session: ApiSessi
     if (request) checkAppOrigin(request);
     const session = await getUserForApi();
     if (!session) throw new AppApiError("Reconnecte-toi pour gérer tes apps.", 401);
-    if (await getOnboardingStatus(session.supabase, session.userId) !== "complete") throw new AppApiError("Termine la configuration de ton compte avant de connecter une app.", 403);
+    if (await getOnboardingStatus(session.db, session.userId) !== "complete") throw new AppApiError("Termine la configuration de ton compte avant de connecter une app.", 403);
     return Response.json(await action(session), { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     const candidate = error as { status?: unknown; code?: unknown } | null;

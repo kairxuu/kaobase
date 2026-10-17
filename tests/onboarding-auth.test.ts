@@ -1,165 +1,29 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { NextRequest } from "next/server";
-
-const mocks = vi.hoisted(() => ({
-  createClient: vi.fn(),
-  getOnboardingStatus: vi.fn(),
-  redirect: vi.fn((path: string): never => { throw new Error(`redirect:${path}`); }),
-  auth: {
-    getClaims: vi.fn(),
-    signInWithPassword: vi.fn(),
-    signUp: vi.fn(),
-    verifyOtp: vi.fn(),
-    exchangeCodeForSession: vi.fn(),
-  },
-}));
-
-vi.mock("server-only", () => ({}));
-vi.mock("next/navigation", () => ({ redirect: mocks.redirect }));
-vi.mock("@/lib/supabase/server", () => ({ createClient: mocks.createClient }));
-vi.mock("@/lib/data/onboarding", () => ({ getOnboardingStatus: mocks.getOnboardingStatus }));
-vi.mock("@/lib/site", () => ({ siteOrigin: async () => "https://kaobase.example" }));
-
-import { getUserForApi, requireSession, requireUser } from "@/lib/auth";
-import { signIn, signUp } from "@/app/login/actions";
-import { GET } from "@/app/auth/confirm/route";
-
-const user = { id: "user-id" };
-const supabase = { auth: mocks.auth };
-
-function credentials() {
-  const form = new FormData();
-  form.set("email", "test@example.com");
-  form.set("password", "password123");
-  form.set("name", "Camille");
-  return form;
-}
-
-async function confirm(query: string) {
-  return GET(new NextRequest(`https://kaobase.example/auth/confirm?${query}`));
-}
-
-beforeEach(() => {
-  vi.clearAllMocks();
-  mocks.createClient.mockResolvedValue(supabase);
-  mocks.getOnboardingStatus.mockResolvedValue("pending");
-  mocks.auth.getClaims.mockResolvedValue({ data: { claims: { sub: user.id, email: "test@example.com" } }, error: null });
-  mocks.auth.signInWithPassword.mockResolvedValue({ data: { user }, error: null });
-  mocks.auth.signUp.mockResolvedValue({ data: { user, session: { access_token: "test" } }, error: null });
-  mocks.auth.verifyOtp.mockResolvedValue({ data: { user }, error: null });
-  mocks.auth.exchangeCodeForSession.mockResolvedValue({ data: { user }, error: null });
+import {beforeEach,describe,expect,it,vi} from 'vitest';
+vi.mock('server-only',()=>({}));
+const mocks=vi.hoisted(()=>({client:vi.fn(),session:vi.fn(),signIn:vi.fn(),signUp:vi.fn(),verify:vi.fn(),identity:vi.fn(),onboarding:vi.fn(),redirect:vi.fn((p:string):never=>{throw new Error('redirect:'+p);})}));
+vi.mock('next/navigation',()=>({redirect:mocks.redirect}));
+vi.mock('@/lib/database/server',()=>({createClient:mocks.client}));
+vi.mock('@/lib/auth/server',()=>({getAuth:()=>({getSession:mocks.session,signIn:{email:mocks.signIn},signUp:{email:mocks.signUp},emailOtp:{verifyEmail:mocks.verify}})}));
+vi.mock('@/lib/data/identity',()=>({ensureAppIdentity:mocks.identity}));
+vi.mock('@/lib/data/onboarding',()=>({getOnboardingStatus:mocks.onboarding}));
+import {requireSession,requireUser,getUserForApi} from '@/lib/auth';
+import {signIn,signUp,verifyEmail} from '@/app/login/actions';
+const db={from:vi.fn()};const user={id:'user-id',email:'test@example.com',emailVerified:true};
+function form(){const f=new FormData();f.set('email',user.email);f.set('password','password123');f.set('name','Camille');f.set('otp','123456');return f;}
+beforeEach(()=>{
+ vi.clearAllMocks();mocks.client.mockResolvedValue(db);mocks.session.mockResolvedValue({data:{user},error:null});mocks.identity.mockResolvedValue(undefined);mocks.onboarding.mockResolvedValue('pending');mocks.signIn.mockResolvedValue({data:{user},error:null});mocks.signUp.mockResolvedValue({data:{user},error:null});mocks.verify.mockResolvedValue({data:{user},error:null});
 });
-
-describe("accès avant et après la configuration initiale", () => {
-  it("laisse le parcours de configuration vérifier la session sans boucle", async () => {
-    await expect(requireSession()).resolves.toEqual({ supabase, userId: user.id, email: "test@example.com" });
-    expect(mocks.getOnboardingStatus).not.toHaveBeenCalled();
-  });
-
-  it("renvoie un visiteur sans session à la connexion", async () => {
-    mocks.auth.getClaims.mockResolvedValue({ data: null, error: null });
-    await expect(requireSession()).rejects.toThrow("redirect:/login");
-    expect(mocks.getOnboardingStatus).not.toHaveBeenCalled();
-  });
-
-  it.each(["pending", "unavailable"])("ouvre la configuration si son état est %s", async (status) => {
-    mocks.getOnboardingStatus.mockResolvedValue(status);
-    await expect(requireUser()).rejects.toThrow("redirect:/setup");
-    expect(mocks.getOnboardingStatus).toHaveBeenCalledWith(supabase, user.id);
-  });
-
-  it("laisse accéder à l’application une fois la configuration terminée", async () => {
-    mocks.getOnboardingStatus.mockResolvedValue("complete");
-    await expect(requireUser()).resolves.toMatchObject({ userId: user.id });
-    expect(mocks.redirect).not.toHaveBeenCalled();
-  });
-
-  it("conserve le contrat des API sans redirection vers la configuration", async () => {
-    await expect(getUserForApi()).resolves.toEqual({ supabase, userId: user.id });
-    expect(mocks.getOnboardingStatus).not.toHaveBeenCalled();
-    mocks.auth.getClaims.mockResolvedValue({ data: null, error: null });
-    await expect(getUserForApi()).resolves.toBeNull();
-    expect(mocks.redirect).not.toHaveBeenCalled();
-  });
+describe('accès Neon et configuration initiale',()=>{
+ it('initialise uniquement une identité vérifiée',async()=>{expect(await requireSession()).toEqual({db,userId:user.id,email:user.email});expect(mocks.identity).toHaveBeenCalledWith(db);expect(mocks.onboarding).not.toHaveBeenCalled();});
+ it.each([null,{user:{...user,emailVerified:false}}])('refuse une session absente ou non confirmée',async(data)=>{mocks.session.mockResolvedValue({data,error:null});expect(await getUserForApi()).toBeNull();expect(mocks.identity).not.toHaveBeenCalled();await expect(requireSession()).rejects.toThrow('redirect:/login');});
+ it.each(['pending','unavailable'])('ouvre la configuration si %s',async(status)=>{mocks.onboarding.mockResolvedValue(status);await expect(requireUser()).rejects.toThrow('redirect:/setup');});
+ it('retrouve l’accueil lorsque le profil est configuré',async()=>{mocks.onboarding.mockResolvedValue('complete');expect(await requireUser()).toMatchObject({userId:user.id});});
 });
-
-describe("inscription et connexion", () => {
-  it("ouvre la configuration après une inscription avec session immédiate", async () => {
-    await expect(signUp({}, credentials())).rejects.toThrow("redirect:/setup");
-    expect(mocks.auth.signUp).toHaveBeenCalledWith(expect.objectContaining({
-      options: { emailRedirectTo: "https://kaobase.example/auth/confirm", data: { display_name: "Camille" } },
-    }));
-  });
-
-  it("attend la confirmation email lorsqu’aucune session n’a été créée", async () => {
-    mocks.auth.signUp.mockResolvedValue({ data: { user, session: null }, error: null });
-    await expect(signUp({}, credentials())).resolves.toEqual({ info: expect.stringContaining("confirmation") });
-    expect(mocks.redirect).not.toHaveBeenCalled();
-  });
-
-  it.each(["pending", "unavailable"])("ouvre la configuration à la connexion si son état est %s", async (status) => {
-    mocks.getOnboardingStatus.mockResolvedValue(status);
-    await expect(signIn({}, credentials())).rejects.toThrow("redirect:/setup");
-    expect(mocks.getOnboardingStatus).toHaveBeenCalledWith(supabase, user.id);
-  });
-
-  it("ouvre directement l’accueil aux connexions suivantes", async () => {
-    mocks.getOnboardingStatus.mockResolvedValue("complete");
-    await expect(signIn({}, credentials())).rejects.toThrow("redirect:/");
-    expect(mocks.redirect).toHaveBeenCalledExactlyOnceWith("/");
-  });
-
-  it("ne consulte pas le profil lorsque l’authentification échoue", async () => {
-    mocks.auth.signInWithPassword.mockResolvedValue({ data: { user: null }, error: { code: "invalid_credentials" } });
-    await expect(signIn({}, credentials())).resolves.toEqual({ error: "Email ou mot de passe incorrect." });
-    expect(mocks.getOnboardingStatus).not.toHaveBeenCalled();
-    expect(mocks.redirect).not.toHaveBeenCalled();
-  });
-});
-
-describe("retour des liens email", () => {
-  it.each(["pending", "unavailable"])("ouvre la configuration après confirmation quand l’état est %s", async (status) => {
-    mocks.getOnboardingStatus.mockResolvedValue(status);
-    const response = await confirm("token_hash=test-token&type=signup");
-    expect(response.headers.get("location")).toBe("https://kaobase.example/setup");
-    expect(mocks.auth.verifyOtp).toHaveBeenCalledWith({ type: "signup", token_hash: "test-token" });
-  });
-
-  it("retrouve l’accueil si la configuration est déjà terminée", async () => {
-    mocks.getOnboardingStatus.mockResolvedValue("complete");
-    const response = await confirm("token_hash=test-token&type=email");
-    expect(response.headers.get("location")).toBe("https://kaobase.example/");
-  });
-
-  it("gère aussi la confirmation PKCE avant la première configuration", async () => {
-    const response = await confirm("code=test-code");
-    expect(response.headers.get("location")).toBe("https://kaobase.example/setup");
-    expect(mocks.auth.exchangeCodeForSession).toHaveBeenCalledWith("test-code");
-  });
-
-  it("préserve le parcours de récupération du mot de passe", async () => {
-    const response = await confirm("token_hash=test-token&type=recovery");
-    expect(response.headers.get("location")).toBe("https://kaobase.example/auth/reset");
-    expect(mocks.getOnboardingStatus).not.toHaveBeenCalled();
-  });
-
-  it.each(["/settings", "/auth/reset"])("préserve la destination interne %s", async (next) => {
-    const response = await confirm(`code=test-code&next=${encodeURIComponent(next)}`);
-    expect(response.headers.get("location")).toBe(`https://kaobase.example${next}`);
-    expect(mocks.getOnboardingStatus).not.toHaveBeenCalled();
-  });
-
-  it.each(["https://other.example/path", "//other.example", "/\\other.example", "/%2Fother.example"])(
-    "refuse la destination externe ou ambiguë %s", async (next) => {
-      const response = await confirm(`code=test-code&next=${encodeURIComponent(next)}`);
-      expect(response.headers.get("location")).toBe("https://kaobase.example/setup");
-    },
-  );
-
-  it("renvoie à la connexion lorsque le lien est expiré", async () => {
-    mocks.auth.verifyOtp.mockResolvedValue({ data: { user: null }, error: { code: "otp_expired" } });
-    const response = await confirm("token_hash=expired&type=signup");
-    expect(response.headers.get("location")).toBe("https://kaobase.example/login?lien=expire");
-    expect(mocks.getOnboardingStatus).not.toHaveBeenCalled();
-  });
+describe('inscription et confirmation Neon',()=>{
+ it('attend le code après inscription',async()=>{expect(await signUp({},form())).toMatchObject({step:'verify',email:user.email});expect(mocks.signUp).toHaveBeenCalledWith({email:user.email,password:'password123',name:'Camille'});expect(mocks.identity).not.toHaveBeenCalled();});
+ it('affiche une erreur sans consulter les données',async()=>{mocks.signIn.mockResolvedValue({error:{code:'INVALID_EMAIL_OR_PASSWORD'}});expect(await signIn({},form())).toHaveProperty('error');expect(mocks.identity).not.toHaveBeenCalled();});
+ it('ouvre la saisie du code si l’adresse reste non confirmée',async()=>{mocks.signIn.mockResolvedValue({error:{code:'EMAIL_NOT_VERIFIED'}});expect(await signIn({},form())).toMatchObject({step:'verify',email:user.email});});
+ it('ouvre la configuration après vérification',async()=>{await expect(verifyEmail({},form())).rejects.toThrow('redirect:/setup');expect(mocks.verify).toHaveBeenCalledWith({email:user.email,otp:'123456'});});
+ it('refuse un mauvais code avant la lecture de données',async()=>{mocks.verify.mockResolvedValue({error:{code:'INVALID_OTP'}});expect(await verifyEmail({},form())).toHaveProperty('error');expect(mocks.identity).not.toHaveBeenCalled();});
+ it('ouvre l’accueil à la connexion suivante',async()=>{mocks.onboarding.mockResolvedValue('complete');await expect(signIn({},form())).rejects.toThrow('redirect:/');});
 });

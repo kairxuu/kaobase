@@ -13,7 +13,7 @@ import { AppShortcuts } from "./_components/app-shortcuts";
 import { listAppShortcuts } from "@/lib/data/apps";
 
 export default async function Dashboard() {
-  const { supabase, userId } = await requireUser();
+  const { db, userId } = await requireUser();
   const currency = await getCurrency();
   const money = moneyIn(currency);
   const now = new Date();
@@ -25,16 +25,16 @@ export default async function Dashboard() {
   // Une seule lecture des 90 derniers jours sert au mois en cours, au cadran et à la prévision.
   // Espace actif (ticket #1) : solde, mois, cadran, prévision, prélèvements et tâches filtrés.
   const space = await getSpaceFilter();
-  const accountIds = await accountIdsFor(supabase, space);
+  const accountIds = await accountIdsFor(db, space);
   const [balance, recent, categories, subs, tasks, { data: profile }, budgets, apps] = await Promise.all([
-    getTotalBalance(supabase, space),
-    listTransactions(supabase, { from: since.toISOString().slice(0, 10), limit: 5000, accountIds }),
-    getCategories(supabase),
-    listSubscriptions(supabase, ["active", "suggested"], space),
-    listTasks(supabase, ["todo", "doing"], space),
-    supabase.from("profiles").select("display_name").eq("id", userId).single(),
-    listBudgets(supabase).catch(() => null),
-    listAppShortcuts(supabase, space, { pinnedOnly: true, limit: 8 }).catch((error) => {
+    getTotalBalance(db, space),
+    listTransactions(db, { from: since.toISOString().slice(0, 10), limit: 5000, accountIds }),
+    getCategories(db),
+    listSubscriptions(db, ["active", "suggested"], space),
+    listTasks(db, ["todo", "doing"], space),
+    db.from("profiles").select("display_name").eq("id", userId).single(),
+    listBudgets(db).catch(() => null),
+    listAppShortcuts(db, space, { pinnedOnly: true, limit: 8 }).catch((error) => {
       console.error("[kaobase] raccourcis apps :", error);
       return null;
     }),

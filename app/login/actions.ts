@@ -1,66 +1,60 @@
-"use server";
+'use server';
+import { redirect } from 'next/navigation';
+import { getAuth } from '@/lib/auth/server';
+import { managedRequest, authMessage } from '@/lib/auth/managed';
+import { requireSession } from '@/lib/auth';
+import { getOnboardingStatus } from '@/lib/data/onboarding';
 
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { friendlyError } from "@/lib/errors";
-import { siteOrigin } from "@/lib/site";
-import { getOnboardingStatus } from "@/lib/data/onboarding";
-
-export type AuthState = { error?: string; info?: string };
-
-export async function signIn(_: AuthState, formData: FormData): Promise<AuthState> {
-  const supabase = await createClient();
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email: String(formData.get("email") ?? ""),
-    password: String(formData.get("password") ?? ""),
-  });
-  if (error) {
-    if (error.code === "email_not_confirmed") return { error: "Adresse pas encore confirmée : ouvre le lien reçu par email." };
-    return { error: "Email ou mot de passe incorrect." };
-  }
-  const status = data.user ? await getOnboardingStatus(supabase, data.user.id) : "pending";
-  redirect(status === "complete" ? "/" : "/setup");
+export type AuthState = { error?: string; info?: string; email?: string; step?: 'verify' | 'reset-code' };
+const field = (form: FormData, name: string) => String(form.get(name) ?? '').trim();
+async function enter(): Promise<never> {
+  const { db, userId } = await requireSession();
+  redirect(await getOnboardingStatus(db,userId) === 'complete' ? '/' : '/setup');
 }
-
-export async function signUp(_: AuthState, formData: FormData): Promise<AuthState> {
-  const supabase = await createClient();
-  const password = String(formData.get("password") ?? "");
-  if (password.length < 8) return { error: "Mot de passe : 8 caractères minimum." };
-  const { data, error } = await supabase.auth.signUp({
-    email: String(formData.get("email") ?? ""),
-    password,
-    options: {
-      emailRedirectTo: `${await siteOrigin()}/auth/confirm`,
-      data: { display_name: String(formData.get("name") ?? "") || undefined },
-    },
-  });
-  if (error) return { error: friendlyError(error) };
-  if (data.session) redirect("/setup");
-  return { info: "Compte créé. Ouvre le lien de confirmation reçu par email, puis connecte-toi." };
+export async function signIn(_: AuthState, form: FormData): Promise<AuthState> {
+  const email=field(form,'email');
+  const { error }=await getAuth().signIn.email({email,password:String(form.get('password')??'')});
+  if (error) return {error:authMessage(error.code),...(error.code==='EMAIL_NOT_VERIFIED'?{step:'verify',email}:{})};
+  return enter();
 }
-
-// Mot de passe oublié : même réponse que le compte existe ou non (on ne révèle pas les adresses inscrites).
-export async function requestPasswordReset(_: AuthState, formData: FormData): Promise<AuthState> {
-  const email = String(formData.get("email") ?? "").trim();
-  if (!email) return { error: "Indique ton adresse email." };
-  const supabase = await createClient();
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${await siteOrigin()}/auth/confirm?next=/auth/reset`,
-  });
-  if (error?.code === "over_email_send_rate_limit") return { error: friendlyError(error) };
-  if (error) console.error("[kaobase] reset password :", error);
-  return { info: "Si un compte existe avec cette adresse, un lien pour choisir un nouveau mot de passe vient d'être envoyé." };
+export async function signUp(_: AuthState, form: FormData): Promise<AuthState> {
+  const email=field(form,'email'), password=String(form.get('password')??'');
+  if (password.length<8||password.length>128) return {error:'Mot de passe : entre 8 et 128 caractères.'};
+  const {error}=await getAuth().signUp.email({email,password,name:field(form,'name')||email.split('@')[0]});
+  if(error) return {error:authMessage(error.code)};
+  return {step:'verify',email,info:'Compte créé. Saisis le code de confirmation reçu par email.'};
 }
-
-// Nouveau mot de passe : depuis le lien reçu par email (session de récupération) ou depuis Réglages.
-export async function updatePassword(_: AuthState, formData: FormData): Promise<AuthState> {
-  const password = String(formData.get("password") ?? "");
-  const confirm = String(formData.get("confirm") ?? "");
-  if (password.length < 8) return { error: "Mot de passe : 8 caractères minimum." };
-  if (password !== confirm) return { error: "Les deux mots de passe ne correspondent pas." };
-  const supabase = await createClient();
-  const { error } = await supabase.auth.updateUser({ password });
-  if (error) return { error: friendlyError(error) };
-  if (formData.get("then") === "home") redirect("/");
-  return { info: "Mot de passe modifié." };
+export async function verifyEmail(_: AuthState, form: FormData): Promise<AuthState> {
+  const {error}=await getAuth().emailOtp.verifyEmail({email:field(form,'email'),otp:field(form,'otp')});
+  if(error) return {error:authMessage(error.code)};
+  return enter();
+}
+export async function resendVerification(_: AuthState, form: FormData): Promise<AuthState> {
+  const {error}=await getAuth().emailOtp.sendVerificationOtp({email:field(form,'email'),type:'email-verification'});
+  return error?{error:authMessage(error.code)}:{info:'Un nouveau code a été demandé. Vérifie aussi les courriers indésirables.'};
+}
+export async function requestPasswordReset(_: AuthState, form: FormData): Promise<AuthState> {
+  const email=field(form,'email');
+  if(!email) return {error:'Indique ton adresse email.'};
+  try {
+    const {response,data}=await managedRequest('email-otp/request-password-reset',{email});
+    if(!response.ok) return {error:authMessage(data.code)};
+  } catch { return {error:'Le service de connexion est momentanément indisponible.'}; }
+  return {step:'reset-code',email,info:'Si un compte existe, un code pour choisir un nouveau mot de passe a été envoyé.'};
+}
+export async function resetWithCode(_: AuthState, form: FormData): Promise<AuthState> {
+  const email=field(form,'email'), password=String(form.get('password')??'');
+  if(password.length<8||password.length>128) return {error:'Mot de passe : entre 8 et 128 caractères.'};
+  if(password!==String(form.get('confirm')??'')) return {error:'Les deux mots de passe ne correspondent pas.'};
+  const {response,data}=await managedRequest('email-otp/reset-password',{email,otp:field(form,'otp'),password});
+  if(!response.ok) return {error:authMessage(data.code)};
+  return {info:'Mot de passe enregistré. Tu peux maintenant te connecter.'};
+}
+export async function updatePassword(_: AuthState, form: FormData): Promise<AuthState> {
+  await requireSession();
+  const newPassword=String(form.get('password')??'');
+  if(newPassword.length<8||newPassword.length>128) return {error:'Mot de passe : entre 8 et 128 caractères.'};
+  if(newPassword!==String(form.get('confirm')??'')) return {error:'Les deux mots de passe ne correspondent pas.'};
+  const {error}=await getAuth().changePassword({newPassword,currentPassword:String(form.get('currentPassword')??''),revokeOtherSessions:true});
+  return error?{error:authMessage(error.code)}:{info:'Mot de passe modifié.'};
 }

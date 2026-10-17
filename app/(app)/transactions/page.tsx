@@ -20,12 +20,12 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/tra
   const range = month && /^\d{4}-\d{2}$/.test(month) ? monthRange(month) : undefined;
   const page = Math.max(1, Number(get("page")) || 1);
 
-  const { supabase } = await requireUser();
+  const { db } = await requireUser();
   const money = moneyIn(await getCurrency());
   const space = await getSpaceFilter();
-  const accountIds = await accountIdsFor(supabase, space);
+  const accountIds = await accountIdsFor(db, space);
   const [txs, categories, accounts] = await Promise.all([
-    listTransactions(supabase, {
+    listTransactions(db, {
       ...range,
       categoryId: get("categorie") || undefined,
       uncategorized: get("non") === "1",
@@ -35,8 +35,8 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/tra
       offset: (page - 1) * PAGE_SIZE,
       accountIds,
     }),
-    getCategories(supabase),
-    getAccounts(supabase, space),
+    getCategories(db),
+    getAccounts(db, space),
   ]);
   const hasNext = txs.length > PAGE_SIZE;
   const rows = txs.slice(0, PAGE_SIZE);

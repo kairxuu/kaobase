@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Supabase } from "@/lib/supabase/server";
+import type { DatabaseClient } from "@/lib/database/server";
 import { createSubscription, listSubscriptions, runSubscriptionDetection, updateSubscription } from "@/lib/data/subscriptions";
 import { addPeriod, detectSubscriptions, rollForward } from "@/lib/learning/subscriptions";
 import { forecastBalance } from "@/lib/learning/forecast";
@@ -11,7 +11,7 @@ type Row = Record<string, unknown>;
 type Operation = "select" | "insert" | "upsert" | "update";
 type Request = { table: string; operation: Operation; values?: Row; options?: Row; filters: [string, unknown][] };
 
-// Modèle Supabase en mémoire : les filtres sont exécutés au moment de la requête,
+// Modèle DatabaseClient en mémoire : les filtres sont exécutés au moment de la requête,
 // ce qui vérifie aussi le verrou de modification utilisateur concurrente.
 function database(initial: Record<string, Row[]>) {
   const tables = structuredClone(initial);
@@ -64,7 +64,7 @@ function database(initial: Record<string, Row[]>) {
     },
   };
   return {
-    client: client as unknown as Supabase,
+    client: client as unknown as DatabaseClient,
     tables,
     requests,
     failures,

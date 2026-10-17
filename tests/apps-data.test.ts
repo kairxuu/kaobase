@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
-import type { Supabase } from "@/lib/supabase/server";
+import type { DatabaseClient } from "@/lib/database/server";
 import { createAppShortcut, deleteAppShortcut, listAppShortcuts, pinAppShortcut, updateAppShortcut } from "@/lib/data/apps";
 
 const app = { id: "10000000-0000-4000-8000-000000000001", name: "Gmail", url: "https://mail.google.com/", account_label: "moi@example.com", category: "communication", space: "pro", pinned: true };
@@ -14,7 +14,7 @@ function database(response = { data: app as unknown, error: null as unknown }) {
     limit: vi.fn().mockResolvedValue(response), range: vi.fn().mockResolvedValue(response),
   };
   const from = vi.fn(() => chain);
-  return { ...chain, from, client: { from } as unknown as Supabase };
+  return { ...chain, from, client: { from } as unknown as DatabaseClient };
 }
 
 describe("lecture des apps", () => {

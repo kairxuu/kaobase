@@ -1,7 +1,7 @@
 import "server-only";
 import { tool, type ToolSet } from "ai";
 import { z } from "zod";
-import type { Supabase } from "@/lib/supabase/server";
+import type { DatabaseClient } from "@/lib/database/server";
 import type { AgentId } from "@/lib/learning/router";
 import type { Category } from "@/lib/types";
 import { defaultSpace, type Space, type SpaceFilter } from "@/lib/space-shared";
@@ -35,7 +35,7 @@ import { rememberFact } from "@/lib/learning/memory";
 import { queueDeletion } from "./deletions";
 import type { DeletionRequest } from "./confirmation";
 
-// Outils typés par secteur. Ils passent tous par le client Supabase de l'utilisateur :
+// Outils typés par secteur. Ils passent tous par le client DatabaseClient de l'utilisateur :
 // la RLS garantit qu'un agent ne peut jamais lire ou modifier les données d'un autre compte.
 
 export type ToolContext = {
@@ -52,8 +52,8 @@ export type ToolContext = {
   written: Set<string>;
 };
 
-async function prepareDeletion(supabase: Supabase, ctx: ToolContext, kind: DeletionRequest["kind"], targetId: string) {
-  const request = await queueDeletion(supabase, kind, targetId, ctx.conversationId, ctx.space);
+async function prepareDeletion(db: DatabaseClient, ctx: ToolContext, kind: DeletionRequest["kind"], targetId: string) {
+  const request = await queueDeletion(db, kind, targetId, ctx.conversationId, ctx.space);
   if (!ctx.deletions.some((d) => d.id === request.id)) ctx.deletions.push(request);
   return { confirmation_requise: true, description: request.description, instruction: "Rien n'est supprimé. Invite l'utilisateur à cliquer sur Confirmer la suppression sous la réponse." };
 }
@@ -61,11 +61,11 @@ async function prepareDeletion(supabase: Supabase, ctx: ToolContext, kind: Delet
 // Lu une fois par question : les noms de catégories et de comptes deviennent des listes
 // fermées dans les schémas, le modèle ne peut pas en inventer.
 export async function loadToolContext(
-  supabase: Supabase,
+  db: DatabaseClient,
   opts: { space?: SpaceFilter; today?: string; conversationId?: string } = {},
 ): Promise<ToolContext> {
   const space = opts.space ?? "all";
-  const [categories, accounts] = await Promise.all([getCategories(supabase), getAccounts(supabase)]);
+  const [categories, accounts] = await Promise.all([getCategories(db), getAccounts(db)]);
   return {
     categories,
     accounts: accounts.map((a) => ({ id: a.id, name: a.name, space: a.space })),
@@ -108,7 +108,7 @@ function resolver(ctx: ToolContext) {
 // Socle commun : tout agent peut noter une dépense, une tâche ou un souvenir.
 // ---------------------------------------------------------------------------
 
-function sharedTools(supabase: Supabase, agent: AgentId, ctx: ToolContext): ToolSet {
+function sharedTools(db: DatabaseClient, agent: AgentId, ctx: ToolContext): ToolSet {
   const r = resolver(ctx);
   const categoryName = oneOf(ctx.categories.map((c) => c.name), "Nom de catégorie");
   const accountName = oneOf(ctx.accounts.map((a) => a.name), "Nom du compte");
@@ -144,7 +144,7 @@ function sharedTools(supabase: Supabase, agent: AgentId, ctx: ToolContext): Tool
             continue;
           }
           ctx.written.add(key);
-          const res = await addManualTransaction(supabase, {
+          const res = await addManualTransaction(db, {
             accountId: r.accountOf(op.compte),
             bookedAt: op.date ?? ctx.today,
             amount: (op.sens === "depense" ? -1 : 1) * Math.abs(op.montant),
@@ -172,7 +172,7 @@ function sharedTools(supabase: Supabase, agent: AgentId, ctx: ToolContext): Tool
         limite: z.number().int().min(1).max(100).default(20),
       }),
       execute: async (a) => {
-        const txs = await listTransactions(supabase, {
+        const txs = await listTransactions(db, {
           accountIds: ctx.accountIds,
           from: a.du,
           to: a.au,
@@ -194,14 +194,14 @@ function sharedTools(supabase: Supabase, agent: AgentId, ctx: ToolContext): Tool
         libelle: z.string().optional(),
       }),
       execute: async (a) => {
-        const current = await getTransaction(supabase, a.id);
+        const current = await getTransaction(db, a.id);
         if (!current) return { erreur: "Opération introuvable" };
         let amount: number | undefined;
         if (a.montant != null || a.sens) {
           const sign = a.sens ? (a.sens === "depense" ? -1 : 1) : current.amount > 0 ? 1 : -1;
           amount = sign * (a.montant ?? Math.abs(current.amount));
         }
-        const t = await updateTransaction(supabase, a.id, { bookedAt: a.date, amount, label: a.libelle });
+        const t = await updateTransaction(db, a.id, { bookedAt: a.date, amount, label: a.libelle });
         return { id: t.id, date: t.booked_at, montant: Number(t.amount), libelle: t.label_raw };
       },
     }),
@@ -209,7 +209,7 @@ function sharedTools(supabase: Supabase, agent: AgentId, ctx: ToolContext): Tool
       description:
         "Prépare la suppression d'une opération retrouvée avec rechercher_operations. Ne supprime rien : l'utilisateur doit confirmer l'élément exact avec le bouton du chat.",
       inputSchema: z.object({ id: z.string().uuid() }),
-      execute: async ({ id }) => prepareDeletion(supabase, ctx, "transaction", id),
+      execute: async ({ id }) => prepareDeletion(db, ctx, "transaction", id),
     }),
     creer_taches: tool({
       description: "Crée une ou plusieurs tâches (démarches, rappels). Convertis les dates relatives en AAAA-MM-JJ.",
@@ -233,7 +233,7 @@ function sharedTools(supabase: Supabase, agent: AgentId, ctx: ToolContext): Tool
           const key = `task|${t.titre.trim().toLowerCase()}|${t.echeance ?? ""}`;
           if (ctx.written.has(key)) continue;
           ctx.written.add(key);
-          const task = await createTask(supabase, {
+          const task = await createTask(db, {
             title: t.titre,
             description: t.description,
             priority: t.priorite,
@@ -254,7 +254,7 @@ function sharedTools(supabase: Supabase, agent: AgentId, ctx: ToolContext): Tool
         partager: z.boolean().default(false).describe("true si utile à tous les agents"),
       }),
       execute: async ({ fait, partager }) => {
-        await rememberFact(supabase, partager ? "shared" : agent, fait);
+        await rememberFact(db, partager ? "shared" : agent, fait);
         return { ok: true };
       },
     }),
@@ -265,7 +265,7 @@ function sharedTools(supabase: Supabase, agent: AgentId, ctx: ToolContext): Tool
 // Finance
 // ---------------------------------------------------------------------------
 
-function financeTools(supabase: Supabase, ctx: ToolContext): ToolSet {
+function financeTools(db: DatabaseClient, ctx: ToolContext): ToolSet {
   const r = resolver(ctx);
   const categoryName = oneOf(ctx.categories.map((c) => c.name), "Nom de catégorie");
 
@@ -273,13 +273,13 @@ function financeTools(supabase: Supabase, ctx: ToolContext): ToolSet {
     resume_mois: tool({
       description: "Revenus, dépenses, solde net et dépenses par catégorie pour un mois.",
       inputSchema: z.object({ mois: month.optional().describe("AAAA-MM, mois courant par défaut") }),
-      execute: async ({ mois }) => monthSummary(supabase, mois ?? ctx.today.slice(0, 7), ctx.accountIds),
+      execute: async ({ mois }) => monthSummary(db, mois ?? ctx.today.slice(0, 7), ctx.accountIds),
     }),
     comparer_mois: tool({
       description: "Compare deux mois catégorie par catégorie (ex. ce mois-ci contre le précédent).",
       inputSchema: z.object({ mois_a: month, mois_b: month }),
       execute: async ({ mois_a, mois_b }) => {
-        const [a, b] = await Promise.all([monthSummary(supabase, mois_a, ctx.accountIds), monthSummary(supabase, mois_b, ctx.accountIds)]);
+        const [a, b] = await Promise.all([monthSummary(db, mois_a, ctx.accountIds), monthSummary(db, mois_b, ctx.accountIds)]);
         const names = new Set([...a.byCategory, ...b.byCategory].map((c) => c.name));
         const totalOf = (s: typeof a, n: string) => s.byCategory.find((c) => c.name === n)?.total ?? 0;
         return {
@@ -296,7 +296,7 @@ function financeTools(supabase: Supabase, ctx: ToolContext): ToolSet {
       inputSchema: z.object({ du: isoDate.optional(), au: isoDate.optional(), limite: z.number().int().min(1).max(30).default(10) }),
       execute: async ({ du, au, limite }) => {
         const from = du ?? monthRange(ctx.today.slice(0, 7)).from;
-        return rankMerchants(await listTransactions(supabase, { from, to: au, limit: 5000, accountIds: ctx.accountIds }), limite);
+        return rankMerchants(await listTransactions(db, { from, to: au, limit: 5000, accountIds: ctx.accountIds }), limite);
       },
     }),
     categoriser_operation: tool({
@@ -306,7 +306,7 @@ function financeTools(supabase: Supabase, ctx: ToolContext): ToolSet {
       execute: async ({ id, categorie }) => {
         const categoryId = r.idOf(categorie);
         if (!categoryId) return { erreur: `Catégorie inconnue : ${categorie}` };
-        return setTransactionCategory(supabase, id, categoryId);
+        return setTransactionCategory(db, id, categoryId);
       },
     }),
     creer_categorie: tool({
@@ -316,7 +316,7 @@ function financeTools(supabase: Supabase, ctx: ToolContext): ToolSet {
         type: z.enum(["expense", "income", "transfer"]).describe("expense = dépense, income = revenu, transfer = virement interne"),
       }),
       execute: async ({ nom, type }) => {
-        const c = await createCategory(supabase, { name: nom, kind: type });
+        const c = await createCategory(db, { name: nom, kind: type });
         return { creee: c.name };
       },
     }),
@@ -329,13 +329,13 @@ function financeTools(supabase: Supabase, ctx: ToolContext): ToolSet {
         espace: spaceParam,
       }),
       execute: async (a) =>
-        createAccount(supabase, { name: a.nom, kind: a.type, openingBalance: a.solde_initial, space: a.espace ?? defaultSpace(ctx.space) }),
+        createAccount(db, { name: a.nom, kind: a.type, openingBalance: a.solde_initial, space: a.espace ?? defaultSpace(ctx.space) }),
     }),
     soldes: tool({
       description: "Solde actuel de chaque compte et solde total.",
       inputSchema: z.object({}),
       execute: async () => {
-        const accounts = await getAccounts(supabase, ctx.space);
+        const accounts = await getAccounts(db, ctx.space);
         return { comptes: accounts, total: accounts.reduce((s, a) => s + Number(a.balance), 0) };
       },
     }),
@@ -346,9 +346,9 @@ function financeTools(supabase: Supabase, ctx: ToolContext): ToolSet {
         const since = new Date();
         since.setUTCDate(since.getUTCDate() - 90);
         const [balance, subs, recent] = await Promise.all([
-          getTotalBalance(supabase, ctx.space),
-          listSubscriptions(supabase, ["active"], ctx.space),
-          listTransactions(supabase, { from: since.toISOString().slice(0, 10), limit: 5000, accountIds: ctx.accountIds }),
+          getTotalBalance(db, ctx.space),
+          listSubscriptions(db, ["active"], ctx.space),
+          listTransactions(db, { from: since.toISOString().slice(0, 10), limit: 5000, accountIds: ctx.accountIds }),
         ]);
         const result = forecastBalance({
           today: ctx.today,
@@ -373,7 +373,7 @@ function financeTools(supabase: Supabase, ctx: ToolContext): ToolSet {
       execute: async ({ categorie, montant_mensuel }) => {
         const id = r.idOf(categorie);
         if (!id) return { erreur: `Catégorie inconnue : ${categorie}` };
-        await setBudget(supabase, id, montant_mensuel);
+        await setBudget(db, id, montant_mensuel);
         return { budget: categorie, montant_mensuel };
       },
     }),
@@ -383,13 +383,13 @@ function financeTools(supabase: Supabase, ctx: ToolContext): ToolSet {
       execute: async ({ categorie }) => {
         const id = r.idOf(categorie);
         if (!id) return { erreur: `Catégorie inconnue : ${categorie}` };
-        return prepareDeletion(supabase, ctx, "budget", id);
+        return prepareDeletion(db, ctx, "budget", id);
       },
     }),
     suivi_budgets: tool({
       description: "Où en est chaque budget ce mois-ci (dépensé, reste, pourcentage).",
       inputSchema: z.object({ mois: month.optional() }),
-      execute: async ({ mois }) => (await budgetStatus(supabase, mois ?? ctx.today.slice(0, 7), ctx.accountIds)) ?? { erreur: BUDGETS_MISSING },
+      execute: async ({ mois }) => (await budgetStatus(db, mois ?? ctx.today.slice(0, 7), ctx.accountIds)) ?? { erreur: BUDGETS_MISSING },
     }),
   };
 }
@@ -398,14 +398,14 @@ function financeTools(supabase: Supabase, ctx: ToolContext): ToolSet {
 // Abonnements
 // ---------------------------------------------------------------------------
 
-function subscriptionTools(supabase: Supabase, ctx: ToolContext): ToolSet {
+function subscriptionTools(db: DatabaseClient, ctx: ToolContext): ToolSet {
   const r = resolver(ctx);
   return {
     lister_abonnements: tool({
       description: "Abonnements suivis, avec coût mensuel et annuel. « suggested » = détecté, à confirmer.",
       inputSchema: z.object({ statut: z.enum(["active", "suggested", "cancelled", "rejected", "tous"]).default("tous") }),
       execute: async ({ statut }) => {
-        const subs = await listSubscriptions(supabase, statut === "tous" ? ["active", "suggested", "cancelled"] : [statut], ctx.space);
+        const subs = await listSubscriptions(db, statut === "tous" ? ["active", "suggested", "cancelled"] : [statut], ctx.space);
         return subs.map((s) => ({
           id: s.id,
           nom: s.name,
@@ -424,7 +424,7 @@ function subscriptionTools(supabase: Supabase, ctx: ToolContext): ToolSet {
       description: "Coût total mensuel et annuel des abonnements actifs.",
       inputSchema: z.object({}),
       execute: async () => {
-        const subs = await listSubscriptions(supabase, ["active"], ctx.space);
+        const subs = await listSubscriptions(db, ["active"], ctx.space);
         const mensuel = subs.reduce((s, x) => s + monthlyCost(x.amount, x.period), 0);
         return { nombre: subs.length, mensuel: Math.round(mensuel * 100) / 100, annuel: Math.round(mensuel * 12 * 100) / 100 };
       },
@@ -434,7 +434,7 @@ function subscriptionTools(supabase: Supabase, ctx: ToolContext): ToolSet {
         "Données pour proposer des économies : abonnements classés par coût annuel, catégories où plusieurs services se cumulent, abonnements mensuels qui coûteraient moins en annuel.",
       inputSchema: z.object({}),
       execute: async () => {
-        const subs = await listSubscriptions(supabase, ["active"], ctx.space);
+        const subs = await listSubscriptions(db, ["active"], ctx.space);
         const byCategory = new Map<string, string[]>();
         for (const s of subs) {
           const c = r.nameOf(s.category_id);
@@ -452,7 +452,7 @@ function subscriptionTools(supabase: Supabase, ctx: ToolContext): ToolSet {
     detecter_abonnements: tool({
       description: "Relance la détection des paiements récurrents sur l'historique.",
       inputSchema: z.object({}),
-      execute: async () => runSubscriptionDetection(supabase),
+      execute: async () => runSubscriptionDetection(db),
     }),
     modifier_abonnement: tool({
       description:
@@ -466,7 +466,7 @@ function subscriptionTools(supabase: Supabase, ctx: ToolContext): ToolSet {
         notes: z.string().optional(),
       }),
       execute: async (a) =>
-        updateSubscription(supabase, a.id, {
+        updateSubscription(db, a.id, {
           status: a.statut,
           amount: a.montant,
           period: a.periode,
@@ -484,7 +484,7 @@ function subscriptionTools(supabase: Supabase, ctx: ToolContext): ToolSet {
         espace: spaceParam,
       }),
       execute: async (a) =>
-        createSubscription(supabase, {
+        createSubscription(db, {
           name: a.nom,
           amount: a.montant,
           period: a.periode,
@@ -499,13 +499,13 @@ function subscriptionTools(supabase: Supabase, ctx: ToolContext): ToolSet {
 // Tâches
 // ---------------------------------------------------------------------------
 
-function taskTools(supabase: Supabase, ctx: ToolContext): ToolSet {
+function taskTools(db: DatabaseClient, ctx: ToolContext): ToolSet {
   return {
     lister_taches: tool({
       description: "Tâches de l'utilisateur, triées par échéance.",
       inputSchema: z.object({ statut: z.enum(["todo", "doing", "done", "ouvertes"]).default("ouvertes") }),
       execute: async ({ statut }) => {
-        const tasks = await listTasks(supabase, statut === "ouvertes" ? ["todo", "doing"] : [statut], ctx.space);
+        const tasks = await listTasks(db, statut === "ouvertes" ? ["todo", "doing"] : [statut], ctx.space);
         return tasks.map((t) => ({ id: t.id, titre: t.title, statut: t.status, priorite: t.priority, echeance: t.due_date, description: t.description }));
       },
     }),
@@ -518,18 +518,18 @@ function taskTools(supabase: Supabase, ctx: ToolContext): ToolSet {
         echeance: isoDate.optional(),
         titre: z.string().optional(),
       }),
-      execute: async (a) => updateTask(supabase, a.id, { status: a.statut, priority: a.priorite, due_date: a.echeance, title: a.titre }),
+      execute: async (a) => updateTask(db, a.id, { status: a.statut, priority: a.priorite, due_date: a.echeance, title: a.titre }),
     }),
     supprimer_tache: tool({
       description: "Prépare la suppression d'une tâche, à confirmer avec le bouton du chat.",
       inputSchema: z.object({ id: z.string().uuid() }),
-      execute: async ({ id }) => prepareDeletion(supabase, ctx, "task", id),
+      execute: async ({ id }) => prepareDeletion(db, ctx, "task", id),
     }),
     planifier_rappels_abonnements: tool({
       description: "Crée une tâche de vérification pour chaque abonnement prélevé dans les N prochains jours.",
       inputSchema: z.object({ jours: z.number().int().min(1).max(60).default(7) }),
       execute: async ({ jours }) => {
-        const created = await planSubscriptionReminders(supabase, jours, ctx.space);
+        const created = await planSubscriptionReminders(db, jours, ctx.space);
         return { creees: created.map((t) => ({ titre: t.title, echeance: t.due_date })) };
       },
     }),
@@ -540,13 +540,13 @@ function taskTools(supabase: Supabase, ctx: ToolContext): ToolSet {
 // Imports
 // ---------------------------------------------------------------------------
 
-function importTools(supabase: Supabase, ctx: ToolContext): ToolSet {
+function importTools(db: DatabaseClient, ctx: ToolContext): ToolSet {
   return {
     historique_imports: tool({
       description: "Derniers imports de relevés (lignes ajoutées, déjà présentes, illisibles).",
       inputSchema: z.object({}),
       execute: async () => {
-        const { data } = await supabase
+        const { data } = await db
           .from("imports")
           .select("filename, format, rows_total, rows_imported, rows_duplicate, rows_invalid, created_at")
           .order("created_at", { ascending: false })
@@ -558,7 +558,7 @@ function importTools(supabase: Supabase, ctx: ToolContext): ToolSet {
       description: "Contrôle qualité : opérations sans catégorie, part triée par règles/IA/utilisateur, commerçants à traiter en priorité.",
       inputSchema: z.object({}),
       execute: async () => {
-        const txs = await listTransactions(supabase, { limit: 5000, accountIds: ctx.accountIds });
+        const txs = await listTransactions(db, { limit: 5000, accountIds: ctx.accountIds });
         const by = { regle: 0, ia: 0, utilisateur: 0, aucune: 0 };
         const pending = new Map<string, number>();
         for (const t of txs) {
@@ -580,22 +580,22 @@ function importTools(supabase: Supabase, ctx: ToolContext): ToolSet {
     categoriser_non_classees: tool({
       description: "Trie toutes les opérations sans catégorie (règles apprises puis IA).",
       inputSchema: z.object({}),
-      execute: async () => categorizeTransactions(supabase, await listTransactions(supabase, { uncategorized: true, limit: 1000, accountIds: ctx.accountIds })),
+      execute: async () => categorizeTransactions(db, await listTransactions(db, { uncategorized: true, limit: 1000, accountIds: ctx.accountIds })),
     }),
     detecter_abonnements: tool({
       description: "Relance la détection des paiements récurrents sur l'historique.",
       inputSchema: z.object({}),
-      execute: async () => runSubscriptionDetection(supabase),
+      execute: async () => runSubscriptionDetection(db),
     }),
   };
 }
 
-export function toolsFor(agent: AgentId, supabase: Supabase, ctx: ToolContext): ToolSet {
+export function toolsFor(agent: AgentId, db: DatabaseClient, ctx: ToolContext): ToolSet {
   const specific = {
-    finance: () => financeTools(supabase, ctx),
-    subscriptions: () => subscriptionTools(supabase, ctx),
-    tasks: () => taskTools(supabase, ctx),
-    imports: () => importTools(supabase, ctx),
+    finance: () => financeTools(db, ctx),
+    subscriptions: () => subscriptionTools(db, ctx),
+    tasks: () => taskTools(db, ctx),
+    imports: () => importTools(db, ctx),
   }[agent]();
-  return { ...sharedTools(supabase, agent, ctx), ...specific };
+  return { ...sharedTools(db, agent, ctx), ...specific };
 }

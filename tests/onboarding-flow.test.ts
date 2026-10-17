@@ -8,7 +8,7 @@ vi.mock("@/lib/auth", () => ({ requireSession: mocks.session }));
 vi.mock("next/navigation", () => ({ redirect: mocks.redirect }));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidate }));
 vi.mock("next/headers", () => ({ cookies: async () => ({ set: mocks.setCookie }) }));
-import type { Supabase } from "@/lib/supabase/server";
+import type { DatabaseClient } from "@/lib/database/server";
 import { completeSetup, getOnboardingStatus, getSetupInitial, parseSetupForm } from "@/lib/data/onboarding";
 import { finishSetup } from "@/app/setup/actions";
 
@@ -35,7 +35,7 @@ function database(responses: Record<string, { data: unknown; error?: unknown }> 
     return chain;
   });
   const getUser = vi.fn().mockResolvedValue({ data: { user: { user_metadata: {} } }, error: null });
-  return { rpc, from, getUser, client: { rpc, from, auth: { getUser } } as unknown as Supabase };
+  return { rpc, from, getUser, client: { rpc, from, auth: { getUser } } as unknown as DatabaseClient };
 }
 
 beforeEach(() => {
@@ -102,10 +102,10 @@ describe("lecture de l'état et reprise de configuration", () => {
     const db = database({ profiles: { data: null, error: { code: "NETWORK_ERROR" } }, accounts: { data: [] } });
     await expect(getSetupInitial(db.client, "user")).rejects.toMatchObject({ code: "NETWORK_ERROR" });
   });
-  it("n'écrase pas un fuseau manuel si la lecture d'authentification échoue", async () => {
-    const db = database({ accounts: { data: [] } });
-    db.getUser.mockResolvedValue({ data: { user: null }, error: new Error("Auth unavailable") });
-    await expect(getSetupInitial(db.client, "user")).rejects.toThrow("Auth unavailable");
+  it("lit le fuseau manuel depuis le profil sans dépendre d’un ancien fournisseur",async()=>{
+    const db=database({profiles:{data:{display_name:'Camille',currency:'EUR',timezone:'Europe/Paris',timezone_manual:true}},accounts:{data:[]}});
+    expect(await getSetupInitial(db.client,'user')).toMatchObject({timezoneManual:true});
+    expect(db.getUser).not.toHaveBeenCalled();
   });
 });
 
@@ -125,7 +125,7 @@ describe("enregistrement initial authentifié", () => {
   });
   it("redirige après enregistrement et réinitialise un ancien filtre d'espace", async () => {
     const db = database();
-    mocks.session.mockResolvedValue({ supabase: db.client, userId: "user" });
+    mocks.session.mockResolvedValue({ db: db.client, userId: "user" });
     await expect(finishSetup({}, form({ space: "pro" }))).rejects.toThrow("redirect:/");
     expect(mocks.setCookie).toHaveBeenCalledWith("kb_space", "all", expect.objectContaining({ httpOnly: true, path: "/" }));
     expect(mocks.revalidate).toHaveBeenCalledWith("/", "layout");
@@ -135,7 +135,7 @@ describe("enregistrement initial authentifié", () => {
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
     const db = database();
     db.rpc.mockResolvedValue({ data: null, error: { code: "22023", message: "Ce compte contient déjà des opérations." } });
-    mocks.session.mockResolvedValue({ supabase: db.client });
+    mocks.session.mockResolvedValue({ db: db.client });
     expect(await finishSetup({}, form())).toEqual({ error: "Ce compte contient déjà des opérations." });
     expect(mocks.redirect).not.toHaveBeenCalled();
     expect(mocks.setCookie).not.toHaveBeenCalled();

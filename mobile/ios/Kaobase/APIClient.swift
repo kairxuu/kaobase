@@ -54,13 +54,13 @@ actor APIClient {
             if http.statusCode == 401 && !auth { throw AppError.sessionExpired }
             if auth {
                 let error = try? Self.decoder().decode(ErrorBody.self, from: data)
-                let code = error?.errorCode ?? error?.code ?? error?.error ?? ""
+                let code = error?.code ?? error?.errorCode ?? ""
                 switch code {
-                case "invalid_credentials", "invalid_grant", "refresh_token_not_found", "refresh_token_already_used", "session_not_found": throw AppError.authRejected("E-mail ou mot de passe incorrect, ou session expirée.")
-                case "email_not_confirmed": throw AppError.authRejected("Confirme ton adresse avec le lien reçu par e-mail.")
-                case "user_already_exists": throw AppError.server("Cette adresse possède déjà un compte.")
-                case "weak_password": throw AppError.server("Choisis un mot de passe d’au moins 8 caractères.")
-                default: throw AppError.server(http.statusCode == 429 ? "Trop de tentatives. Réessaie dans quelques minutes." : "La connexion a échoué. Vérifie tes informations et réessaie.")
+                case "INVALID_EMAIL_OR_PASSWORD", "SESSION_EXPIRED": throw AppError.authRejected("E-mail ou mot de passe incorrect, ou session expirée.")
+                case "EMAIL_NOT_VERIFIED": throw AppError.verificationRequired
+                case "USER_ALREADY_EXISTS", "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL": throw AppError.server("Cette adresse possède déjà un compte.")
+                case "PASSWORD_TOO_SHORT", "PASSWORD_TOO_LONG": throw AppError.server("Choisis un mot de passe d’au moins 8 caractères.")
+                default: throw AppError.server(http.statusCode == 429 ? "Trop de tentatives. Réessaie dans quelques minutes." : error?.error ?? "La connexion a échoué. Vérifie tes informations et réessaie.")
                 }
             }
             let error = try? Self.decoder().decode(ErrorBody.self, from: data)
@@ -68,29 +68,40 @@ actor APIClient {
         }
         return data
     }
-    private func authRequest(path: String, query: [URLQueryItem] = [], payload: [String: JSONValue]) throws -> URLRequest {
-        var parts = URLComponents(url: configuration.auth.appendingPathComponent("auth/v1/" + path), resolvingAgainstBaseURL: false)!
-        if !query.isEmpty { parts.queryItems = query }
-        var request = URLRequest(url: parts.url!)
+    private func authRequest(path: String, payload: [String: JSONValue]) throws -> URLRequest {
+        var request = URLRequest(url: configuration.website.appendingPathComponent("api/mobile/auth/" + path))
         request.httpMethod = "POST"
-        request.setValue(configuration.publicKey, forHTTPHeaderField: "apikey")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONEncoder().encode(payload)
         return request
     }
     func signIn(email: String, password: String) async throws {
-        let request = try authRequest(path: "token", query: [.init(name: "grant_type", value: "password")], payload: ["email": .string(email), "password": .string(password)])
+        let request = try authRequest(path: "sign-in", payload: ["email": .string(email), "password": .string(password)])
         let next = try Self.decoder().decode(AuthResponse.self, from: await send(request, auth: true)).session()
         try storage.save(next); generation += 1; session = next
     }
     /// Confirmation-enabled projects return no session: sign in after following the email.
     func signUp(email: String, password: String) async throws -> Bool {
-        let request = try authRequest(path: "signup", payload: ["email": .string(email), "password": .string(password)])
+        let request = try authRequest(path: "sign-up", payload: ["email": .string(email), "password": .string(password)])
         let response = try Self.decoder().decode(AuthResponse.self, from: await send(request, auth: true))
         guard response.accessToken != nil else { return false }
         let next = try response.session()
         try storage.save(next); generation += 1; session = next
         return true
+    }
+    func verifyEmail(email: String, code: String) async throws {
+        let request = try authRequest(path: "verify", payload: ["email": .string(email), "otp": .string(code)])
+        let next = try Self.decoder().decode(AuthResponse.self, from: await send(request, auth: true)).session()
+        try storage.save(next); generation += 1; session = next
+    }
+    func resendVerification(email: String) async throws {
+        _ = try await send(authRequest(path: "resend", payload: ["email": .string(email)]), auth: true)
+    }
+    func requestReset(email: String) async throws {
+        _ = try await send(authRequest(path: "request-reset", payload: ["email": .string(email)]), auth: true)
+    }
+    func resetPassword(email: String, code: String, password: String) async throws {
+        _ = try await send(authRequest(path: "reset", payload: ["email": .string(email), "otp": .string(code), "password": .string(password)]), auth: true)
     }
     private func refresh() async throws -> AuthSession {
         if let refreshTask {
@@ -101,7 +112,7 @@ actor APIClient {
         }
         guard let old = session else { throw AppError.sessionExpired }
         let version = generation
-        let request = try authRequest(path: "token", query: [.init(name: "grant_type", value: "refresh_token")], payload: ["refresh_token": .string(old.refreshToken)])
+        let request = try authRequest(path: "refresh", payload: ["refresh_token": .string(old.refreshToken)])
         let task = Task { try Self.decoder().decode(AuthResponse.self, from: await self.send(request, auth: true)).session() }
         refreshTask = task
         defer { refreshTask = nil }
@@ -153,7 +164,7 @@ actor APIClient {
         try storage.clear(); generation += 1; session = nil
         refreshTask?.cancel(); refreshTask = nil
         if let old {
-            var request = try authRequest(path: "logout", query: [.init(name: "scope", value: "local")], payload: [:])
+            var request = try authRequest(path: "sign-out", payload: ["refresh_token": .string(old.refreshToken)])
             request.timeoutInterval = 5
             request.setValue("Bearer " + old.accessToken, forHTTPHeaderField: "Authorization")
             _ = try? await send(request, auth: true)

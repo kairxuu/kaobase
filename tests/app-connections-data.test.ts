@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
-import type { Supabase } from "@/lib/supabase/server";
+import type { DatabaseClient } from "@/lib/database/server";
 import { completeAppConnection, deleteAppConnection, getAppConnection, getShortcutConnection, listAppConnections, reserveAppConnectSession } from "@/lib/data/app-connections";
 
 const connection = {
@@ -20,7 +20,7 @@ function database(response = { data: connection as unknown, error: null as unkno
   };
   const from = vi.fn(() => chain);
   const rpc = vi.fn().mockResolvedValue(response);
-  return { ...chain, from, rpc, client: { from, rpc } as unknown as Supabase };
+  return { ...chain, from, rpc, client: { from, rpc } as unknown as DatabaseClient };
 }
 
 describe("références OAuth dans la couche de données", () => {

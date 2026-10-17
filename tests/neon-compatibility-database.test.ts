@@ -19,7 +19,7 @@ async function rejected(action: () => Promise<unknown>, code = "42501") {
   finally { await db.exec("rollback to savepoint denied; release savepoint denied"); }
 }
 
-describe("migration Supabase vers Neon : droits et identités", () => {
+describe("migration DatabaseClient vers Neon : droits et identités", () => {
   beforeAll(async () => {
     db = await createDatabase();
     await db.exec("alter table auth.users add column created_at timestamptz default now(), add column updated_at timestamptz default now()");

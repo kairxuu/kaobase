@@ -1,5 +1,5 @@
 import "server-only";
-import type { Supabase } from "@/lib/supabase/server";
+import type { DatabaseClient } from "@/lib/database/server";
 import type { Subscription, SubscriptionStatus } from "@/lib/types";
 import type { Space, SpaceFilter } from "@/lib/space-shared";
 import { detectSubscriptions, rollForward, type Period } from "@/lib/learning/subscriptions";
@@ -16,11 +16,11 @@ function titleCase(merchant: string) {
 }
 
 export async function listSubscriptions(
-  supabase: Supabase,
+  db: DatabaseClient,
   statuses: SubscriptionStatus[] = ["active", "suggested"],
   space: SpaceFilter = "all",
 ): Promise<Subscription[]> {
-  let q = supabase.from("subscriptions").select(SUB_COLUMNS).in("status", statuses);
+  let q = db.from("subscriptions").select(SUB_COLUMNS).in("status", statuses);
   if (space !== "all") q = q.eq("space", space);
   const { data, error } = await q.order("next_due", { ascending: true, nullsFirst: false });
   if (error) throw error;
@@ -43,18 +43,18 @@ export async function listSubscriptions(
 // - suggestions non modifiées -> montant et échéance mis à jour ;
 // - abonnements pris en main par l'utilisateur -> jamais écrasés ;
 // - abonnements rejetés par l'utilisateur -> jamais reproposés dans le même espace.
-export async function runSubscriptionDetection(supabase: Supabase) {
+export async function runSubscriptionDetection(db: DatabaseClient) {
   const since = new Date();
   since.setUTCMonth(since.getUTCMonth() - 18);
   const [transactionsResult, existingResult, accountsResult] = await Promise.all([
-    supabase
+    db
       .from("transactions")
       .select("booked_at, amount, merchant, category_id, account_id")
       .lt("amount", 0)
       .gte("booked_at", since.toISOString().slice(0, 10))
       .limit(10000),
-    supabase.from("subscriptions").select("id, merchant, status, space, detection_managed"),
-    supabase.from("accounts").select("id, space"),
+    db.from("subscriptions").select("id, merchant, status, space, detection_managed"),
+    db.from("accounts").select("id, space"),
   ]);
   // Une lecture incomplète ne doit jamais produire de nouvelles suggestions.
   for (const result of [transactionsResult, existingResult, accountsResult]) {
@@ -87,7 +87,7 @@ export async function runSubscriptionDetection(supabase: Supabase) {
       const known = byMerchant.get(c.merchant);
       if (known) {
         if (known.status !== "suggested" || !known.detection_managed) continue;
-        const { data, error } = await supabase
+        const { data, error } = await db
           .from("subscriptions")
           .update({ amount: c.amount, period: c.period, next_due: c.nextDue, anchor_day: c.anchorDay, confidence: c.confidence, updated_at: new Date().toISOString() })
           .eq("id", known.id)
@@ -103,7 +103,7 @@ export async function runSubscriptionDetection(supabase: Supabase) {
           if (r.merchant === c.merchant && r.categoryId) categoryCounts.set(r.categoryId, (categoryCounts.get(r.categoryId) ?? 0) + 1);
         }
         const categoryId = [...categoryCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
-        const { data, error } = await supabase.from("subscriptions").upsert({
+        const { data, error } = await db.from("subscriptions").upsert({
           name: titleCase(c.merchant),
           merchant: c.merchant,
           amount: c.amount,
@@ -125,7 +125,7 @@ export async function runSubscriptionDetection(supabase: Supabase) {
 }
 
 export async function updateSubscription(
-  supabase: Supabase,
+  db: DatabaseClient,
   id: string,
   patch: Partial<Pick<Subscription, "name" | "amount" | "period" | "next_due" | "status" | "notes" | "category_id">>,
 ) {
@@ -133,7 +133,7 @@ export async function updateSubscription(
   if (patch.next_due !== undefined) {
     anchorPatch = { anchor_day: patch.next_due ? Number(patch.next_due.slice(8, 10)) : null };
     if (patch.next_due) {
-      const { data: current, error } = await supabase
+      const { data: current, error } = await db
         .from("subscriptions")
         .select("period, next_due, anchor_day")
         .eq("id", id)
@@ -149,7 +149,7 @@ export async function updateSubscription(
       }
     }
   }
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("subscriptions")
     .update({
       ...patch,
@@ -165,10 +165,10 @@ export async function updateSubscription(
 }
 
 export async function createSubscription(
-  supabase: Supabase,
+  db: DatabaseClient,
   input: { name: string; amount: number; period: Period; nextDue: string | null; merchant?: string; space?: Space },
 ) {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("subscriptions")
     .insert({
       name: input.name,
@@ -188,8 +188,8 @@ export async function createSubscription(
   return data as Subscription;
 }
 
-export async function deleteSubscription(supabase: Supabase, id: string) {
-  const { data, error } = await supabase.from("subscriptions").delete().eq("id", id).select("id");
+export async function deleteSubscription(db: DatabaseClient, id: string) {
+  const { data, error } = await db.from("subscriptions").delete().eq("id", id).select("id");
   if (error) throw error;
   if (!data?.length) throw new UserError("Abonnement introuvable");
 }

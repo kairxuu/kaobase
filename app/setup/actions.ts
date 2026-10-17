@@ -9,10 +9,10 @@ import { cookies } from "next/headers";
 import { SPACE_COOKIE } from "@/lib/space-shared";
 
 export async function finishSetup(_: { error?: string }, formData: FormData): Promise<{ error?: string }> {
-  const { supabase } = await requireSession();
+  const { db } = await requireSession();
   try {
     const input = parseSetupForm(formData);
-    await completeSetup(supabase, input);
+    await completeSetup(db, input);
     // Un second onglet peut terminer un formulaire déjà validé : afficher tous
     // les comptes évite qu'un ancien choix de filtre masque le compte configuré.
     (await cookies()).set(SPACE_COOKIE, "all", {
