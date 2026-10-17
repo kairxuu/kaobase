@@ -13,6 +13,8 @@ const EMBEDDING_FILES = [
 ];
 
 const nextConfig: NextConfig = {
+  // Let migration checks run beside the developer's existing server.
+  distDir: process.env.KAOBASE_NEXT_DIST_DIR || ".next",
   // Embeddings locaux (onnxruntime) : à charger côté Node, pas à bundler.
   serverExternalPackages: ["@huggingface/transformers"],
   // onnxruntime-node est chargé dynamiquement : le traçage de Next ne le voit pas.

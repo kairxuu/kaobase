@@ -3,6 +3,7 @@ import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getOnboardingStatus } from "@/lib/data/onboarding";
+import { ensureAppIdentity } from "@/lib/data/identity";
 
 // La configuration initiale doit rester accessible avant que le profil soit complété.
 export const requireSession = cache(async () => {
@@ -10,6 +11,7 @@ export const requireSession = cache(async () => {
   const { data } = await supabase.auth.getClaims();
   const userId = data?.claims?.sub;
   if (!userId) redirect("/login");
+  await ensureAppIdentity(supabase);
   return { supabase, userId, email: (data.claims.email as string | undefined) ?? "" };
 });
 
@@ -25,6 +27,7 @@ export async function getUserForApi() {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   const userId = data?.claims?.sub;
+  if (userId) await ensureAppIdentity(supabase);
   return userId ? { supabase, userId } : null;
 }
 

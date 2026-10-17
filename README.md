@@ -17,6 +17,8 @@ Webapp multi-utilisateurs de gestion des finances, des abonnements récurrents e
 
 ## Architecture
 
+Les données métier peuvent être servies par **Neon Data API**, avec les sessions conservées dans **Supabase Auth**. `DATABASE_PROVIDER` choisit une base pour toutes les tables, vues et RPC ; aucune requête métier n'utilise la connexion administrateur. Voir [la migration vers Neon et la bascule de l'hébergement](docs/neon-migration.md).
+
 La rubrique **Mes apps** propose un catalogue avec recherche, catégories et tri, puis les raccourcis des comptes enregistrés. Les apps épinglées apparaissent sur l'accueil. L'intégration facultative Nango fournit le catalogue en ligne et les connexions OAuth des services configurés ; sans clé serveur, un catalogue de démarrage reste disponible pour ajouter des liens. Voir [le fonctionnement et la configuration OAuth](docs/apps.md).
 
 Tous les agents peuvent **agir** : enregistrer des opérations dictées (« 12 € de pain hier et 40 € d'essence »), chercher, corriger ou préparer la suppression d'une opération, créer des tâches et mémoriser une préférence. Les suppressions d'opérations, de tâches et de budgets exigent un clic sur **Confirmer la suppression** dans le chat : l'élément précis est présenté, la demande expire après 10 minutes et une modification de l'élément invalide la confirmation. Un simple « oui » écrit au modèle n'exécute aucune suppression. Chacun ajoute ensuite ses compétences :
@@ -53,6 +55,8 @@ Tout est stocké dans la base KAOBASE et réinjecté dans les prompts :
 Les tests de sécurité SQL utilisent PostgreSQL local en WebAssembly (PGlite), avec les vraies migrations et une simulation locale de l'authentification Supabase. Ils ne contactent aucun projet distant. Les évaluations IA et les parcours E2E connectés utilisent, eux, les services configurés et restent des commandes distinctes.
 
 ## Déploiement
+
+Pour la configuration Neon migrée, définir `DATABASE_PROVIDER=neon` et `NEON_DATA_API_URL` sur l'hébergement, garder les deux variables publiques Supabase pour l'authentification, puis déployer les correctifs. Le guide [Neon](docs/neon-migration.md) décrit les sauvegardes, la vérification et le retour arrière. Les migrations historiques ci-dessous restent nécessaires sur la base métier choisie ; ne pas les appliquer uniquement à l'ancienne base après la bascule.
 
 La rubrique Mes apps et les raccourcis de l'accueil demandent la migration `20261017060000_app_shortcuts.sql`, à appliquer après les migrations précédentes et avant le déploiement. L'accueil continue de fonctionner si cette fonctionnalité n'est pas encore activée.
 

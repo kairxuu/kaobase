@@ -45,3 +45,12 @@ next-env.d.ts
 /test-results/
 /playwright-report/
 /tests/e2e/.auth/
+.neon
+
+# Database exports contain personal data and authentication material.
+/*.dump
+/kaobase-schema*.sql
+/kaobase-restore.list
+/.local/
+/.next-*/
+__pycache__/
