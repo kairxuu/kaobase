@@ -53,13 +53,13 @@
 		223D8AF745B4AA5C9E066C89 /* TransactionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransactionsView.swift; sourceTree = "<group>"; };
 		2488B10A59F5750F58FE3275 /* NavigationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationTests.swift; sourceTree = "<group>"; };
 		265D16BEF245A7B001B6842E /* MoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoreView.swift; sourceTree = "<group>"; };
-		2A679E9DD04624AB00A57FD8 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		2A679E9DD04624AB00A57FD8 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		4116A7CB3F7E1D018854183C /* AppsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppsView.swift; sourceTree = "<group>"; };
 		48A3CEDBF7765E679FF8F710 /* APIClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClientTests.swift; sourceTree = "<group>"; };
 		5CD4244877BF452B9A87F06F /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		7B247A560AD75204074B3A8E /* Config.local.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Config.local.plist; sourceTree = "<group>"; };
 		805C577C03400B9DD6FC62D7 /* KaobaseUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = KaobaseUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		82355ED4D865A827C5EA8B28 /* Kaobase.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Kaobase.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		82355ED4D865A827C5EA8B28 /* Kaobase.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Kaobase.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8543DAC1D1022B648FE82A56 /* KaobaseApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaobaseApp.swift; sourceTree = "<group>"; };
 		8B054079397AB2C589276F11 /* Configuration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Configuration.swift; sourceTree = "<group>"; };
 		9156CD12BE7D06F2B75B521D /* Demo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Demo.swift; sourceTree = "<group>"; };
@@ -208,7 +208,6 @@
 						TestTargetID = 8C7B6E2346D612C917D9DD6D;
 					};
 					8C7B6E2346D612C917D9DD6D = {
-						DevelopmentTeam = "";
 						ProvisioningStyle = Automatic;
 					};
 					D9C1741E2846C33255DB2FC7 = {
@@ -377,6 +376,7 @@
 				CODE_SIGN_ENTITLEMENTS = Kaobase/Kaobase.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphonesimulator*]" = "-";
+				DEVELOPMENT_TEAM = JJQBJ3H9N3;
 				INFOPLIST_KEY_CFBundleDisplayName = Kaobase;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -531,6 +531,7 @@
 				CODE_SIGN_ENTITLEMENTS = Kaobase/Kaobase.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphonesimulator*]" = "-";
+				DEVELOPMENT_TEAM = JJQBJ3H9N3;
 				INFOPLIST_KEY_CFBundleDisplayName = Kaobase;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
