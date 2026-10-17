@@ -15,7 +15,7 @@ export function SpaceSwitcher({ value }: { value: SpaceFilter }) {
     <div
       role="radiogroup"
       aria-label="Espace affiché"
-      className={`inline-flex rounded-full bg-surface-2 p-0.5 text-xs ${pending ? "opacity-70" : ""}`}
+      className={`inline-flex rounded-[3px] bg-surface-2 p-0.5 text-xs ${pending ? "opacity-70" : ""}`}
     >
       {OPTIONS.map((o) => (
         <button
@@ -29,7 +29,7 @@ export function SpaceSwitcher({ value }: { value: SpaceFilter }) {
               await setSpaceAction(o);
             })
           }
-          className={`rounded-full px-3 py-1 transition-colors ${
+          className={`rounded-[3px] px-3 py-1 transition-colors ${
             current === o ? "bg-surface font-medium text-ink shadow-[0_1px_0_var(--rule)]" : "text-ink-2 hover:text-ink"
           }`}
         >

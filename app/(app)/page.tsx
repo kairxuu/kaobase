@@ -1,4 +1,5 @@
 import Link from "next/link";
+import "./dashboard.css";
 import { getCurrency, requireUser } from "@/lib/auth";
 import { accountIdsFor, getSpaceFilter } from "@/lib/space";
 import { getCategories, getTotalBalance, listTransactions, summarizeMonth } from "@/lib/data/finance";
@@ -87,148 +88,135 @@ export default async function Dashboard() {
   const firstName = profile?.display_name?.split(" ")[0];
 
   return (
-    <div className="space-y-12">
-      <header className="flex flex-wrap items-end justify-between gap-4">
+    <div className="dashboard">
+      <header className="dashboard-header">
         <div>
+          <p className="dashboard-date">{now.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}</p>
           <h1 className="page-title">{firstName ? `Bonjour ${firstName}` : "Bonjour"}</h1>
-          <p className="page-lede">
-            {now.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}, jour {now.getUTCDate()} sur {daysInMonth}.
-          </p>
         </div>
-        <Link href="/agents" className="btn-primary">Poser une question</Link>
+        <div className="dashboard-actions">
+          <Link href="/agents" className="btn-ghost">Poser une question</Link>
+          <Link href="/import" className="btn-primary">Importer un relevé <span aria-hidden>↗</span></Link>
+        </div>
       </header>
 
-      <AppShortcuts apps={apps} showSpace={space === "all"} />
-
-      {recent.length === 0 && (
-        <div className="slip flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm">
-            Aucune opération pour l&apos;instant. Importe un relevé de ta banque : le cadran, la prévision et les agents se rempliront.
-          </p>
-          <Link href="/import" className="btn-primary">Importer un relevé</Link>
-        </div>
-      )}
+      <section aria-label="Résumé des comptes">
+        <dl className="dashboard-metrics">
+          <div className="dashboard-metric dashboard-balance">
+            <dt>Solde des comptes</dt>
+            <dd className="figure">{money(balance)}<span className="dashboard-metric-note">Tous les comptes de l’espace affiché</span></dd>
+          </div>
+          <div className="dashboard-metric">
+            <dt>Entrées du mois <span aria-hidden>↙</span></dt>
+            <dd className="figure text-pos">{money(summary.income)}<span className="dashboard-metric-note">{now.toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}</span></dd>
+          </div>
+          <div className="dashboard-metric">
+            <dt>Dépenses du mois <span aria-hidden>↗</span></dt>
+            <dd className="figure">{money(summary.expenses)}<span className="dashboard-metric-note">D’après les opérations importées</span></dd>
+          </div>
+        </dl>
+      </section>
 
       {suggested.length > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-warn-soft px-4 py-3">
-          <p className="text-sm">
-            {suggested.length === 1
-              ? "Un paiement revient chaque mois sans être suivi comme abonnement."
-              : `${suggested.length} paiements reviennent régulièrement sans être suivis comme abonnements.`}
-          </p>
-          <Link href="/subscriptions" className="btn-ghost btn-sm">Les vérifier</Link>
+        <div className="dashboard-notice">
+          <p>{suggested.length === 1 ? "Un abonnement à vérifier" : `${suggested.length} abonnements à vérifier`} <span className="text-ink-2">· paiements récurrents repérés dans tes opérations</span></p>
+          <Link href="/subscriptions" className="dashboard-link">Vérifier <span aria-hidden>→</span></Link>
         </div>
       )}
 
-      <section className="grid items-center gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
-        <MonthDial currency={currency} today={now.getUTCDate()} daysInMonth={daysInMonth} marks={marks} remaining={remaining} total={totalThisMonth} />
-
-        <div className="space-y-8">
-          <div>
-            <p className="text-sm text-ink-2">Sur tes comptes</p>
-            <p className="figure mt-1 text-5xl md:text-6xl">{money(balance)}</p>
-          </div>
-
-          <dl className="grid grid-cols-2 gap-x-6 border-t border-line pt-4 text-sm">
-            <div>
-              <dt className="text-ink-2">Entré ce mois</dt>
-              <dd className="figure mt-1 text-2xl text-pos">{money(summary.income)}</dd>
+      <div className="dashboard-columns">
+        <div className="dashboard-stack">
+          <section className="dashboard-panel" aria-labelledby="forecast-title">
+            <div className="dashboard-panel-heading">
+              <div><h2 id="forecast-title">Prévision du solde</h2><p>Les 30 prochains jours · estimation</p></div>
+              <span className="dashboard-period">30 J</span>
             </div>
-            <div>
-              <dt className="text-ink-2">Sorti ce mois</dt>
-              <dd className="figure mt-1 text-2xl text-neg">{money(summary.expenses)}</dd>
-            </div>
-          </dl>
-
-          <div>
-            <h2 className="section-title">Prochains prélèvements</h2>
-            {upcoming.length === 0 ? (
-              <p className="text-sm text-ink-3">Rien de prévu dans les 30 jours.</p>
+            {recent.length > 0 ? (
+              <>
+                <ForecastLine points={forecast.points} currency={currency} />
+                <p className="dashboard-footnote">Abonnements connus et dépenses habituelles estimées à {money(forecast.variableDaily)} par jour.</p>
+              </>
             ) : (
-              <ul>
-                {upcoming.map((s) => (
-                  <li key={s.id} className="flex items-baseline gap-4 border-b border-line py-2 text-sm last:border-0">
-                    <span className="figure w-14 shrink-0 text-ink-2">{shortDate(s.next_due)}</span>
-                    <span className="flex-1 truncate">{s.name}</span>
-                    <span className="num">{money(s.amount)}</span>
+              <div className="dashboard-empty">
+                <p className="font-display text-2xl">Commence par un relevé.</p>
+                <p>Importe un fichier CSV ou OFX de ta banque pour afficher tes dépenses et estimer ton solde à venir.</p>
+                <Link href="/import" className="dashboard-link">Importer mon premier relevé <span aria-hidden>→</span></Link>
+              </div>
+            )}
+          </section>
+
+          <section className="dashboard-panel" aria-labelledby="categories-title">
+            <div className="dashboard-panel-heading">
+              <h2 id="categories-title">Dépenses par catégorie</h2>
+              <Link href={`/transactions?mois=${month}`} className="dashboard-link">Opérations <span aria-hidden>↗</span></Link>
+            </div>
+            {topCategories.length === 0 ? (
+              <p className="dashboard-muted">Aucune dépense enregistrée ce mois-ci.</p>
+            ) : (
+              <ul className="dashboard-categories">
+                {topCategories.map((c) => (
+                  <li key={c.categoryId ?? c.name}>
+                    <div className="flex flex-wrap justify-between gap-x-3 gap-y-1 text-sm">
+                      <Link href={c.categoryId ? `/transactions?mois=${month}&categorie=${c.categoryId}` : `/transactions?mois=${month}&non=1`} className="hover:text-accent">{c.name}</Link>
+                      <span className={`num ${c.limit && c.total > c.limit ? "text-neg" : "text-ink-2"}`}>
+                        {money(c.total)}{c.limit && <span className="text-ink-3"> / {money(c.limit)}</span>}
+                      </span>
+                    </div>
+                    <div className="relative mt-2 h-1 bg-surface-2">
+                      <div className="h-1" style={{ width: `${(c.total / maxCat) * 100}%`, background: c.color }} />
+                      {c.limit && <span className="absolute -top-1 h-3 w-px bg-ink" style={{ left: `${(c.limit / maxCat) * 100}%` }} title={`Budget : ${money(c.limit)}`} />}
+                    </div>
                   </li>
                 ))}
               </ul>
             )}
-          </div>
+          </section>
         </div>
-      </section>
 
-      {recent.length > 0 && (
-        <section>
-          <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="font-display text-2xl">Ton solde sur les 30 prochains jours</h2>
-            <p className="text-sm text-ink-2">
-              Abonnements connus, plus ta tendance habituelle : {money(forecast.variableDaily)} par jour.
-            </p>
-          </div>
-          <ForecastLine points={forecast.points} currency={currency} />
-        </section>
-      )}
+        <div className="dashboard-stack">
+          <section className="dashboard-panel" aria-labelledby="payments-title">
+            <div className="dashboard-panel-heading"><h2 id="payments-title">À prélever</h2><Link href="/subscriptions" className="dashboard-link" aria-label="Voir tous les abonnements">Tout voir ↗</Link></div>
+            <p className="dashboard-payment-total figure">{money(remaining)}</p>
+            <p className="dashboard-muted mb-4">restants sur les abonnements de ce mois</p>
+            {upcoming.length === 0 ? (
+              <p className="dashboard-muted">Aucun prélèvement prévu dans les 30 jours.</p>
+            ) : (
+              <ul className="dashboard-rows">
+                {upcoming.map((s) => (
+                  <li key={s.id}>
+                    <div className="min-w-0"><span className="block truncate">{s.name}</span><span className="dashboard-muted">{shortDate(s.next_due)}</span></div>
+                    <span className="num shrink-0">{money(s.amount)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <details className="dashboard-calendar">
+              <summary>Calendrier du mois</summary>
+              <MonthDial currency={currency} today={now.getUTCDate()} daysInMonth={daysInMonth} marks={marks} remaining={remaining} total={totalThisMonth} />
+            </details>
+          </section>
 
-      <section className="grid gap-10 lg:grid-cols-2">
-        <div>
-          <h2 className="section-title">Où part l&apos;argent ce mois-ci</h2>
-          {topCategories.length === 0 ? (
-            <p className="text-sm text-ink-3">Aucune dépense enregistrée ce mois-ci.</p>
-          ) : (
-            <ul className="space-y-3">
-              {topCategories.map((c) => (
-                <li key={c.name}>
-                  <div className="flex justify-between gap-3 text-sm">
-                    <Link
-                      href={c.categoryId ? `/transactions?mois=${month}&categorie=${c.categoryId}` : `/transactions?mois=${month}&non=1`}
-                      className="hover:text-accent"
-                    >
-                      {c.name}
-                    </Link>
-                    <span className={`num ${c.limit && c.total > c.limit ? "text-neg" : "text-ink-2"}`}>
-                      {money(c.total)}
-                      {c.limit && <span className="text-ink-3"> sur {money(c.limit)}</span>}
+          <section className="dashboard-panel" aria-labelledby="tasks-title">
+            <div className="dashboard-panel-heading"><h2 id="tasks-title">À faire aujourd’hui</h2><Link href="/tasks" className="dashboard-link" aria-label="Voir toutes les tâches">Tout voir ↗</Link></div>
+            {dueTasks.length === 0 ? (
+              <p className="dashboard-muted">Aucune tâche en retard ou prévue aujourd’hui.</p>
+            ) : (
+              <ul className="dashboard-rows">
+                {dueTasks.map((t) => (
+                  <li key={t.id}>
+                    <Link href="/tasks" className="min-w-0 hover:text-accent">{t.title}</Link>
+                    <span className={`shrink-0 text-xs ${t.due_date && t.due_date < today ? "text-neg" : "text-ink-3"}`}>
+                      {t.due_date ? (t.due_date < today ? shortDate(t.due_date) + " · en retard" : "aujourd’hui") : "sans date"}
                     </span>
-                  </div>
-                  <div className="relative mt-1.5 h-[3px] bg-surface-2">
-                    <div className="h-[3px]" style={{ width: `${(c.total / maxCat) * 100}%`, background: c.color }} />
-                    {c.limit && (
-                      <span
-                        className="absolute -top-1 h-[11px] w-px bg-ink"
-                        style={{ left: `${(c.limit / maxCat) * 100}%` }}
-                        title={`Budget : ${money(c.limit)}`}
-                      />
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
         </div>
+      </div>
 
-        <div>
-          <div className="mb-3 flex items-baseline justify-between">
-            <h2 className="section-title mb-0">À faire maintenant</h2>
-            <Link href="/tasks" className="text-sm text-accent hover:underline">Toutes les tâches</Link>
-          </div>
-          {dueTasks.length === 0 ? (
-            <p className="text-sm text-ink-3">Rien en retard ni prévu pour aujourd&apos;hui.</p>
-          ) : (
-            <ul>
-              {dueTasks.map((t) => (
-                <li key={t.id} className="flex items-baseline justify-between gap-3 border-b border-line py-2 text-sm last:border-0">
-                  <span>{t.title}</span>
-                  <span className={`shrink-0 text-xs ${t.due_date && t.due_date < today ? "text-neg" : "text-ink-3"}`}>
-                    {t.due_date ? (t.due_date < today ? `en retard, ${shortDate(t.due_date)}` : "aujourd'hui") : "sans date"}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </section>
+      <AppShortcuts apps={apps} showSpace={space === "all"} />
     </div>
   );
 }

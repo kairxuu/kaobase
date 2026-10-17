@@ -8,15 +8,15 @@ export function AppShortcuts({ apps, showSpace = false }: { apps: AppShortcut[] 
     <section aria-labelledby="app-shortcuts-title" className="card min-w-0 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 id="app-shortcuts-title" className="font-display text-2xl">Mes apps</h2>
-          <p className="mt-1 text-xs text-ink-3">Tes raccourcis à portée de main.</p>
+          <h2 id="app-shortcuts-title" className="text-sm font-semibold">Mes apps</h2>
+          <p className="mt-1 text-xs text-ink-3">Accès rapides aux comptes épinglés.</p>
         </div>
         <Link href="/apps" className="btn-ghost btn-sm">Gérer mes apps</Link>
       </div>
       {apps === null ? (
         <p className="text-sm text-ink-2" role="status">Tes raccourcis sont momentanément indisponibles.</p>
       ) : apps.length === 0 ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-surface-2 px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-3">
           <p className="text-sm text-ink-2">Ajoute tes apps et épingle tes comptes favoris ici.</p>
           <Link href="/apps#ajouter-une-app" className="btn-ghost btn-sm">Ajouter une app</Link>
         </div>
@@ -26,7 +26,7 @@ export function AppShortcuts({ apps, showSpace = false }: { apps: AppShortcut[] 
             <li key={app.id} className="min-w-0">
               <a href={app.url} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer"
                 aria-label={`Ouvrir ${app.name}${app.account_label ? ` — ${app.account_label}` : ""} (nouvel onglet)`}
-                className="flex min-w-0 items-center gap-3 rounded-md border border-line px-3 py-3 transition-colors hover:border-accent hover:bg-accent-soft"
+                className="flex min-w-0 items-center gap-3 rounded-[3px] border border-line px-3 py-3 transition-colors hover:border-accent hover:bg-accent-soft"
                 title={`${app.name} · ${app.account_label || appHost(app.url)}`}>
                 <AppAvatar name={app.name} category={app.category} size="sm" />
                 <span className="min-w-0 flex-1">

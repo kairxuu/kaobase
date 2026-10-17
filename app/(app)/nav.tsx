@@ -51,8 +51,8 @@ export function Nav({ account, usage, space }: { account: AccountPreview; usage:
               key={l.href}
               href={l.href}
               aria-current={active ? "page" : undefined}
-              className={`relative whitespace-nowrap rounded-md px-3 py-2 text-sm transition-colors ${
-                active ? "text-ink" : "text-ink-2 hover:bg-surface-2 hover:text-ink"
+              className={`relative whitespace-nowrap rounded-[3px] px-3 py-2 text-sm transition-colors ${
+                active ? "bg-accent-soft text-accent font-medium" : "text-ink-2 hover:bg-surface-2 hover:text-ink"
               } ${l.href === "/agents/performance" ? "md:pl-6" : ""}`}
             >
               {active && (

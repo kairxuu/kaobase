@@ -26,7 +26,7 @@ export function AppAvatar({
   return (
     <span
       aria-hidden="true"
-      className={`grid shrink-0 place-items-center rounded-xl font-semibold uppercase ${CATEGORY_COLORS[category] ?? CATEGORY_COLORS.other} ${size === "sm" ? "h-9 w-9 text-xs" : "h-12 w-12 text-sm"}`}
+      className={`grid shrink-0 place-items-center rounded-[3px] font-semibold uppercase ${CATEGORY_COLORS[category] ?? CATEGORY_COLORS.other} ${size === "sm" ? "h-9 w-9 text-xs" : "h-12 w-12 text-sm"}`}
     >
       {initials}
     </span>

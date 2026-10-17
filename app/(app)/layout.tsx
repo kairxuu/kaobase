@@ -22,9 +22,9 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         usage={usage}
         space={space}
       />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 md:px-10 md:py-12">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 md:px-10 md:py-9">
         {space !== "all" && (
-          <p className="mb-6 inline-flex items-center gap-2 rounded-full bg-accent-soft px-3 py-1 text-xs text-ink" role="status">
+          <p className="mb-6 inline-flex items-center gap-2 rounded-[3px] bg-accent-soft px-3 py-1 text-xs text-ink" role="status">
             <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden />
             Espace {SPACE_LABEL[space]} : seules les données {space === "pro" ? "professionnelles" : "personnelles"} sont affichées.
           </p>
