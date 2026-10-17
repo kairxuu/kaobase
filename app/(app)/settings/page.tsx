@@ -16,35 +16,63 @@ import { CURRENCIES } from "@/lib/profile-options";
 
 export const metadata: Metadata = { title: "Réglages" };
 
-const KIND_LABEL = { expense: "dépense", income: "revenu", transfer: "virement interne" } as const;
+const KIND_LABEL = {
+  expense: "dépense",
+  income: "revenu",
+  transfer: "virement interne",
+} as const;
 
 export default async function SettingsPage() {
   const { db, userId, email } = await requireUser();
   const currency = await getCurrency();
   const money = moneyIn(currency);
   const month = new Date().toISOString().slice(0, 7);
-  const [profile, balances, { data: accountRows }, categories, budgets, statuses] = await Promise.all([
+  const [
+    profile,
+    balances,
+    { data: accountRows },
+    categories,
+    budgets,
+    statuses,
+  ] = await Promise.all([
     getProfile(db, userId),
     getAccounts(db),
-    db.from("accounts").select("id, name, opening_balance, space").order("name"),
+    db
+      .from("accounts")
+      .select("id, name, kind, opening_balance, space")
+      .order("name"),
     getCategories(db),
     listBudgets(db).catch(() => null),
     budgetStatus(db, month).catch(() => null),
   ]);
   const balanceOf = new Map(balances.map((a) => [a.id, Number(a.balance)]));
-  const limitOf = new Map((budgets ?? []).map((b) => [b.category_id, b.monthly_limit]));
+  const limitOf = new Map(
+    (budgets ?? []).map((b) => [b.category_id, b.monthly_limit]),
+  );
   const statusOf = new Map((statuses ?? []).map((s) => [s.categoryId, s]));
   const expenseCategories = categories.filter((c) => c.kind === "expense");
   const providers = [
-    { name: "Groq", ok: Boolean(env.groqKey()), model: env.groqModel(), role: "répond en premier" },
-    { name: "Gemini", ok: Boolean(env.geminiKey()), model: env.geminiModel(), role: "prend le relais si Groq ne répond pas" },
+    {
+      name: "Groq",
+      ok: Boolean(env.groqKey()),
+      model: env.groqModel(),
+      role: "répond en premier",
+    },
+    {
+      name: "Gemini",
+      ok: Boolean(env.geminiKey()),
+      model: env.geminiModel(),
+      role: "prend le relais si Groq ne répond pas",
+    },
   ];
 
   return (
     <div className="space-y-10">
       <header>
         <h1 className="page-title">Réglages</h1>
-        <p className="page-lede">Ton profil, tes comptes, tes catégories et tes budgets.</p>
+        <p className="page-lede">
+          Ton profil, tes comptes, tes catégories et tes budgets.
+        </p>
       </header>
 
       <section className="grid gap-4 lg:grid-cols-2">
@@ -52,9 +80,15 @@ export default async function SettingsPage() {
           <h2 className="section-title">Ton profil</h2>
           <p className="mb-4 text-xs text-ink-3">
             {email}
-            {profile.memberSince && `, sur Kaobase depuis le ${new Date(profile.memberSince).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}`}
+            {profile.memberSince &&
+              `, sur Kaobase depuis le ${new Date(profile.memberSince).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}`}
           </p>
-          <ProfileForm profile={profile} colors={AVATAR_COLORS} currencies={CURRENCIES} timezones={Intl.supportedValuesOf("timeZone")} />
+          <ProfileForm
+            profile={profile}
+            colors={AVATAR_COLORS}
+            currencies={CURRENCIES}
+            timezones={Intl.supportedValuesOf("timeZone")}
+          />
         </div>
 
         <div className="card">
@@ -73,6 +107,7 @@ export default async function SettingsPage() {
                 account={{
                   id: a.id as string,
                   name: a.name as string,
+                  kind: a.kind as string,
                   openingBalance: Number(a.opening_balance),
                   space: a.space === "pro" ? "pro" : "perso",
                 }}
@@ -82,14 +117,24 @@ export default async function SettingsPage() {
             ))}
           </ul>
           <details>
-            <summary className="cursor-pointer text-sm font-medium">Ajouter un compte</summary>
-            <FormAction action={createAccountAction} submitLabel="Ajouter le compte" className="mt-3 grid grid-cols-2 gap-3">
+            <summary className="cursor-pointer text-sm font-medium">
+              Ajouter un compte
+            </summary>
+            <FormAction
+              action={createAccountAction}
+              submitLabel="Ajouter le compte"
+              className="mt-3 grid grid-cols-2 gap-3"
+            >
               <div className="col-span-2">
-                <label className="label" htmlFor="acc-name">Nom</label>
+                <label className="label" htmlFor="acc-name">
+                  Nom
+                </label>
                 <input className="input" id="acc-name" name="name" required />
               </div>
               <div>
-                <label className="label" htmlFor="acc-kind">Type</label>
+                <label className="label" htmlFor="acc-kind">
+                  Type
+                </label>
                 <select className="input" id="acc-kind" name="kind">
                   <option value="checking">Courant</option>
                   <option value="savings">Épargne</option>
@@ -99,10 +144,21 @@ export default async function SettingsPage() {
                 </select>
               </div>
               <div>
-                <label className="label" htmlFor="acc-balance">Solde d&apos;ouverture</label>
-                <input className="input" id="acc-balance" name="openingBalance" inputMode="decimal" defaultValue="0" />
+                <label className="label" htmlFor="acc-balance">
+                  Solde d&apos;ouverture
+                </label>
+                <input
+                  className="input"
+                  id="acc-balance"
+                  name="openingBalance"
+                  inputMode="decimal"
+                  defaultValue="0"
+                />
               </div>
-              <SpaceField id="acc-space" defaultValue={defaultSpace(await getSpaceFilter())} />
+              <SpaceField
+                id="acc-space"
+                defaultValue={defaultSpace(await getSpaceFilter())}
+              />
             </FormAction>
           </details>
         </div>
@@ -111,18 +167,42 @@ export default async function SettingsPage() {
           <h2 className="section-title">Catégories</h2>
           <ul className="mb-4 max-h-[26rem] divide-y divide-line overflow-y-auto pr-1">
             {categories.map((c) => (
-              <CategoryRow key={c.id} category={{ id: c.id, name: c.name, color: c.color, kindLabel: KIND_LABEL[c.kind] }} />
+              <CategoryRow
+                key={c.id}
+                category={{
+                  id: c.id,
+                  name: c.name,
+                  color: c.color,
+                  kindLabel: KIND_LABEL[c.kind],
+                }}
+              />
             ))}
           </ul>
           <details>
-            <summary className="cursor-pointer text-sm font-medium">Ajouter une catégorie</summary>
-            <FormAction action={createCategoryAction} submitLabel="Ajouter la catégorie" className="mt-3 grid grid-cols-3 gap-3">
+            <summary className="cursor-pointer text-sm font-medium">
+              Ajouter une catégorie
+            </summary>
+            <FormAction
+              action={createCategoryAction}
+              submitLabel="Ajouter la catégorie"
+              className="mt-3 grid grid-cols-3 gap-3"
+            >
               <div>
-                <label className="label" htmlFor="cat-name">Nom</label>
-                <input className="input" id="cat-name" name="name" required maxLength={40} />
+                <label className="label" htmlFor="cat-name">
+                  Nom
+                </label>
+                <input
+                  className="input"
+                  id="cat-name"
+                  name="name"
+                  required
+                  maxLength={40}
+                />
               </div>
               <div>
-                <label className="label" htmlFor="cat-kind">Type</label>
+                <label className="label" htmlFor="cat-kind">
+                  Type
+                </label>
                 <select className="input" id="cat-kind" name="kind">
                   <option value="expense">Dépense</option>
                   <option value="income">Revenu</option>
@@ -130,8 +210,16 @@ export default async function SettingsPage() {
                 </select>
               </div>
               <div>
-                <label className="label" htmlFor="cat-color">Couleur</label>
-                <input className="input h-[38px] p-1" id="cat-color" name="color" type="color" defaultValue="#64748b" />
+                <label className="label" htmlFor="cat-color">
+                  Couleur
+                </label>
+                <input
+                  className="input h-[38px] p-1"
+                  id="cat-color"
+                  name="color"
+                  type="color"
+                  defaultValue="#64748b"
+                />
               </div>
             </FormAction>
           </details>
@@ -142,12 +230,14 @@ export default async function SettingsPage() {
         <h2 className="section-title">Budgets du mois</h2>
         {budgets === null ? (
           <p className="text-sm text-ink-2">
-            Les budgets sont indisponibles pour le moment. Une mise à jour de la base est nécessaire.
+            Les budgets sont indisponibles pour le moment. Une mise à jour de la
+            base est nécessaire.
           </p>
         ) : (
           <>
             <p className="mb-2 text-sm text-ink-2">
-              Fixe un plafond mensuel par catégorie de dépense. Tu peux aussi demander à l&apos;agent Finance : « mets 300 € pour
+              Fixe un plafond mensuel par catégorie de dépense. Tu peux aussi
+              demander à l&apos;agent Finance : « mets 300 € pour
               l&apos;alimentation ».
             </p>
             <ul className="divide-y divide-line">
@@ -177,15 +267,19 @@ export default async function SettingsPage() {
             <li key={p.name} className="flex items-center justify-between">
               <span>
                 <span className="font-medium">{p.name}</span>
-                <span className="block text-xs text-ink-3">{p.role}, modèle {p.model}</span>
+                <span className="block text-xs text-ink-3">
+                  {p.role}, modèle {p.model}
+                </span>
               </span>
-              <span className={`text-xs ${p.ok ? "text-pos" : "text-ink-3"}`}>{p.ok ? "actif" : "non configuré"}</span>
+              <span className={`text-xs ${p.ok ? "text-pos" : "text-ink-3"}`}>
+                {p.ok ? "actif" : "non configuré"}
+              </span>
             </li>
           ))}
         </ul>
         <p className="mt-3 text-xs text-ink-3">
-          Chaque compte peut poser 6 questions par minute et 150 par jour aux agents. Les clés d&apos;accès restent sur le
-          serveur.
+          Chaque compte peut poser 6 questions par minute et 150 par jour aux
+          agents. Les clés d&apos;accès restent sur le serveur.
         </p>
       </section>
     </div>

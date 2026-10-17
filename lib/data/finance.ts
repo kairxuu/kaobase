@@ -3,35 +3,68 @@ import type { DatabaseClient } from "@/lib/database/server";
 import type { Category, Transaction } from "@/lib/types";
 import type { Space, SpaceFilter } from "@/lib/space-shared";
 import { dedupeHash, normalizeMerchant } from "@/lib/finance/normalize";
-import { applicableRule, groupAssignments, learnFromLlm, learnFromUser, type Rule } from "@/lib/learning/rules";
+import {
+  applicableRule,
+  groupAssignments,
+  learnFromLlm,
+  learnFromUser,
+  type Rule,
+} from "@/lib/learning/rules";
 import type { ParsedTransaction } from "@/lib/importers/types";
 import { categorizeMerchantsWithLlm } from "@/lib/agents/categorizer";
 import { runSubscriptionDetection } from "./subscriptions";
 import { UserError } from "@/lib/errors";
 
-const TX_COLUMNS = "id, account_id, booked_at, amount, label_raw, merchant, category_id, categorized_by, source";
+const TX_COLUMNS =
+  "id, account_id, booked_at, amount, label_raw, merchant, category_id, categorized_by, source";
 
-function check<T>(res: { data: T | null; error: { message: string } | null }): T {
+function check<T>(res: {
+  data: T | null;
+  error: { message: string } | null;
+}): T {
   if (res.error) throw res.error;
   return res.data as T;
 }
 
 export async function getCategories(db: DatabaseClient): Promise<Category[]> {
-  return check(await db.from("categories").select("id, name, kind, color").order("kind").order("name"));
+  return check(
+    await db
+      .from("categories")
+      .select("id, name, kind, color")
+      .order("kind")
+      .order("name"),
+  );
 }
 
-export type AccountBalance = { id: string; name: string; kind: string; currency: string; space: Space; balance: number };
+export type AccountBalance = {
+  id: string;
+  name: string;
+  kind: string;
+  currency: string;
+  space: Space;
+  balance: number;
+};
 
 // space : filtre perso/pro (ticket #1) ; « all » ou absent = tous les comptes.
-export async function getAccounts(db: DatabaseClient, space: SpaceFilter = "all"): Promise<AccountBalance[]> {
-  let q = db.from("account_balances").select("id, name, kind, currency, space, balance");
+export async function getAccounts(
+  db: DatabaseClient,
+  space: SpaceFilter = "all",
+): Promise<AccountBalance[]> {
+  let q = db
+    .from("account_balances")
+    .select("id, name, kind, currency, space, balance");
   if (space !== "all") q = q.eq("space", space);
   return check(await q.order("name")) as AccountBalance[];
 }
 
-export async function getTotalBalance(db: DatabaseClient, space: SpaceFilter = "all"): Promise<number> {
+export async function getTotalBalance(
+  db: DatabaseClient,
+  space: SpaceFilter = "all",
+): Promise<number> {
   const accounts = await getAccounts(db, space);
-  return Math.round(accounts.reduce((s, a) => s + Number(a.balance), 0) * 100) / 100;
+  return (
+    Math.round(accounts.reduce((s, a) => s + Number(a.balance), 0) * 100) / 100
+  );
 }
 
 export type TransactionFilters = {
@@ -47,8 +80,14 @@ export type TransactionFilters = {
   accountIds?: string[];
 };
 
-export async function listTransactions(db: DatabaseClient, f: TransactionFilters = {}): Promise<Transaction[]> {
-  let q = db.from("transactions").select(TX_COLUMNS).order("booked_at", { ascending: false });
+export async function listTransactions(
+  db: DatabaseClient,
+  f: TransactionFilters = {},
+): Promise<Transaction[]> {
+  let q = db
+    .from("transactions")
+    .select(TX_COLUMNS)
+    .order("booked_at", { ascending: false });
   if (f.from) q = q.gte("booked_at", f.from);
   if (f.to) q = q.lte("booked_at", f.to);
   if (f.categoryId) q = q.eq("category_id", f.categoryId);
@@ -58,26 +97,47 @@ export async function listTransactions(db: DatabaseClient, f: TransactionFilters
     if (f.accountIds.length === 0) return [];
     q = q.in("account_id", f.accountIds);
   }
-  if (f.search) q = q.or(`label_raw.ilike.%${f.search.replace(/[%,()]/g, "")}%,merchant.ilike.%${f.search.replace(/[%,()]/g, "")}%`);
+  if (f.search)
+    q = q.or(
+      `label_raw.ilike.%${f.search.replace(/[%,()]/g, "")}%,merchant.ilike.%${f.search.replace(/[%,()]/g, "")}%`,
+    );
   const limit = f.limit ?? 200;
   const offset = f.offset ?? 0;
-  const rows = check(await q.range(offset, offset + limit - 1)) as Transaction[];
+  const rows = check(
+    await q.range(offset, offset + limit - 1),
+  ) as Transaction[];
   return rows.map((r) => ({ ...r, amount: Number(r.amount) }));
 }
 
-export async function getTransaction(db: DatabaseClient, id: string): Promise<Transaction | null> {
-  const { data, error } = await db.from("transactions").select(TX_COLUMNS).eq("id", id).maybeSingle();
+export async function getTransaction(
+  db: DatabaseClient,
+  id: string,
+): Promise<Transaction | null> {
+  const { data, error } = await db
+    .from("transactions")
+    .select(TX_COLUMNS)
+    .eq("id", id)
+    .maybeSingle();
   if (error) throw error;
-  return data ? { ...(data as Transaction), amount: Number((data as Transaction).amount) } : null;
+  return data
+    ? { ...(data as Transaction), amount: Number((data as Transaction).amount) }
+    : null;
 }
 
 export function monthRange(month: string): { from: string; to: string } {
   const [y, m] = month.split("-").map(Number);
   const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
-  return { from: `${month}-01`, to: `${month}-${String(last).padStart(2, "0")}` };
+  return {
+    from: `${month}-01`,
+    to: `${month}-${String(last).padStart(2, "0")}`,
+  };
 }
 
-export async function monthSummary(db: DatabaseClient, month: string, accountIds?: string[]) {
+export async function monthSummary(
+  db: DatabaseClient,
+  month: string,
+  accountIds?: string[],
+) {
   const { from, to } = monthRange(month);
   const [txs, categories] = await Promise.all([
     listTransactions(db, { from, to, limit: 5000, accountIds }),
@@ -87,9 +147,15 @@ export async function monthSummary(db: DatabaseClient, month: string, accountIds
 }
 
 // Calcul pur : permet au tableau de bord de réutiliser des transactions déjà chargées.
-export function summarizeMonth(txs: Transaction[], categories: Category[], month: string) {
+export function summarizeMonth(
+  txs: Transaction[],
+  categories: Category[],
+  month: string,
+) {
   const { from, to } = monthRange(month);
-  const transferIds = new Set(categories.filter((c) => c.kind === "transfer").map((c) => c.id));
+  const transferIds = new Set(
+    categories.filter((c) => c.kind === "transfer").map((c) => c.id),
+  );
   const byCategory = new Map<string, number>();
   let income = 0;
   let expenses = 0;
@@ -127,13 +193,28 @@ export function summarizeMonth(txs: Transaction[], categories: Category[], month
 // Catégorisation : règles apprises d'abord, LLM ensuite pour l'inconnu.
 // ---------------------------------------------------------------------------
 
-type RuleRow = { merchant: string; category_id: string; source: "user" | "llm"; hits: number; misses: number };
+type RuleRow = {
+  merchant: string;
+  category_id: string;
+  source: "user" | "llm";
+  hits: number;
+  misses: number;
+};
 
 function toRule(r: RuleRow): Rule {
-  return { merchant: r.merchant, categoryId: r.category_id, source: r.source, hits: r.hits, misses: r.misses };
+  return {
+    merchant: r.merchant,
+    categoryId: r.category_id,
+    source: r.source,
+    hits: r.hits,
+    misses: r.misses,
+  };
 }
 
-async function loadRules(db: DatabaseClient, merchants: string[]): Promise<Map<string, Rule>> {
+async function loadRules(
+  db: DatabaseClient,
+  merchants: string[],
+): Promise<Map<string, Rule>> {
   if (merchants.length === 0) return new Map();
   const rows = check(
     await db
@@ -162,11 +243,18 @@ async function saveRule(db: DatabaseClient, rule: Rule) {
 
 // L'utilisateur choisit une catégorie : on apprend, puis on propage aux transactions
 // du même marchand qu'il n'a pas catégorisées lui-même.
-export async function setTransactionCategory(db: DatabaseClient, transactionId: string, categoryId: string | null) {
+export async function setTransactionCategory(
+  db: DatabaseClient,
+  transactionId: string,
+  categoryId: string | null,
+) {
   const tx = check(
     await db
       .from("transactions")
-      .update({ category_id: categoryId, categorized_by: categoryId ? "user" : null })
+      .update({
+        category_id: categoryId,
+        categorized_by: categoryId ? "user" : null,
+      })
       .eq("id", transactionId)
       .select("merchant")
       .single(),
@@ -199,18 +287,32 @@ export async function categorizeTransactions(
   let byRule = 0;
   let byLlm = 0;
 
-  const unknown = new Map<string, { merchant: string; label: string; amount: number }>();
-  const assignments = new Map<string, { categoryId: string; by: "rule" | "llm"; ids: string[] }>();
+  const unknown = new Map<
+    string,
+    { merchant: string; label: string; amount: number }
+  >();
+  const assignments = new Map<
+    string,
+    { categoryId: string; by: "rule" | "llm"; ids: string[] }
+  >();
 
   for (const t of transactions) {
     const rule = applicableRule(rules.get(t.merchant));
     if (rule) {
-      const a = assignments.get(t.merchant) ?? { categoryId: rule.categoryId, by: "rule" as const, ids: [] };
+      const a = assignments.get(t.merchant) ?? {
+        categoryId: rule.categoryId,
+        by: "rule" as const,
+        ids: [],
+      };
       a.ids.push(t.id);
       assignments.set(t.merchant, a);
       byRule++;
     } else if (!unknown.has(t.merchant)) {
-      unknown.set(t.merchant, { merchant: t.merchant, label: t.label_raw, amount: t.amount });
+      unknown.set(t.merchant, {
+        merchant: t.merchant,
+        label: t.label_raw,
+        amount: t.amount,
+      });
     }
   }
 
@@ -218,11 +320,17 @@ export async function categorizeTransactions(
   if (unknown.size > 0) {
     const categories = await getCategories(db);
     try {
-      const suggestions = await categorizeMerchantsWithLlm(db, [...unknown.values()], categories);
+      const suggestions = await categorizeMerchantsWithLlm(
+        db,
+        [...unknown.values()],
+        categories,
+      );
       for (const [merchant, categoryId] of suggestions) {
         const rule = learnFromLlm(rules.get(merchant), merchant, categoryId);
         if (rule) await saveRule(db, rule);
-        const ids = transactions.filter((t) => t.merchant === merchant).map((t) => t.id);
+        const ids = transactions
+          .filter((t) => t.merchant === merchant)
+          .map((t) => t.id);
         assignments.set(merchant, { categoryId, by: "llm", ids });
         byLlm += ids.length;
       }
@@ -243,7 +351,12 @@ export async function categorizeTransactions(
     }
   }
 
-  return { byRule, byLlm, uncategorized: transactions.length - byRule - byLlm, llmError };
+  return {
+    byRule,
+    byLlm,
+    uncategorized: transactions.length - byRule - byLlm,
+    llmError,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -295,12 +408,18 @@ export async function importTransactions(
     };
   });
 
-  const inserted: Pick<Transaction, "id" | "merchant" | "label_raw" | "amount">[] = [];
+  const inserted: Pick<
+    Transaction,
+    "id" | "merchant" | "label_raw" | "amount"
+  >[] = [];
   for (let i = 0; i < records.length; i += 500) {
     const chunk = check(
       await db
         .from("transactions")
-        .upsert(records.slice(i, i + 500), { onConflict: "user_id,dedupe_hash", ignoreDuplicates: true })
+        .upsert(records.slice(i, i + 500), {
+          onConflict: "user_id,dedupe_hash",
+          ignoreDuplicates: true,
+        })
         .select("id, merchant, label_raw, amount"),
     ) as Pick<Transaction, "id" | "merchant" | "label_raw" | "amount">[];
     inserted.push(...chunk.map((t) => ({ ...t, amount: Number(t.amount) })));
@@ -375,7 +494,10 @@ export async function addManualTransaction(
     check(
       await db
         .from("transactions")
-        .update({ category_id: categoryId, categorized_by: rule ? "rule" : "llm" })
+        .update({
+          category_id: categoryId,
+          categorized_by: rule ? "rule" : "llm",
+        })
         .eq("id", tx.id),
     );
     if (!rule && input.categoryId) {
@@ -399,24 +521,42 @@ export async function updateTransaction(
     update.merchant = normalizeMerchant(patch.label);
   }
   if (Object.keys(update).length === 0) throw new UserError("Rien à modifier");
-  return check(await db.from("transactions").update(update).eq("id", id).select(TX_COLUMNS).single()) as Transaction;
+  return check(
+    await db
+      .from("transactions")
+      .update(update)
+      .eq("id", id)
+      .select(TX_COLUMNS)
+      .single(),
+  ) as Transaction;
 }
 
 export async function deleteTransaction(db: DatabaseClient, id: string) {
-  const deleted = check(await db.from("transactions").delete().eq("id", id).select("id")) as { id: string }[];
+  const deleted = check(
+    await db.from("transactions").delete().eq("id", id).select("id"),
+  ) as { id: string }[];
   if (deleted.length === 0) throw new UserError("Opération introuvable");
 }
 
 export async function createCategory(
   db: DatabaseClient,
-  input: { name: string; kind: "expense" | "income" | "transfer"; color?: string },
+  input: {
+    name: string;
+    kind: "expense" | "income" | "transfer";
+    color?: string;
+  },
 ) {
   const { data, error } = await db
     .from("categories")
-    .insert({ name: input.name.trim(), kind: input.kind, color: input.color ?? "#64748b" })
+    .insert({
+      name: input.name.trim(),
+      kind: input.kind,
+      color: input.color ?? "#64748b",
+    })
     .select("id, name, kind, color")
     .single();
-  if (error?.code === "23505") throw new UserError(`La catégorie « ${input.name} » existe déjà.`);
+  if (error?.code === "23505")
+    throw new UserError(`La catégorie « ${input.name} » existe déjà.`);
   if (error) throw error;
   return data as Category;
 }
@@ -427,7 +567,12 @@ export async function createAccount(
 ) {
   const { data, error } = await db
     .from("accounts")
-    .insert({ name: input.name.trim(), kind: input.kind, opening_balance: input.openingBalance, space: input.space ?? "perso" })
+    .insert({
+      name: input.name.trim(),
+      kind: input.kind,
+      opening_balance: input.openingBalance,
+      space: input.space ?? "perso",
+    })
     .select("id, name")
     .single();
   if (error) throw error;
@@ -445,7 +590,11 @@ export function rankMerchants(txs: Transaction[], limit = 10) {
     byMerchant.set(t.merchant, m);
   }
   return [...byMerchant.entries()]
-    .map(([merchant, v]) => ({ merchant, total: Math.round(v.total * 100) / 100, count: v.count }))
+    .map(([merchant, v]) => ({
+      merchant,
+      total: Math.round(v.total * 100) / 100,
+      count: v.count,
+    }))
     .sort((a, b) => b.total - a.total)
     .slice(0, limit);
 }
@@ -454,27 +603,45 @@ export function rankMerchants(txs: Transaction[], limit = 10) {
 // Gestion : catégories, comptes, imports
 // ---------------------------------------------------------------------------
 
-export async function renameCategory(db: DatabaseClient, id: string, input: { name: string; color?: string }) {
+export async function renameCategory(
+  db: DatabaseClient,
+  id: string,
+  input: { name: string; color?: string },
+) {
   const update: Record<string, string> = { name: input.name.trim() };
   if (input.color) update.color = input.color;
-  check(await db.from("categories").update(update).eq("id", id).select("id").single());
+  check(
+    await db
+      .from("categories")
+      .update(update)
+      .eq("id", id)
+      .select("id")
+      .single(),
+  );
 }
 
 // Les opérations gardent leur montant et deviennent « sans catégorie » ; règles et budgets liés disparaissent.
 export async function deleteCategory(db: DatabaseClient, id: string) {
-  const deleted = check(await db.from("categories").delete().eq("id", id).select("id")) as { id: string }[];
+  const deleted = check(
+    await db.from("categories").delete().eq("id", id).select("id"),
+  ) as { id: string }[];
   if (deleted.length === 0) throw new UserError("Catégorie introuvable");
 }
 
 export async function updateAccount(
   db: DatabaseClient,
   id: string,
-  input: { name: string; openingBalance: number; space?: Space },
+  input: { name: string; openingBalance: number; space?: Space; kind?: string },
 ) {
   check(
     await db
       .from("accounts")
-      .update({ name: input.name.trim(), opening_balance: input.openingBalance, ...(input.space ? { space: input.space } : {}) })
+      .update({
+        name: input.name.trim(),
+        opening_balance: input.openingBalance,
+        ...(input.space ? { space: input.space } : {}),
+        ...(input.kind ? { kind: input.kind } : {}),
+      })
       .eq("id", id)
       .select("id")
       .single(),
@@ -483,18 +650,56 @@ export async function updateAccount(
 
 // Supprimer un compte supprime aussi ses opérations : sinon elles fausseraient le solde total.
 export async function deleteAccount(db: DatabaseClient, id: string) {
-  const accounts = check(await db.from("accounts").select("id")) as { id: string }[];
-  if (accounts.length <= 1) throw new UserError("Garde au moins un compte : c'est là que vont les opérations.");
+  const accounts = check(await db.from("accounts").select("id")) as {
+    id: string;
+  }[];
+  if (accounts.length <= 1)
+    throw new UserError(
+      "Garde au moins un compte : c'est là que vont les opérations.",
+    );
   check(await db.from("transactions").delete().eq("account_id", id));
-  const deleted = check(await db.from("accounts").delete().eq("id", id).select("id")) as { id: string }[];
+  const deleted = check(
+    await db.from("accounts").delete().eq("id", id).select("id"),
+  ) as { id: string }[];
   if (deleted.length === 0) throw new UserError("Compte introuvable");
 }
 
 // Annule un import : retire uniquement les opérations ajoutées par ce fichier, puis l'entrée d'historique.
 export async function undoImport(db: DatabaseClient, importId: string) {
   const removed = check(
-    await db.from("transactions").delete().eq("import_id", importId).select("id"),
+    await db
+      .from("transactions")
+      .delete()
+      .eq("import_id", importId)
+      .select("id"),
   ) as { id: string }[];
   check(await db.from("imports").delete().eq("id", importId));
   return { removed: removed.length };
+}
+
+// Read only the fields used by the distribution, across every filtered page.
+export async function transactionDistributionRows(
+  db: DatabaseClient,
+  f: TransactionFilters = {},
+) {
+  const rows: { category_id: string | null; amount: number }[] = [];
+  if (f.accountIds?.length === 0) return rows;
+  for (let offset = 0; ; offset += 1000) {
+    let q = db.from("transactions").select("category_id, amount").order("id");
+    if (f.from) q = q.gte("booked_at", f.from);
+    if (f.to) q = q.lte("booked_at", f.to);
+    if (f.categoryId) q = q.eq("category_id", f.categoryId);
+    if (f.uncategorized) q = q.is("category_id", null);
+    if (f.accountIds) q = q.in("account_id", f.accountIds);
+    if (f.search)
+      q = q.or(
+        `label_raw.ilike.%${f.search.replace(/[%,()]/g, "")}%,merchant.ilike.%${f.search.replace(/[%,()]/g, "")}%`,
+      );
+    const batch = check(await q.range(offset, offset + 999)) as {
+      category_id: string | null;
+      amount: number;
+    }[];
+    rows.push(...batch);
+    if (batch.length < 1000) return rows;
+  }
 }

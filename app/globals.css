@@ -138,9 +138,31 @@ body {
   @apply inline-flex max-w-full items-center rounded-[2px] bg-surface-2 px-2 py-0.5 text-[11px] font-medium text-ink-2;
 }
 
-.input { text-overflow: ellipsis; }
-.input::placeholder { text-overflow: ellipsis; }
-select.input { padding-inline-end: 2rem; }
+.input {
+  text-overflow: ellipsis;
+}
+.input::placeholder {
+  text-overflow: ellipsis;
+}
+select.input {
+  appearance: none;
+  padding-inline-end: 2.5rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23605a6e' stroke-width='1.5'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+  background-position: right 12px center;
+  background-repeat: no-repeat;
+  background-size: 16px;
+}
+@media (prefers-color-scheme: dark) {
+  select.input {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23b4adc4' stroke-width='1.5'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+  }
+}
+@media (forced-colors: active) {
+  select.input {
+    appearance: auto;
+    background-image: none;
+  }
+}
 
 @layer components {
   .table {
@@ -163,24 +185,48 @@ select.input { padding-inline-end: 2rem; }
    et l'aiguille du cadran (tableau de bord). Le reste répond aux actions. */
 
 @keyframes engrave {
-  from { stroke-dashoffset: 1; }
-  to { stroke-dashoffset: 0; }
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
 }
 @keyframes sweep {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(var(--angle)); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(var(--angle));
+  }
 }
 @keyframes mark-in {
-  from { opacity: 0; transform: scale(0.2); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 @keyframes rise {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: none; }
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 @keyframes learned {
-  0% { background-color: var(--signal-soft); }
-  100% { background-color: transparent; }
+  0% {
+    background-color: var(--signal-soft);
+  }
+  100% {
+    background-color: transparent;
+  }
 }
 
 .engrave path {
@@ -215,4 +261,24 @@ select.input { padding-inline-end: 2rem; }
     animation-delay: 0ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+.app-dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: min(640px, calc(100% - 32px));
+  max-height: min(80dvh, 800px);
+  padding: 0;
+  color: var(--ink);
+  background: var(--sheet);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  box-shadow: 0 24px 100px #0003;
+}
+.app-dialog::backdrop {
+  background: #17121f88;
+}
+.app-dialog-body {
+  padding: 24px;
 }

@@ -2,22 +2,42 @@ import { expect, test } from "@playwright/test";
 
 test("la page de connexion s'affiche", async ({ page }) => {
   await page.goto("/login");
-  await expect(page.getByRole("button", { name: "Se connecter" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Accéder à Kaobase." })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Se connecter" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Accéder à Kaobase." }),
+  ).toBeVisible();
 });
 
-test("la connexion reste accessible sans défilement sur téléphone", async ({ page }) => {
+test("la connexion reste accessible sans défilement sur téléphone", async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto("/login");
-  await expect(page.getByRole("button", { name: "Se connecter", exact: true })).toBeInViewport();
+  await expect(
+    page.getByRole("button", { name: "Se connecter", exact: true }),
+  ).toBeInViewport();
   await page.getByRole("button", { name: "Je découvre Kaobase" }).click();
-  await expect(page.getByRole("button", { name: "Je découvre Kaobase" })).toHaveAttribute("aria-pressed", "true");
+  await expect(
+    page.getByRole("button", { name: "Je découvre Kaobase" }),
+  ).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByLabel("Prénom", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Créer mon compte" })).toBeInViewport();
+  await expect(
+    page.getByRole("button", { name: "Créer mon compte" }),
+  ).toBeInViewport();
 });
 
 test("les pages privées renvoient vers la connexion", async ({ page }) => {
-  for (const path of ["/", "/transactions", "/settings", "/agents", "/setup", "/apps"]) {
+  for (const path of [
+    "/",
+    "/transactions",
+    "/settings",
+    "/agents",
+    "/setup",
+    "/apps",
+    "/savings",
+  ]) {
     await page.goto(path);
     await expect(page).toHaveURL(/\/login/);
   }
@@ -26,10 +46,14 @@ test("les pages privées renvoient vers la connexion", async ({ page }) => {
 test("mot de passe oublié : formulaire et réponse neutre", async ({ page }) => {
   await page.goto("/login");
   await page.getByRole("button", { name: "Mot de passe oublié ?" }).click();
-  await expect(page.getByRole("heading", { name: "Mot de passe oublié" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Mot de passe oublié" }),
+  ).toBeVisible();
   await expect(page.getByLabel("Mot de passe", { exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Revenir à la connexion" }).click();
-  await expect(page.getByRole("button", { name: "Se connecter" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Se connecter" }),
+  ).toBeVisible();
 });
 
 test("lien expiré : message clair", async ({ page }) => {
@@ -40,21 +64,37 @@ test("lien expiré : message clair", async ({ page }) => {
 
 test("l'API des agents refuse sans session", async ({ request }) => {
   const res = await request.post("/api/agents", {
-    data: { message: "test", conversationId: "00000000-0000-4000-8000-000000000000" },
+    data: {
+      message: "test",
+      conversationId: "00000000-0000-4000-8000-000000000000",
+    },
   });
   expect(res.status()).toBe(401);
-  const deletion = await request.post("/api/agents/deletions", { data: {
-    requestId: "00000000-0000-4000-8000-000000000000",
-    conversationId: "00000000-0000-4000-8000-000000000000", decision: "confirm",
-  } });
+  const deletion = await request.post("/api/agents/deletions", {
+    data: {
+      requestId: "00000000-0000-4000-8000-000000000000",
+      conversationId: "00000000-0000-4000-8000-000000000000",
+      decision: "confirm",
+    },
+  });
   expect(deletion.status()).toBe(401);
 });
 
-test("les API du catalogue et des connexions exigent une session", async ({ request, baseURL }) => {
+test("les API du catalogue et des connexions exigent une session", async ({
+  request,
+  baseURL,
+}) => {
   const catalog = await request.get("/api/apps/catalog");
   expect(catalog.status()).toBe(401);
-  for (const path of ["/api/apps/connect/session", "/api/apps/connect/complete", "/api/apps/connections/10000000-0000-4000-8000-000000000001/disconnect"]) {
-    const response = await request.post(path, { headers: { origin: new URL(baseURL!).origin }, data: {} });
+  for (const path of [
+    "/api/apps/connect/session",
+    "/api/apps/connect/complete",
+    "/api/apps/connections/10000000-0000-4000-8000-000000000001/disconnect",
+  ]) {
+    const response = await request.post(path, {
+      headers: { origin: new URL(baseURL!).origin },
+      data: {},
+    });
     expect(response.status()).toBe(401);
     expect(response.headers()["cache-control"]).toContain("no-store");
   }

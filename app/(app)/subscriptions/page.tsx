@@ -1,3 +1,6 @@
+import { getCategories } from "@/lib/data/finance";
+import { CategoryDonut } from "../_components/category-donut";
+import { categoryDistribution } from "@/lib/distribution";
 import { getCurrency, requireUser } from "@/lib/auth";
 import { defaultSpace, getSpaceFilter } from "@/lib/space";
 import { SpaceField } from "../_components/space-field";
@@ -23,13 +26,16 @@ const PERIODS = [
 
 export default async function SubscriptionsPage() {
   const { db } = await requireUser();
-  const money = moneyIn(await getCurrency());
+  const currency = await getCurrency();
+  const money = moneyIn(currency);
   const space = await getSpaceFilter();
-  const subs = await listSubscriptions(db, ["active", "suggested", "cancelled"], space);
+  const [subs, categories] = await Promise.all([
+    listSubscriptions(db, ["active", "suggested", "cancelled"], space),
+    getCategories(db),
+  ]);
   const active = subs.filter((s) => s.status === "active");
   const suggested = subs.filter((s) => s.status === "suggested");
   const cancelled = subs.filter((s) => s.status === "cancelled");
-  const monthly = active.reduce((s, x) => s + monthlyCost(x.amount, x.period), 0);
 
   return (
     <div className="space-y-6">
@@ -37,40 +43,71 @@ export default async function SubscriptionsPage() {
         <div>
           <h1 className="page-title">Abonnements</h1>
           <p className="page-lede">
-            {active.length === 0
-              ? "Aucun abonnement suivi pour l'instant."
-              : <>Tes {active.length} abonnements coûtent <span className="num font-medium text-ink">{money(monthly)}</span> par mois, soit <span className="num font-medium text-ink">{money(monthly * 12)}</span> par an.</>}
+            {active.length} abonnement{active.length > 1 ? "s" : ""} suivi
+            {active.length > 1 ? "s" : ""}. Les montants du graphique sont
+            ramenés au mois.
           </p>
         </div>
-        <ActionButton
-          action={detectSubscriptionsAction}
-          className="btn-ghost"
-        >
+        <ActionButton action={detectSubscriptionsAction} className="btn-ghost">
           Chercher de nouveaux abonnements
         </ActionButton>
       </header>
 
+      <CategoryDonut
+        items={categoryDistribution(
+          active.map((s) => ({
+            category_id: s.category_id,
+            amount: -monthlyCost(s.amount, s.period),
+          })),
+          categories,
+        )}
+        currency={currency}
+        title="Répartition mensuelle"
+        description="Abonnements actifs uniquement · coûts mensuels équivalents"
+      />
+
       {suggested.length > 0 && (
         <section className="rounded-md bg-warn-soft p-5">
-          <h2 className="section-title">Ces paiements reviennent régulièrement. Est-ce des abonnements ?</h2>
+          <h2 className="section-title">
+            Ces paiements reviennent régulièrement. Est-ce des abonnements ?
+          </h2>
           <p className="mb-3 text-xs text-ink-3">
-            Si tu réponds non, Kaobase ne te reposera plus la question pour ce commerçant.
+            Si tu réponds non, Kaobase ne te reposera plus la question pour ce
+            commerçant.
           </p>
           <ul className="divide-y divide-line">
             {suggested.map((s) => (
-              <li key={s.id} className="flex flex-wrap items-center justify-between gap-3 py-2.5">
+              <li
+                key={s.id}
+                className="flex flex-wrap items-center justify-between gap-3 py-2.5"
+              >
                 <div>
                   <p className="font-medium">{s.name}</p>
                   <p className="text-xs text-ink-3">
-                    <span className="num">{money(s.amount)}</span> par {PERIOD_LABEL[s.period]}, prochain le {shortDate(s.next_due)}.
-                    Certitude {Math.round(s.confidence * 100)} %.
+                    <span className="num">{money(s.amount)}</span> par{" "}
+                    {PERIOD_LABEL[s.period]}, prochain le{" "}
+                    {shortDate(s.next_due)}. Certitude{" "}
+                    {Math.round(s.confidence * 100)} %.
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  <ActionButton action={setSubscriptionStatusAction.bind(null, s.id, "active")} className="btn-primary btn-sm">
+                  <ActionButton
+                    action={setSubscriptionStatusAction.bind(
+                      null,
+                      s.id,
+                      "active",
+                    )}
+                    className="btn-primary btn-sm"
+                  >
                     Oui, le suivre
                   </ActionButton>
-                  <ActionButton action={setSubscriptionStatusAction.bind(null, s.id, "rejected")}>
+                  <ActionButton
+                    action={setSubscriptionStatusAction.bind(
+                      null,
+                      s.id,
+                      "rejected",
+                    )}
+                  >
                     Non
                   </ActionButton>
                 </div>
@@ -95,7 +132,8 @@ export default async function SubscriptionsPage() {
             {active.length === 0 && (
               <tr>
                 <td colSpan={5} className="py-8 text-center text-ink-3">
-                  Aucun abonnement suivi. Importe un relevé pour les détecter, ou ajoute-en un ci-dessous.
+                  Aucun abonnement suivi. Importe un relevé pour les détecter,
+                  ou ajoute-en un ci-dessous.
                 </td>
               </tr>
             )}
@@ -105,35 +143,89 @@ export default async function SubscriptionsPage() {
                 <tr key={s.id}>
                   <td>
                     <details>
-                      <summary className="cursor-pointer font-medium">{s.name}</summary>
+                      <summary className="cursor-pointer font-medium">
+                        {s.name}
+                      </summary>
                       <FormAction
                         action={updateSubscriptionAction.bind(null, s.id)}
                         submitLabel="Enregistrer"
                         reset={false}
                         className="mt-3 grid max-w-md grid-cols-2 gap-2"
                       >
-                        <input className="input col-span-2" name="name" defaultValue={s.name} aria-label="Nom" />
-                        <input className="input" name="amount" defaultValue={s.amount} inputMode="decimal" aria-label="Montant" />
-                        <select className="input" name="period" defaultValue={s.period} aria-label="Période">
+                        <input
+                          className="input col-span-2"
+                          name="name"
+                          defaultValue={s.name}
+                          aria-label="Nom"
+                        />
+                        <input
+                          className="input"
+                          name="amount"
+                          defaultValue={s.amount}
+                          inputMode="decimal"
+                          aria-label="Montant"
+                        />
+                        <select
+                          className="input"
+                          name="period"
+                          defaultValue={s.period}
+                          aria-label="Période"
+                        >
                           {PERIODS.map(([v, l]) => (
-                            <option key={v} value={v}>{l}</option>
+                            <option key={v} value={v}>
+                              {l}
+                            </option>
                           ))}
                         </select>
-                        <input className="input col-span-2" name="nextDue" type="date" defaultValue={s.next_due ?? ""} aria-label="Prochaine échéance" />
+                        <select
+                          className="input col-span-2"
+                          name="categoryId"
+                          defaultValue={s.category_id ?? ""}
+                          aria-label="Catégorie de l’abonnement"
+                        >
+                          <option value="">Sans catégorie</option>
+                          {categories
+                            .filter((c) => c.kind === "expense")
+                            .map((c) => (
+                              <option value={c.id} key={c.id}>
+                                {c.name}
+                              </option>
+                            ))}
+                        </select>
+                        <input
+                          className="input col-span-2"
+                          name="nextDue"
+                          type="date"
+                          defaultValue={s.next_due ?? ""}
+                          aria-label="Prochaine échéance"
+                        />
                       </FormAction>
                     </details>
                   </td>
                   <td className="num whitespace-nowrap text-right">
-                    {money(s.amount)} <span className="text-xs text-ink-3">/ {PERIOD_LABEL[s.period]}</span>
+                    {money(s.amount)}{" "}
+                    <span className="text-xs text-ink-3">
+                      / {PERIOD_LABEL[s.period]}
+                    </span>
                   </td>
-                  <td className="num whitespace-nowrap text-right text-ink-2">{money(annualCost(s.amount, s.period))}</td>
+                  <td className="num whitespace-nowrap text-right text-ink-2">
+                    {money(annualCost(s.amount, s.period))}
+                  </td>
                   <td className="whitespace-nowrap">
                     {shortDate(s.next_due)}
-                    {days != null && days <= 7 && <span className="badge ml-2 bg-warn-soft text-warn">J-{days}</span>}
+                    {days != null && days <= 7 && (
+                      <span className="badge ml-2 bg-warn-soft text-warn">
+                        J-{days}
+                      </span>
+                    )}
                   </td>
                   <td className="text-right">
                     <ActionButton
-                      action={setSubscriptionStatusAction.bind(null, s.id, "cancelled")}
+                      action={setSubscriptionStatusAction.bind(
+                        null,
+                        s.id,
+                        "cancelled",
+                      )}
                       confirm={`${s.name} ne sera plus compté dans tes dépenses prévues. Continuer ?`}
                     >
                       Je l&apos;ai résilié
@@ -156,26 +248,66 @@ export default async function SubscriptionsPage() {
       <section className="grid gap-4 lg:grid-cols-2">
         <div className="card">
           <h2 className="section-title">Ajouter un abonnement</h2>
-          <FormAction action={createSubscriptionAction} submitLabel="Ajouter" className="grid grid-cols-2 gap-3">
+          <FormAction
+            action={createSubscriptionAction}
+            submitLabel="Ajouter"
+            className="grid grid-cols-2 gap-3"
+          >
             <div className="col-span-2">
-              <label className="label" htmlFor="sub-name">Nom</label>
+              <label className="label" htmlFor="sub-name">
+                Nom
+              </label>
               <input className="input" id="sub-name" name="name" required />
             </div>
             <div>
-              <label className="label" htmlFor="sub-amount">Montant</label>
-              <input className="input" id="sub-amount" name="amount" inputMode="decimal" required />
+              <label className="label" htmlFor="sub-amount">
+                Montant
+              </label>
+              <input
+                className="input"
+                id="sub-amount"
+                name="amount"
+                inputMode="decimal"
+                required
+              />
             </div>
             <div>
-              <label className="label" htmlFor="sub-period">Période</label>
+              <label className="label" htmlFor="sub-period">
+                Période
+              </label>
               <select className="input" id="sub-period" name="period">
                 {PERIODS.map(([v, l]) => (
-                  <option key={v} value={v}>{l}</option>
+                  <option key={v} value={v}>
+                    {l}
+                  </option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="label" htmlFor="sub-due">Prochaine échéance</label>
-              <input className="input" id="sub-due" name="nextDue" type="date" />
+              <label className="label" htmlFor="sub-due">
+                Prochaine échéance
+              </label>
+              <input
+                className="input"
+                id="sub-due"
+                name="nextDue"
+                type="date"
+              />
+            </div>
+            <div className="col-span-2">
+              <label className="label" htmlFor="sub-category">
+                Catégorie
+              </label>
+              <select className="input" name="categoryId" id="sub-category">
+                <option value="">Sans catégorie</option>
+                {categories
+                  .filter((c) => c.kind === "expense")
+                  .map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+              </select>
             </div>
             <SpaceField id="sub-space" defaultValue={defaultSpace(space)} />
           </FormAction>
@@ -185,11 +317,25 @@ export default async function SubscriptionsPage() {
             <h2 className="section-title">Résiliés</h2>
             <ul className="divide-y divide-line text-sm">
               {cancelled.map((s) => (
-                <li key={s.id} className="flex items-center justify-between py-2">
+                <li
+                  key={s.id}
+                  className="flex items-center justify-between py-2"
+                >
                   <span className="text-ink-2">{s.name}</span>
                   <span className="flex gap-1.5">
-                    <ActionButton action={setSubscriptionStatusAction.bind(null, s.id, "active")}>Le suivre à nouveau</ActionButton>
-                    <ActionButton action={deleteSubscriptionAction.bind(null, s.id)} confirm={`Supprimer ${s.name} définitivement de la liste ?`}>
+                    <ActionButton
+                      action={setSubscriptionStatusAction.bind(
+                        null,
+                        s.id,
+                        "active",
+                      )}
+                    >
+                      Le suivre à nouveau
+                    </ActionButton>
+                    <ActionButton
+                      action={deleteSubscriptionAction.bind(null, s.id)}
+                      confirm={`Supprimer ${s.name} définitivement de la liste ?`}
+                    >
                       Supprimer
                     </ActionButton>
                   </span>
