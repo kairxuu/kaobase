@@ -8,7 +8,7 @@ const sans = Schibsted_Grotesk({ variable: "--font-sans-ui", subsets: ["latin"],
 
 export const metadata: Metadata = {
   title: { default: "Kaobase", template: "%s — Kaobase" },
-  description: "Tes comptes, tes abonnements et tes tâches, avec des agents qui apprennent de tes choix.",
+  description: "Importe tes relevés CSV ou OFX dans Kaobase pour classer tes opérations, retrouver tes abonnements et suivre tes échéances.",
 };
 
 export const viewport: Viewport = {

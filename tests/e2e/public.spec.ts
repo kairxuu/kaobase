@@ -3,7 +3,17 @@ import { expect, test } from "@playwright/test";
 test("la page de connexion s'affiche", async ({ page }) => {
   await page.goto("/login");
   await expect(page.getByRole("button", { name: "Se connecter" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: /au même endroit/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Où est passé ton argent ce mois-ci ?" })).toBeVisible();
+});
+
+test("la connexion reste accessible sans défilement sur téléphone", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto("/login");
+  await expect(page.getByRole("button", { name: "Se connecter", exact: true })).toBeInViewport();
+  await page.getByRole("button", { name: "Je découvre Kaobase" }).click();
+  await expect(page.getByRole("button", { name: "Je découvre Kaobase" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByLabel("Prénom", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Créer mon compte" })).toBeInViewport();
 });
 
 test("les pages privées renvoient vers la connexion", async ({ page }) => {
