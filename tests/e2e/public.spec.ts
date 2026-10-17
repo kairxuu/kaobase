@@ -7,7 +7,7 @@ test("la page de connexion s'affiche", async ({ page }) => {
 });
 
 test("les pages privées renvoient vers la connexion", async ({ page }) => {
-  for (const path of ["/", "/transactions", "/settings", "/agents"]) {
+  for (const path of ["/", "/transactions", "/settings", "/agents", "/setup"]) {
     await page.goto(path);
     await expect(page).toHaveURL(/\/login/);
   }

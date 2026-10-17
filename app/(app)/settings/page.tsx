@@ -12,22 +12,9 @@ import { ProfileForm } from "./profile-form";
 import { AVATAR_COLORS, getProfile } from "@/lib/data/account";
 import { defaultSpace, getSpaceFilter } from "@/lib/space";
 import { SpaceField } from "../_components/space-field";
+import { CURRENCIES } from "@/lib/profile-options";
 
 export const metadata: Metadata = { title: "Réglages" };
-
-// Devises proposées : formatage seulement, aucun taux de change n'est appliqué.
-const CURRENCIES = [
-  ["EUR", "Euro (€)"],
-  ["USD", "Dollar américain ($)"],
-  ["GBP", "Livre sterling (£)"],
-  ["CHF", "Franc suisse"],
-  ["CAD", "Dollar canadien"],
-  ["MAD", "Dirham marocain"],
-  ["XOF", "Franc CFA (BCEAO)"],
-  ["XAF", "Franc CFA (BEAC)"],
-  ["TND", "Dinar tunisien"],
-  ["DZD", "Dinar algérien"],
-] as const;
 
 const KIND_LABEL = { expense: "dépense", income: "revenu", transfer: "virement interne" } as const;
 

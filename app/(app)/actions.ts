@@ -434,8 +434,10 @@ export async function setSpaceAction(filter: SpaceFilter) {
 export async function syncTimezoneAction(timezone: string) {
   const { supabase, userId } = await requireUser();
   if (!isValidTimezone(timezone)) return { ok: false as const, error: "Fuseau inconnu." };
-  const { data } = await supabase.auth.getUser();
-  if (data.user?.user_metadata?.timezone_manual) return { ok: true as const };
+  const { data } = await supabase.from("profiles").select("onboarding_completed_at").eq("id", userId).single();
+  if (data?.onboarding_completed_at) return { ok: true as const };
+  const { data: auth } = await supabase.auth.getUser();
+  if (auth.user?.user_metadata?.timezone_manual) return { ok: true as const };
   const { error } = await supabase.from("profiles").update({ timezone }).eq("id", userId);
   if (error) return { ok: false as const, error: friendlyError(error) };
   return { ok: true as const };

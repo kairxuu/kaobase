@@ -9,7 +9,7 @@ Webapp multi-utilisateurs de gestion des finances, des abonnements récurrents e
    - Groq : https://console.groq.com/keys (principal)
    - Gemini : https://aistudio.google.com/apikey (secours automatique)
 3. `cp .env.example .env.local` et remplis les valeurs (URL + clé *anon* Supabase, clés IA).
-4. `npm install && npm run dev` puis http://localhost:3000 : crée un compte.
+4. `npm install && npm run dev` puis http://localhost:3000 : crée un compte et complète les trois étapes de configuration (préférences, premier compte, récapitulatif).
 5. Page **Import** : importe `demo/releve-demo.csv` pour tester avec 6 mois de données réalistes.
 
 > Confirmation d'email : dans Supabase > Authentication > Email Templates, fais pointer le lien vers
@@ -51,6 +51,8 @@ Tout est stocké dans la base KAOBASE et réinjecté dans les prompts :
 Les tests de sécurité SQL utilisent PostgreSQL local en WebAssembly (PGlite), avec les vraies migrations et une simulation locale de l'authentification Supabase. Ils ne contactent aucun projet distant. Les évaluations IA et les parcours E2E connectés utilisent, eux, les services configurés et restent des commandes distinctes.
 
 ## Déploiement
+
+La configuration après inscription/première connexion demande aussi la migration `20261017050000_onboarding.sql`, à appliquer avant de déployer ce parcours. Une fois les préférences et le premier compte validés, l'utilisateur accède directement au tableau de bord aux connexions suivantes. Les comptes existants passent une seule fois par cette configuration ; les opérations et les comptes existants sont conservés. Un compte contenant déjà des opérations garde son solde d'ouverture et son espace pendant ce parcours.
 
 Avant de déployer les correctifs du 17 octobre 2026, appliquer **dans l'ordre** les quatre migrations `20261017010000_ownership_integrity.sql`, `20261017020000_subscription_identity.sql`, `20261017030000_agent_deletion_requests.sql` et `20261017040000_agent_request_limits.sql` (ou `supabase db push` sur le projet lié). La première s'arrête sans modifier les données si elle trouve des références entre utilisateurs à examiner. Les nouvelles suppressions et les appels IA restent bloqués tant que leurs migrations manquent. Voir [le rapport d'audit](docs/audit-2026-10-17.md) pour la portée et les limites des vérifications.
 

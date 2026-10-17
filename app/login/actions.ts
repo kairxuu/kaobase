@@ -4,12 +4,13 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { friendlyError } from "@/lib/errors";
 import { siteOrigin } from "@/lib/site";
+import { getOnboardingStatus } from "@/lib/data/onboarding";
 
 export type AuthState = { error?: string; info?: string };
 
 export async function signIn(_: AuthState, formData: FormData): Promise<AuthState> {
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data, error } = await supabase.auth.signInWithPassword({
     email: String(formData.get("email") ?? ""),
     password: String(formData.get("password") ?? ""),
   });
@@ -17,7 +18,8 @@ export async function signIn(_: AuthState, formData: FormData): Promise<AuthStat
     if (error.code === "email_not_confirmed") return { error: "Adresse pas encore confirmée : ouvre le lien reçu par email." };
     return { error: "Email ou mot de passe incorrect." };
   }
-  redirect("/");
+  const status = data.user ? await getOnboardingStatus(supabase, data.user.id) : "pending";
+  redirect(status === "complete" ? "/" : "/setup");
 }
 
 export async function signUp(_: AuthState, formData: FormData): Promise<AuthState> {
@@ -33,7 +35,7 @@ export async function signUp(_: AuthState, formData: FormData): Promise<AuthStat
     },
   });
   if (error) return { error: friendlyError(error) };
-  if (data.session) redirect("/");
+  if (data.session) redirect("/setup");
   return { info: "Compte créé. Ouvre le lien de confirmation reçu par email, puis connecte-toi." };
 }
 
