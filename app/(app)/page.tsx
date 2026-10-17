@@ -9,6 +9,8 @@ import { forecastBalance } from "@/lib/learning/forecast";
 import { daysUntil, moneyIn, shortDate } from "@/lib/ui/format";
 import { MonthDial, type DialMark } from "./_components/month-dial";
 import { ForecastLine } from "./_components/forecast-line";
+import { AppShortcuts } from "./_components/app-shortcuts";
+import { listAppShortcuts } from "@/lib/data/apps";
 
 export default async function Dashboard() {
   const { supabase, userId } = await requireUser();
@@ -24,7 +26,7 @@ export default async function Dashboard() {
   // Espace actif (ticket #1) : solde, mois, cadran, prévision, prélèvements et tâches filtrés.
   const space = await getSpaceFilter();
   const accountIds = await accountIdsFor(supabase, space);
-  const [balance, recent, categories, subs, tasks, { data: profile }, budgets] = await Promise.all([
+  const [balance, recent, categories, subs, tasks, { data: profile }, budgets, apps] = await Promise.all([
     getTotalBalance(supabase, space),
     listTransactions(supabase, { from: since.toISOString().slice(0, 10), limit: 5000, accountIds }),
     getCategories(supabase),
@@ -32,6 +34,10 @@ export default async function Dashboard() {
     listTasks(supabase, ["todo", "doing"], space),
     supabase.from("profiles").select("display_name").eq("id", userId).single(),
     listBudgets(supabase).catch(() => null),
+    listAppShortcuts(supabase, space, { pinnedOnly: true, limit: 8 }).catch((error) => {
+      console.error("[kaobase] raccourcis apps :", error);
+      return null;
+    }),
   ]);
 
   const summary = summarizeMonth(recent, categories, month);
@@ -91,6 +97,8 @@ export default async function Dashboard() {
         </div>
         <Link href="/agents" className="btn-primary">Poser une question</Link>
       </header>
+
+      <AppShortcuts apps={apps} showSpace={space === "all"} />
 
       {recent.length === 0 && (
         <div className="slip flex flex-wrap items-center justify-between gap-3">

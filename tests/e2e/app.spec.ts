@@ -9,7 +9,7 @@ import { expect, test, type Page } from "@playwright/test";
 test.describe.configure({ mode: "serial" });
 
 const DEMO = path.join(process.cwd(), "demo", "releve-demo.csv");
-const PAGES = ["/", "/transactions", "/subscriptions", "/tasks", "/import", "/agents", "/agents/performance", "/settings"];
+const PAGES = ["/", "/transactions", "/subscriptions", "/tasks", "/import", "/agents", "/agents/performance", "/settings", "/apps"];
 
 function acceptDialogs(page: Page) {
   page.on("dialog", (d) => d.accept());

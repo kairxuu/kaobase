@@ -7,7 +7,7 @@ test("la page de connexion s'affiche", async ({ page }) => {
 });
 
 test("les pages privées renvoient vers la connexion", async ({ page }) => {
-  for (const path of ["/", "/transactions", "/settings", "/agents", "/setup"]) {
+  for (const path of ["/", "/transactions", "/settings", "/agents", "/setup", "/apps"]) {
     await page.goto(path);
     await expect(page).toHaveURL(/\/login/);
   }
@@ -38,4 +38,14 @@ test("l'API des agents refuse sans session", async ({ request }) => {
     conversationId: "00000000-0000-4000-8000-000000000000", decision: "confirm",
   } });
   expect(deletion.status()).toBe(401);
+});
+
+test("les API du catalogue et des connexions exigent une session", async ({ request, baseURL }) => {
+  const catalog = await request.get("/api/apps/catalog");
+  expect(catalog.status()).toBe(401);
+  for (const path of ["/api/apps/connect/session", "/api/apps/connect/complete", "/api/apps/connections/10000000-0000-4000-8000-000000000001/disconnect"]) {
+    const response = await request.post(path, { headers: { origin: new URL(baseURL!).origin }, data: {} });
+    expect(response.status()).toBe(401);
+    expect(response.headers()["cache-control"]).toContain("no-store");
+  }
 });

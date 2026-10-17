@@ -11,6 +11,7 @@ const LINKS = [
   { href: "/", label: "Vue d'ensemble" },
   { href: "/transactions", label: "Opérations" },
   { href: "/subscriptions", label: "Abonnements" },
+  { href: "/apps", label: "Mes apps" },
   { href: "/tasks", label: "Tâches" },
   { href: "/import", label: "Importer un relevé" },
   { href: "/agents", label: "Agents" },

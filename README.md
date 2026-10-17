@@ -17,6 +17,8 @@ Webapp multi-utilisateurs de gestion des finances, des abonnements récurrents e
 
 ## Architecture
 
+La rubrique **Mes apps** propose un catalogue avec recherche, catégories et tri, puis les raccourcis des comptes enregistrés. Les apps épinglées apparaissent sur l'accueil. L'intégration facultative Nango fournit le catalogue en ligne et les connexions OAuth des services configurés ; sans clé serveur, un catalogue de démarrage reste disponible pour ajouter des liens. Voir [le fonctionnement et la configuration OAuth](docs/apps.md).
+
 Tous les agents peuvent **agir** : enregistrer des opérations dictées (« 12 € de pain hier et 40 € d'essence »), chercher, corriger ou préparer la suppression d'une opération, créer des tâches et mémoriser une préférence. Les suppressions d'opérations, de tâches et de budgets exigent un clic sur **Confirmer la suppression** dans le chat : l'élément précis est présenté, la demande expire après 10 minutes et une modification de l'élément invalide la confirmation. Un simple « oui » écrit au modèle n'exécute aucune suppression. Chacun ajoute ensuite ses compétences :
 
 | Secteur | Agent | Compétences propres |
@@ -51,6 +53,10 @@ Tout est stocké dans la base KAOBASE et réinjecté dans les prompts :
 Les tests de sécurité SQL utilisent PostgreSQL local en WebAssembly (PGlite), avec les vraies migrations et une simulation locale de l'authentification Supabase. Ils ne contactent aucun projet distant. Les évaluations IA et les parcours E2E connectés utilisent, eux, les services configurés et restent des commandes distinctes.
 
 ## Déploiement
+
+La rubrique Mes apps et les raccourcis de l'accueil demandent la migration `20261017060000_app_shortcuts.sql`, à appliquer après les migrations précédentes et avant le déploiement. L'accueil continue de fonctionner si cette fonctionnalité n'est pas encore activée.
+
+Les connexions OAuth demandent ensuite `20261017070000_app_oauth_connections.sql` et la variable serveur `NANGO_SECRET_KEY`. Les identifiants des connexions sont associés à l'utilisateur ; les jetons restent chez Nango. Configurer chaque service dans Nango avant de permettre sa connexion. OAuth autorise l'accès à une API et ne garantit pas l'ouverture du site sans reconnexion.
 
 La configuration après inscription/première connexion demande aussi la migration `20261017050000_onboarding.sql`, à appliquer avant de déployer ce parcours. Une fois les préférences et le premier compte validés, l'utilisateur accède directement au tableau de bord aux connexions suivantes. Les comptes existants passent une seule fois par cette configuration ; les opérations et les comptes existants sont conservés. Un compte contenant déjà des opérations garde son solde d'ouverture et son espace pendant ce parcours.
 

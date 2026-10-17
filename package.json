@@ -16,6 +16,7 @@
     "@ai-sdk/google": "^4.0.96",
     "@ai-sdk/groq": "^4.0.61",
     "@huggingface/transformers": "^4.3.1",
+    "@nangohq/frontend": "^0.71.13",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.3",
     "ai": "^7.0.141",

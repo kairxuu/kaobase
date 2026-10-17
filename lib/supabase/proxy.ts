@@ -31,7 +31,7 @@ export async function updateSession(request: NextRequest) {
     url.pathname = "/login";
     url.search = "";
     if (request.nextUrl.pathname.startsWith("/api/")) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+      return NextResponse.json({ error: "Non authentifié" }, { status: 401, headers: { "Cache-Control": "private, no-store" } });
     }
     return NextResponse.redirect(url);
   }
