@@ -5,5 +5,5 @@ export async function updateSession(request: NextRequest) {
   if (['/login','/auth','/api/auth/','/api/mobile/'].some(p => path === p || path.startsWith(p.endsWith('/') ? p : p + '/'))) {
     return NextResponse.next({ request });
   }
-  return getAuth().middleware({ loginUrl: '/login' })(request);
+  return (await getAuth()).middleware({ loginUrl: '/login' })(request);
 }

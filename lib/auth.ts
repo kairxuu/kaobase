@@ -7,7 +7,7 @@ import { getOnboardingStatus } from '@/lib/data/onboarding';
 import { ensureAppIdentity } from '@/lib/data/identity';
 
 export const getUserForApi = async () => {
-  const { data, error } = await getAuth().getSession();
+  const { data, error } = await (await getAuth()).getSession();
   if (error || !data?.user?.emailVerified) return null;
   const db = await createClient();
   await ensureAppIdentity(db);

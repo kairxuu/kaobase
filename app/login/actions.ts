@@ -13,24 +13,24 @@ async function enter(): Promise<never> {
 }
 export async function signIn(_: AuthState, form: FormData): Promise<AuthState> {
   const email=field(form,'email');
-  const { error }=await getAuth().signIn.email({email,password:String(form.get('password')??'')});
+  const { error }=await (await getAuth()).signIn.email({email,password:String(form.get('password')??'')});
   if (error) return {error:authMessage(error.code),...(error.code==='EMAIL_NOT_VERIFIED'?{step:'verify',email}:{})};
   return enter();
 }
 export async function signUp(_: AuthState, form: FormData): Promise<AuthState> {
   const email=field(form,'email'), password=String(form.get('password')??'');
   if (password.length<8||password.length>128) return {error:'Mot de passe : entre 8 et 128 caractères.'};
-  const {error}=await getAuth().signUp.email({email,password,name:field(form,'name')||email.split('@')[0]});
+  const {error}=await (await getAuth()).signUp.email({email,password,name:field(form,'name')||email.split('@')[0]});
   if(error) return {error:authMessage(error.code)};
   return {step:'verify',email,info:'Compte créé. Saisis le code de confirmation reçu par email.'};
 }
 export async function verifyEmail(_: AuthState, form: FormData): Promise<AuthState> {
-  const {error}=await getAuth().emailOtp.verifyEmail({email:field(form,'email'),otp:field(form,'otp')});
+  const {error}=await (await getAuth()).emailOtp.verifyEmail({email:field(form,'email'),otp:field(form,'otp')});
   if(error) return {error:authMessage(error.code)};
   return enter();
 }
 export async function resendVerification(_: AuthState, form: FormData): Promise<AuthState> {
-  const {error}=await getAuth().emailOtp.sendVerificationOtp({email:field(form,'email'),type:'email-verification'});
+  const {error}=await (await getAuth()).emailOtp.sendVerificationOtp({email:field(form,'email'),type:'email-verification'});
   return error?{error:authMessage(error.code)}:{info:'Un nouveau code a été demandé. Vérifie aussi les courriers indésirables.'};
 }
 export async function requestPasswordReset(_: AuthState, form: FormData): Promise<AuthState> {
@@ -55,6 +55,6 @@ export async function updatePassword(_: AuthState, form: FormData): Promise<Auth
   const newPassword=String(form.get('password')??'');
   if(newPassword.length<8||newPassword.length>128) return {error:'Mot de passe : entre 8 et 128 caractères.'};
   if(newPassword!==String(form.get('confirm')??'')) return {error:'Les deux mots de passe ne correspondent pas.'};
-  const {error}=await getAuth().changePassword({newPassword,currentPassword:String(form.get('currentPassword')??''),revokeOtherSessions:true});
+  const {error}=await (await getAuth()).changePassword({newPassword,currentPassword:String(form.get('currentPassword')??''),revokeOtherSessions:true});
   return error?{error:authMessage(error.code)}:{info:'Mot de passe modifié.'};
 }

@@ -1,8 +1,10 @@
 import 'server-only';
+import { connection } from 'next/server';
 import { createNeonAuth } from '@neondatabase/auth/next/server';
 
 let instance: ReturnType<typeof createNeonAuth> | undefined;
-export function getAuth() {
+export async function getAuth() {
+  await connection();
   if (!instance) {
     const baseUrl = process.env.NEON_AUTH_BASE_URL;
     const secret = process.env.NEON_AUTH_COOKIE_SECRET;

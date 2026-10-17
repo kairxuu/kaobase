@@ -4,7 +4,7 @@ import { createNeonDataClient } from '@/lib/neon';
 
 export async function createClient() {
   return createNeonDataClient(async () => {
-    const { data, error } = await getAuth().token();
+    const { data, error } = await (await getAuth()).token();
     return error ? null : data?.token ?? null;
   });
 }
