@@ -1,9 +1,9 @@
 import {beforeEach,describe,expect,it,vi} from 'vitest';
 vi.mock('server-only',()=>({}));
-const mocks=vi.hoisted(()=>({client:vi.fn(),session:vi.fn(),signIn:vi.fn(),signUp:vi.fn(),verify:vi.fn(),identity:vi.fn(),onboarding:vi.fn(),redirect:vi.fn((p:string):never=>{throw new Error('redirect:'+p);})}));
+const mocks=vi.hoisted(()=>({client:vi.fn(),session:vi.fn(),signIn:vi.fn(),signUp:vi.fn(),verify:vi.fn(),sendOtp:vi.fn(),identity:vi.fn(),onboarding:vi.fn(),redirect:vi.fn((p:string):never=>{throw new Error('redirect:'+p);})}));
 vi.mock('next/navigation',()=>({redirect:mocks.redirect}));
 vi.mock('@/lib/database/server',()=>({createClient:mocks.client}));
-vi.mock('@/lib/auth/server',()=>({getAuth:()=>({getSession:mocks.session,signIn:{email:mocks.signIn},signUp:{email:mocks.signUp},emailOtp:{verifyEmail:mocks.verify}})}));
+vi.mock('@/lib/auth/server',()=>({getAuth:()=>({getSession:mocks.session,signIn:{email:mocks.signIn},signUp:{email:mocks.signUp},emailOtp:{verifyEmail:mocks.verify,sendVerificationOtp:mocks.sendOtp}})}));
 vi.mock('@/lib/data/identity',()=>({ensureAppIdentity:mocks.identity}));
 vi.mock('@/lib/data/onboarding',()=>({getOnboardingStatus:mocks.onboarding}));
 import {requireSession,requireUser,getUserForApi} from '@/lib/auth';
@@ -11,7 +11,7 @@ import {signIn,signUp,verifyEmail} from '@/app/login/actions';
 const db={from:vi.fn()};const user={id:'user-id',email:'test@example.com',emailVerified:true};
 function form(){const f=new FormData();f.set('email',user.email);f.set('password','password123');f.set('name','Camille');f.set('otp','123456');return f;}
 beforeEach(()=>{
- vi.clearAllMocks();mocks.client.mockResolvedValue(db);mocks.session.mockResolvedValue({data:{user},error:null});mocks.identity.mockResolvedValue(undefined);mocks.onboarding.mockResolvedValue('pending');mocks.signIn.mockResolvedValue({data:{user},error:null});mocks.signUp.mockResolvedValue({data:{user},error:null});mocks.verify.mockResolvedValue({data:{user},error:null});
+ vi.clearAllMocks();mocks.client.mockResolvedValue(db);mocks.session.mockResolvedValue({data:{user},error:null});mocks.identity.mockResolvedValue(undefined);mocks.onboarding.mockResolvedValue('pending');mocks.signIn.mockResolvedValue({data:{user},error:null});mocks.signUp.mockResolvedValue({data:{user},error:null});mocks.verify.mockResolvedValue({data:{user},error:null});mocks.sendOtp.mockResolvedValue({data:{success:true},error:null});
 });
 describe('accès Neon et configuration initiale',()=>{
  it('initialise uniquement une identité vérifiée',async()=>{expect(await requireSession()).toEqual({db,userId:user.id,email:user.email});expect(mocks.identity).toHaveBeenCalledWith(db);expect(mocks.onboarding).not.toHaveBeenCalled();});
