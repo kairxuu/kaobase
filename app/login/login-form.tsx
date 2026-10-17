@@ -21,7 +21,7 @@ function ModeForm({mode,setMode,email,setEmail}:{mode:Mode;setMode:(v:Mode)=>voi
   const [resend,resendAction,resending]=useActionState<AuthState,FormData>(resendVerification,{});
   const code=mode==='verify'||mode==='reset-code';
   return <div className="space-y-4"><form action={action} className="space-y-5">
-    {(mode==='in'||mode==='up')&&<div className="flex gap-6 border-b border-line text-sm">{(['in','up'] as const).map(m=><button type="button" key={m} onClick={()=>setMode(m)} className="pb-2">{m==='in'?"J'ai un compte":"Je découvre Kaobase"}</button>)}</div>}
+    {(mode==='in'||mode==='up')&&<div className="flex gap-6 border-b border-line text-sm">{(['in','up'] as const).map(m=><button type="button" key={m} aria-pressed={mode===m} onClick={()=>setMode(m)} className={`-mb-px border-b-2 pb-2 transition-colors ${mode===m?'border-accent font-semibold text-accent':'border-transparent text-ink-2 hover:text-ink'}`}>{m==='in'?"J'ai un compte":"Je découvre Kaobase"}</button>)}</div>}
     {mode==='reset'&&<p>Tu recevras un code pour définir ton mot de passe. Utilise aussi cette option pour retrouver ton compte après la migration.</p>}
     {code&&<p>{mode==='verify'?'Confirme ton adresse':'Définis ton mot de passe'} avec le code reçu par email. Vérifie aussi les courriers indésirables.</p>}
     {mode==='up'&&<div><label className="label" htmlFor="name">Prénom</label><input className="input" id="name" name="name" autoComplete="given-name"/></div>}
