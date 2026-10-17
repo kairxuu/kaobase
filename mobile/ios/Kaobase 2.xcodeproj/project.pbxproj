@@ -1,0 +1,595 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		17F3195E9C0BCCF7A0874F44 /* Design.swift in Sources */ = {isa = PBXBuildFile; fileRef = F83202762568063D4D770462 /* Design.swift */; };
+		309942D545C52F4F3225E03E /* NavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2488B10A59F5750F58FE3275 /* NavigationTests.swift */; };
+		37C79B2E00F4164DDB60ABA9 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B59281DE966277F309887166 /* Assets.xcassets */; };
+		4BC98AAA6F19DDEE6F22BE24 /* Configuration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B054079397AB2C589276F11 /* Configuration.swift */; };
+		57731405B65F833A552A0E21 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B62552171883B91F5A9C973 /* AppModel.swift */; };
+		72B2614F59CE2C3DC87F338B /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 2A679E9DD04624AB00A57FD8 /* PrivacyInfo.xcprivacy */; };
+		7DD81239BA7AFC703044CE1F /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CD4244877BF452B9A87F06F /* Models.swift */; };
+		7FE80BBF659769A2AE998336 /* Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 122B839BBEAD4E8D323ADEE4 /* Keychain.swift */; };
+		98E919807A9A2BD616A7E4EC /* Demo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9156CD12BE7D06F2B75B521D /* Demo.swift */; };
+		9CDB417A334450D74DADE116 /* Config.local.plist in Resources */ = {isa = PBXBuildFile; fileRef = 7B247A560AD75204074B3A8E /* Config.local.plist */; };
+		AA172D4943400096FADA8F97 /* AppsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4116A7CB3F7E1D018854183C /* AppsView.swift */; };
+		BE54FEDBE618101814D42410 /* AgentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCF1D5750B60F78025764EF5 /* AgentView.swift */; };
+		C8D7814A64393A032977B9BB /* APIClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48A3CEDBF7765E679FF8F710 /* APIClientTests.swift */; };
+		CCB61A064FF9508F72E1AD86 /* AuthViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6377F16403E41E868584680 /* AuthViews.swift */; };
+		D1EB26712BFE475DE2AC136C /* TransactionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 223D8AF745B4AA5C9E066C89 /* TransactionsView.swift */; };
+		D70B9586DD9F28E6BA436527 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1004ED1799AE9B5487E476B /* APIClient.swift */; };
+		DC14C7600576D608127B117C /* MoreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 265D16BEF245A7B001B6842E /* MoreView.swift */; };
+		DE539790A8CD9C2AB9BFD461 /* KaobaseApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8543DAC1D1022B648FE82A56 /* KaobaseApp.swift */; };
+		E1E30BF75678F226895D1C11 /* ModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6FF01A213F085F24BD732B3 /* ModelTests.swift */; };
+		E3CCC1BD2C7A22333C49FE70 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 213BD0129F62ABDAD3E6AF24 /* DashboardView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		175E809815DB92615418FD6F /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5CCE86D23F072827ACA018D5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 8C7B6E2346D612C917D9DD6D;
+			remoteInfo = Kaobase;
+		};
+		90AD71BB1052F6B0A6CB2751 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5CCE86D23F072827ACA018D5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 8C7B6E2346D612C917D9DD6D;
+			remoteInfo = Kaobase;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		122B839BBEAD4E8D323ADEE4 /* Keychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keychain.swift; sourceTree = "<group>"; };
+		1B6DFACA71DEA38E3F328BA5 /* Kaobase.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Kaobase.entitlements; sourceTree = "<group>"; };
+		213BD0129F62ABDAD3E6AF24 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
+		223D8AF745B4AA5C9E066C89 /* TransactionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransactionsView.swift; sourceTree = "<group>"; };
+		2488B10A59F5750F58FE3275 /* NavigationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationTests.swift; sourceTree = "<group>"; };
+		265D16BEF245A7B001B6842E /* MoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoreView.swift; sourceTree = "<group>"; };
+		2A679E9DD04624AB00A57FD8 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		4116A7CB3F7E1D018854183C /* AppsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppsView.swift; sourceTree = "<group>"; };
+		48A3CEDBF7765E679FF8F710 /* APIClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClientTests.swift; sourceTree = "<group>"; };
+		5CD4244877BF452B9A87F06F /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		7B247A560AD75204074B3A8E /* Config.local.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Config.local.plist; sourceTree = "<group>"; };
+		805C577C03400B9DD6FC62D7 /* KaobaseUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = KaobaseUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		82355ED4D865A827C5EA8B28 /* Kaobase.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Kaobase.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8543DAC1D1022B648FE82A56 /* KaobaseApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaobaseApp.swift; sourceTree = "<group>"; };
+		8B054079397AB2C589276F11 /* Configuration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Configuration.swift; sourceTree = "<group>"; };
+		9156CD12BE7D06F2B75B521D /* Demo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Demo.swift; sourceTree = "<group>"; };
+		968E61BF9D4F14A7C865AA07 /* KaobaseTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = KaobaseTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		9B62552171883B91F5A9C973 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		B59281DE966277F309887166 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		DCF1D5750B60F78025764EF5 /* AgentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentView.swift; sourceTree = "<group>"; };
+		E1004ED1799AE9B5487E476B /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
+		E6377F16403E41E868584680 /* AuthViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthViews.swift; sourceTree = "<group>"; };
+		E6FF01A213F085F24BD732B3 /* ModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelTests.swift; sourceTree = "<group>"; };
+		F83202762568063D4D770462 /* Design.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Design.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		15B4F3CB56B28D942436F9C1 = {
+			isa = PBXGroup;
+			children = (
+				41D53DB62837937ECC2CD3FB /* Kaobase */,
+				D6EC08703FD0CA803D8F3394 /* KaobaseTests */,
+				78C52BE49118592D0313D7B8 /* KaobaseUITests */,
+				7A0BD89CC6BA5E7410A478DA /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		41D53DB62837937ECC2CD3FB /* Kaobase */ = {
+			isa = PBXGroup;
+			children = (
+				DCF1D5750B60F78025764EF5 /* AgentView.swift */,
+				E1004ED1799AE9B5487E476B /* APIClient.swift */,
+				9B62552171883B91F5A9C973 /* AppModel.swift */,
+				4116A7CB3F7E1D018854183C /* AppsView.swift */,
+				B59281DE966277F309887166 /* Assets.xcassets */,
+				E6377F16403E41E868584680 /* AuthViews.swift */,
+				7B247A560AD75204074B3A8E /* Config.local.plist */,
+				8B054079397AB2C589276F11 /* Configuration.swift */,
+				213BD0129F62ABDAD3E6AF24 /* DashboardView.swift */,
+				9156CD12BE7D06F2B75B521D /* Demo.swift */,
+				F83202762568063D4D770462 /* Design.swift */,
+				1B6DFACA71DEA38E3F328BA5 /* Kaobase.entitlements */,
+				8543DAC1D1022B648FE82A56 /* KaobaseApp.swift */,
+				122B839BBEAD4E8D323ADEE4 /* Keychain.swift */,
+				5CD4244877BF452B9A87F06F /* Models.swift */,
+				265D16BEF245A7B001B6842E /* MoreView.swift */,
+				2A679E9DD04624AB00A57FD8 /* PrivacyInfo.xcprivacy */,
+				223D8AF745B4AA5C9E066C89 /* TransactionsView.swift */,
+			);
+			path = Kaobase;
+			sourceTree = "<group>";
+		};
+		78C52BE49118592D0313D7B8 /* KaobaseUITests */ = {
+			isa = PBXGroup;
+			children = (
+				2488B10A59F5750F58FE3275 /* NavigationTests.swift */,
+			);
+			path = KaobaseUITests;
+			sourceTree = "<group>";
+		};
+		7A0BD89CC6BA5E7410A478DA /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				82355ED4D865A827C5EA8B28 /* Kaobase.app */,
+				968E61BF9D4F14A7C865AA07 /* KaobaseTests.xctest */,
+				805C577C03400B9DD6FC62D7 /* KaobaseUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		D6EC08703FD0CA803D8F3394 /* KaobaseTests */ = {
+			isa = PBXGroup;
+			children = (
+				48A3CEDBF7765E679FF8F710 /* APIClientTests.swift */,
+				E6FF01A213F085F24BD732B3 /* ModelTests.swift */,
+			);
+			path = KaobaseTests;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		82539244FF5D0EA119CBBDB1 /* KaobaseUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 657528CD91759EF093A4E004 /* Build configuration list for PBXNativeTarget "KaobaseUITests" */;
+			buildPhases = (
+				E9EC36DFBE5272727F375834 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				8D7733D0EF13C32227D583C6 /* PBXTargetDependency */,
+			);
+			name = KaobaseUITests;
+			packageProductDependencies = (
+			);
+			productName = KaobaseUITests;
+			productReference = 805C577C03400B9DD6FC62D7 /* KaobaseUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		8C7B6E2346D612C917D9DD6D /* Kaobase */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 397A13B08089C8E3C0803880 /* Build configuration list for PBXNativeTarget "Kaobase" */;
+			buildPhases = (
+				92264472F18572FF01B1061D /* Sources */,
+				97C6A86F0C96F51189BAFBF8 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Kaobase;
+			packageProductDependencies = (
+			);
+			productName = Kaobase;
+			productReference = 82355ED4D865A827C5EA8B28 /* Kaobase.app */;
+			productType = "com.apple.product-type.application";
+		};
+		D9C1741E2846C33255DB2FC7 /* KaobaseTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4AB1D3D56D214C68475A0FC9 /* Build configuration list for PBXNativeTarget "KaobaseTests" */;
+			buildPhases = (
+				9F23532CD01FE3D3CB493BFE /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				1C47BD563F26550B2E3864F1 /* PBXTargetDependency */,
+			);
+			name = KaobaseTests;
+			packageProductDependencies = (
+			);
+			productName = KaobaseTests;
+			productReference = 968E61BF9D4F14A7C865AA07 /* KaobaseTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		5CCE86D23F072827ACA018D5 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					82539244FF5D0EA119CBBDB1 = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+						TestTargetID = 8C7B6E2346D612C917D9DD6D;
+					};
+					8C7B6E2346D612C917D9DD6D = {
+						ProvisioningStyle = Automatic;
+					};
+					D9C1741E2846C33255DB2FC7 = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 507E79827B1BE2A9EDA23D3F /* Build configuration list for PBXProject "Kaobase" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 15B4F3CB56B28D942436F9C1;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 7A0BD89CC6BA5E7410A478DA /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				8C7B6E2346D612C917D9DD6D /* Kaobase */,
+				D9C1741E2846C33255DB2FC7 /* KaobaseTests */,
+				82539244FF5D0EA119CBBDB1 /* KaobaseUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		97C6A86F0C96F51189BAFBF8 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				37C79B2E00F4164DDB60ABA9 /* Assets.xcassets in Resources */,
+				9CDB417A334450D74DADE116 /* Config.local.plist in Resources */,
+				72B2614F59CE2C3DC87F338B /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		92264472F18572FF01B1061D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D70B9586DD9F28E6BA436527 /* APIClient.swift in Sources */,
+				BE54FEDBE618101814D42410 /* AgentView.swift in Sources */,
+				57731405B65F833A552A0E21 /* AppModel.swift in Sources */,
+				AA172D4943400096FADA8F97 /* AppsView.swift in Sources */,
+				CCB61A064FF9508F72E1AD86 /* AuthViews.swift in Sources */,
+				4BC98AAA6F19DDEE6F22BE24 /* Configuration.swift in Sources */,
+				E3CCC1BD2C7A22333C49FE70 /* DashboardView.swift in Sources */,
+				98E919807A9A2BD616A7E4EC /* Demo.swift in Sources */,
+				17F3195E9C0BCCF7A0874F44 /* Design.swift in Sources */,
+				DE539790A8CD9C2AB9BFD461 /* KaobaseApp.swift in Sources */,
+				7FE80BBF659769A2AE998336 /* Keychain.swift in Sources */,
+				7DD81239BA7AFC703044CE1F /* Models.swift in Sources */,
+				DC14C7600576D608127B117C /* MoreView.swift in Sources */,
+				D1EB26712BFE475DE2AC136C /* TransactionsView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9F23532CD01FE3D3CB493BFE /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C8D7814A64393A032977B9BB /* APIClientTests.swift in Sources */,
+				E1E30BF75678F226895D1C11 /* ModelTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E9EC36DFBE5272727F375834 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				309942D545C52F4F3225E03E /* NavigationTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		1C47BD563F26550B2E3864F1 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 8C7B6E2346D612C917D9DD6D /* Kaobase */;
+			targetProxy = 90AD71BB1052F6B0A6CB2751 /* PBXContainerItemProxy */;
+		};
+		8D7733D0EF13C32227D583C6 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 8C7B6E2346D612C917D9DD6D /* Kaobase */;
+			targetProxy = 175E809815DB92615418FD6F /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		2EAA1662A2EBA5342E8D40A5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.kaobase.KaobaseUITests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Kaobase;
+			};
+			name = Release;
+		};
+		33747EB01C06B6774284C243 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.kaobase.KaobaseUITests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Kaobase;
+			};
+			name = Debug;
+		};
+		39494AAE7BB6BF948E5621DC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.kaobase.KaobaseTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Kaobase.app/Kaobase";
+			};
+			name = Debug;
+		};
+		3949582A126236BF08815ABE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.kaobase.KaobaseTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Kaobase.app/Kaobase";
+			};
+			name = Release;
+		};
+		558E166B6138CA1BBBE813EA /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Kaobase/Kaobase.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				"CODE_SIGN_IDENTITY[sdk=iphonesimulator*]" = "-";
+				DEVELOPMENT_TEAM = JJQBJ3H9N3;
+				INFOPLIST_KEY_CFBundleDisplayName = Kaobase;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.kaobase.ios;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		71ABBA095D48748E0DE93B0E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		B886BB5DC5F0603EEE169624 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		D8239747BB06B6034516534B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Kaobase/Kaobase.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				"CODE_SIGN_IDENTITY[sdk=iphonesimulator*]" = "-";
+				DEVELOPMENT_TEAM = JJQBJ3H9N3;
+				INFOPLIST_KEY_CFBundleDisplayName = Kaobase;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.kaobase.ios;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		397A13B08089C8E3C0803880 /* Build configuration list for PBXNativeTarget "Kaobase" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				558E166B6138CA1BBBE813EA /* Debug */,
+				D8239747BB06B6034516534B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		4AB1D3D56D214C68475A0FC9 /* Build configuration list for PBXNativeTarget "KaobaseTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				39494AAE7BB6BF948E5621DC /* Debug */,
+				3949582A126236BF08815ABE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		507E79827B1BE2A9EDA23D3F /* Build configuration list for PBXProject "Kaobase" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B886BB5DC5F0603EEE169624 /* Debug */,
+				71ABBA095D48748E0DE93B0E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		657528CD91759EF093A4E004 /* Build configuration list for PBXNativeTarget "KaobaseUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				33747EB01C06B6774284C243 /* Debug */,
+				2EAA1662A2EBA5342E8D40A5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 5CCE86D23F072827ACA018D5 /* Project object */;
+}
