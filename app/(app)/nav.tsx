@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { BrandLogo } from "@/app/brand-logo";
 import { usePathname } from "next/navigation";
 import type { AiUsage } from "@/lib/data/account";
 import { AccountCard, Avatar, type AccountPreview } from "./account-card";
@@ -27,8 +28,8 @@ export function Nav({ account, usage, space }: { account: AccountPreview; usage:
   return (
     <aside className="border-b border-line md:sticky md:top-0 md:flex md:h-screen md:w-60 md:shrink-0 md:flex-col md:border-r md:border-b-0">
       <div className="flex items-center justify-between px-4 pt-4 md:block md:px-6 md:pt-8">
-        <Link href="/" className="font-display text-[1.7rem] leading-none tracking-tight" aria-label="Kaobase, vue d'ensemble">
-          kaobase
+        <Link href="/" className="block w-36 max-w-full shrink-0 sm:w-44" aria-label="Kaobase, vue d'ensemble">
+          <BrandLogo />
         </Link>
         <span className="flex items-center gap-3 md:hidden">
           <span className="num text-xs text-ink-3" title="Questions posées aux agents sur 24 h">

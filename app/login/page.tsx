@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { BrandLogo } from "@/app/brand-logo";
 import { Rosette } from "@/app/(app)/_components/rosette";
 import { LoginForm } from "./login-form";
 
@@ -21,7 +22,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
             { radius: 66, amplitude: 13, lobes: 7, curves: 8 },
           ]}
         />
-        <p className="relative font-display text-[1.7rem] leading-none tracking-tight">kaobase</p>
+        <BrandLogo className="relative" />
         <div className="relative mt-56 max-w-xl lg:mt-0">
           <h1 className="page-title text-[2.4rem] md:text-[3rem]">Tes comptes, tes abonnements et tes tâches, au même endroit.</h1>
           <p className="page-lede">

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { BrandLogo } from "@/app/brand-logo";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/auth";
@@ -23,7 +24,7 @@ export default async function SetupPage() {
   return (
     <main className="min-h-screen px-4 py-6 md:px-10 md:py-10">
       <header className="mx-auto flex max-w-5xl items-center justify-between gap-4">
-        <span className="font-display text-[1.7rem] tracking-tight">kaobase</span>
+        <BrandLogo />
         <form action="/auth/signout" method="post">
           <button className="btn-ghost btn-sm">Se déconnecter</button>
         </form>
