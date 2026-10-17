@@ -13,15 +13,24 @@ async function enter(): Promise<never> {
 }
 export async function signIn(_: AuthState, form: FormData): Promise<AuthState> {
   const email=field(form,'email');
-  const { error }=await (await getAuth()).signIn.email({email,password:String(form.get('password')??'')});
-  if (error) return {error:authMessage(error.code),...(error.code==='EMAIL_NOT_VERIFIED'?{step:'verify',email}:{})};
+  const auth=await getAuth();
+  const { error }=await auth.signIn.email({email,password:String(form.get('password')??'')});
+  if (error) {
+    if (error.code==='EMAIL_NOT_VERIFIED') {
+      await auth.emailOtp.sendVerificationOtp({email,type:'email-verification'}).catch(()=>{});
+      return {error:authMessage(error.code),step:'verify',email};
+    }
+    return {error:authMessage(error.code)};
+  }
   return enter();
 }
 export async function signUp(_: AuthState, form: FormData): Promise<AuthState> {
   const email=field(form,'email'), password=String(form.get('password')??'');
   if (password.length<8||password.length>128) return {error:'Mot de passe : entre 8 et 128 caractères.'};
-  const {error}=await (await getAuth()).signUp.email({email,password,name:field(form,'name')||email.split('@')[0]});
+  const auth=await getAuth();
+  const {error}=await auth.signUp.email({email,password,name:field(form,'name')||email.split('@')[0]});
   if(error) return {error:authMessage(error.code)};
+  await auth.emailOtp.sendVerificationOtp({email,type:'email-verification'}).catch(()=>{});
   return {step:'verify',email,info:'Compte créé. Saisis le code de confirmation reçu par email.'};
 }
 export async function verifyEmail(_: AuthState, form: FormData): Promise<AuthState> {
